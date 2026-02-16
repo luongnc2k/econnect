@@ -1,0 +1,1 @@
+/// App text style definitions for consistent typography across the application. This file defines the various text styles used in the app's UI, ensuring a unified and accessible design system. It is part of the core theme layer and is used by the presentation layer to apply consistent styling to text elements.
