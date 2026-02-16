@@ -1,0 +1,2 @@
+/// Repository interface for group-related data operations. This interface defines the contract for all group-related data operations that can be performed in the application, such as fetching groups, creating new groups, and updating existing groups. It is implemented by concrete repository classes that handle the actual data operations.
+/// 

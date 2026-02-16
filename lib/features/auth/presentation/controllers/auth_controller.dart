@@ -1,0 +1,1 @@
+/// Controller for managing authentication-related UI state and logic in the presentation layer.

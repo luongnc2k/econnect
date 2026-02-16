@@ -1,0 +1,1 @@
+/// Model class for representing a material in the application. This class defines the structure of a material object, including its properties such as ID, name, description, and quantity. It is used to serialize and deserialize material data when communicating with the API or storing it locally.

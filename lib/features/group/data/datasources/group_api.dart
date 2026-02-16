@@ -1,0 +1,1 @@
+/// API data source for group-related operations. This class handles all network requests related to groups, such as fetching group details, creating new groups, and updating existing groups. It interacts with the API client to make HTTP requests and returns the appropriate data or errors.

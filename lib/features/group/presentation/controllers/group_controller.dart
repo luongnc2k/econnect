@@ -1,0 +1,1 @@
+/// Controller class for managing group-related UI logic. This class handles user interactions and updates the UI state for group-related features in the application. It is part of the presentation layer and is responsible for coordinating between the UI and the domain layer.

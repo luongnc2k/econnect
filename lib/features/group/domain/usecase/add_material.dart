@@ -1,0 +1,1 @@
+/// Use case for adding a material to a group. This use case encapsulates the business logic for adding a material to a group, including validation and persistence of the material data. It is part of the domain layer and is used by the presentation layer to perform the operation.

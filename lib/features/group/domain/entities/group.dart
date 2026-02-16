@@ -1,0 +1,1 @@
+/// Entity class for representing a group in the domain layer. This class defines the core properties and behavior of a group entity, such as its ID, name, description, and members. It is used to encapsulate the business logic and data related to groups within the application's domain.

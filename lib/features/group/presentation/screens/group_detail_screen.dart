@@ -1,0 +1,1 @@
+/// Screen for displaying the details of a specific group. This screen provides the UI for users to view the details of a group in the application. It is part of the presentation layer and is responsible for displaying the group details and handling user interactions related to viewing a group's information.

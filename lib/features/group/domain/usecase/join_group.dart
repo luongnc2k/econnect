@@ -1,0 +1,1 @@
+/// Use case for joining a group. This use case encapsulates the business logic for joining a group, including validation and persistence of the group membership data. It is part of the domain layer and is used by the presentation layer to perform the operation.

@@ -1,0 +1,1 @@
+/// Use case for creating a new group. This use case encapsulates the business logic for creating a new group, including validation and persistence of the group data. It is part of the domain layer and is used by the presentation layer to perform the operation.

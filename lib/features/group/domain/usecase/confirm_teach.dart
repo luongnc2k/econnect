@@ -1,0 +1,1 @@
+/// Use case for confirming a teacher in a group. This use case encapsulates the business logic for confirming a teacher in a group, including validation and persistence of the teacher confirmation data. It is part of the domain layer and is used by the presentation layer to perform the operation.

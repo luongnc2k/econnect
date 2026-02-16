@@ -1,0 +1,1 @@
+/// Implementation of the GroupRepository interface. This class provides concrete implementations for all group-related data operations, such as fetching groups, creating new groups, and updating existing groups. It interacts with the GroupApi data source to retrieve and persist group data.

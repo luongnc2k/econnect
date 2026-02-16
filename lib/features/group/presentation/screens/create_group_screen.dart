@@ -1,0 +1,1 @@
+/// Screen for creating a new group. This screen provides the UI for users to input the necessary information to create a new group in the application. It is part of the presentation layer and is responsible for displaying the group creation form and handling user interactions related to creating a group.

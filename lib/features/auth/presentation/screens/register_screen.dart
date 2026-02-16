@@ -1,0 +1,2 @@
+/// Register screen for the authentication feature. This screen allows users to create a new account by entering their details.
+/// It includes form validation and error handling to ensure a smooth user experience.

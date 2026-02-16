@@ -1,0 +1,1 @@
+/// Model class for representing a group in the application. This class defines the structure of a group object, including its properties such as ID, name, description, and members. It is used to serialize and deserialize group data when communicating with the API or storing it locally.

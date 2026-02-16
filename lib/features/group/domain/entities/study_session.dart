@@ -1,0 +1,2 @@
+/// Entity class for representing a study session in the domain layer. This class defines the core properties and behavior of a study session entity, such as its ID, name, description, start time, and end time. It is used to encapsulate the business logic and data related to study sessions within the application's domain.
+/// 
