@@ -38,11 +38,16 @@ class AuthController extends StateNotifier<AuthState> {
   }) async {
     // Validate
     if (fullName.trim().isEmpty) return _fail('Vui lòng nhập họ tên');
-    if (emailOrPhone.trim().isEmpty)
+
+    if (emailOrPhone.trim().isEmpty) {
       return _fail('Vui lòng nhập email/số điện thoại');
+    }
+
     if (password.length < 8) return _fail('Mật khẩu tối thiểu 8 ký tự');
-    if (password != confirmPassword)
+    if (password != confirmPassword) {
       return _fail('Mật khẩu xác nhận không khớp');
+    }
+
     if (role == null) return _fail('Vui lòng chọn vai trò Tutor/Học viên');
 
     state = state.copyWith(loading: true, error: null);
@@ -67,8 +72,9 @@ class AuthController extends StateNotifier<AuthState> {
     required String emailOrPhone,
     required String password,
   }) async {
-    if (emailOrPhone.trim().isEmpty)
+    if (emailOrPhone.trim().isEmpty) {
       return _fail('Vui lòng nhập email/số điện thoại');
+    }
     if (password.isEmpty) return _fail('Vui lòng nhập mật khẩu');
 
     state = state.copyWith(loading: true, error: null);

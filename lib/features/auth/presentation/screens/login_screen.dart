@@ -32,9 +32,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     ref.listen(authControllerProvider, (prev, next) {
       if (next.error != null && next.error != prev?.error) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(next.error!)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(next.error!)));
       }
       if (next.loggedIn && next.loggedIn != prev?.loggedIn) {
         // TODO: điều hướng theo role Tutor/Học viên
@@ -45,10 +45,38 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Đăng nhập')),
+      // appBar: AppBar(title: const Text('Đăng nhập')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          const SizedBox(height: 24),
+
+          // ✅ Logo
+          Center(
+            child: Column(
+              children: [
+                Image.asset(
+                  'assets/images/logo.png',
+                  height: 200,
+                  fit: BoxFit.scaleDown,
+                ),
+                const SizedBox(height: 1),
+                const Text(
+                  'EConnect',
+                  style: TextStyle(fontSize: 25, fontWeight: FontWeight.w900),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Một ứng dụng giúp việc dạy và học trực tiếp trở nên dễ dàng hơn bao giờ hết.',
+                  style: TextStyle(fontSize: 14, color: Colors.black54),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 25),
+
+          // Form
           AppTextField(
             controller: _emailCtrl,
             label: 'Email / Số điện thoại',
@@ -65,24 +93,28 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             textInputAction: TextInputAction.done,
           ),
           const SizedBox(height: 16),
+
           AppButton(
             label: 'Đăng nhập',
             loading: state.loading,
             onPressed: () {
-              ref.read(authControllerProvider.notifier).login(
+              ref
+                  .read(authControllerProvider.notifier)
+                  .login(
                     emailOrPhone: _emailCtrl.text,
                     password: _passCtrl.text,
                   );
             },
           ),
           const SizedBox(height: 12),
+
           AppButton(
             label: 'Tạo tài khoản mới',
             variant: AppButtonVariant.outline,
             onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const RegisterScreen()),
-              );
+              Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const RegisterScreen()));
             },
           ),
         ],
