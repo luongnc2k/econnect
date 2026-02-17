@@ -1,0 +1,2 @@
+/// Result type for handling success and error cases in a functional programming style. This file defines the Result class and its associated types, which are used to represent the outcome of operations that may either succeed or fail. It is part of the core layer and is used by other layers to handle errors gracefully without throwing exceptions.
+/// 

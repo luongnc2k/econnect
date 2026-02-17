@@ -1,0 +1,1 @@
+/// Widget for displaying error messages in the application. This widget is used to show error messages to the user in a consistent and accessible way across the app. It is part of the core widget layer and is used by the presentation layer to display error information to users.

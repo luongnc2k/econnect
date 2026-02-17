@@ -1,0 +1,1 @@
+/// Widget for displaying a loading indicator in the application. This widget is used to show a loading state to the user in a consistent and accessible way across the app. It is part of the core widget layer and is used by the presentation layer to indicate that an operation is in progress.
