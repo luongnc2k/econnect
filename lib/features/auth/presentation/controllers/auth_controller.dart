@@ -7,9 +7,16 @@ import 'package:econnect_app/features/auth/data/datasources/mock_auth_api.dart';
 import 'package:econnect_app/features/auth/data/repositories/auth_repo_mock_impl.dart';
 import 'auth_state.dart';
 
+// ✅ bật/tắt môi trường ở đây
+const bool useMockAuth =
+    false; // true: dùng mock, false: dùng api (khi có backend)
+
 final authRepoProvider = Provider<AuthRepo>((ref) {
-  // return AuthRepoImpl(AuthApi());
-  return AuthRepoMockImpl(MockAuthApi());
+  if (useMockAuth == true) {
+    return AuthRepoMockImpl(MockAuthApi());
+  } else {
+    return AuthRepoImpl(AuthApi());
+  }
 });
 
 final authControllerProvider = StateNotifierProvider<AuthController, AuthState>(
@@ -102,5 +109,52 @@ class AuthController extends StateNotifier<AuthState> {
 
   void _fail(String msg) {
     state = state.copyWith(loading: false, error: msg);
+  }
+
+  Future<void> requestPasswordReset({required String emailOrPhone}) async {
+    if (emailOrPhone.trim().isEmpty)
+      return _fail('Vui lòng nhập email/số điện thoại');
+
+    state = state.copyWith(loading: true, error: null);
+    try {
+      await _repo.requestPasswordReset(emailOrPhone: emailOrPhone.trim());
+      state = state.copyWith(loading: false);
+    } catch (e) {
+      final msg = e.toString().contains('NOT_FOUND')
+          ? 'Tài khoản không tồn tại'
+          : 'Không thể gửi mã. Vui lòng thử lại.';
+      _fail(msg);
+    }
+  }
+
+  Future<void> confirmPasswordReset({
+    required String emailOrPhone,
+    required String otp,
+    required String newPassword,
+    required String confirmPassword,
+  }) async {
+    if (emailOrPhone.trim().isEmpty) return _fail('Thiếu email/số điện thoại');
+    if (otp.trim().isEmpty) return _fail('Vui lòng nhập OTP');
+    if (newPassword.length < 8) return _fail('Mật khẩu tối thiểu 8 ký tự');
+    if (newPassword != confirmPassword)
+      return _fail('Mật khẩu xác nhận không khớp');
+
+    state = state.copyWith(loading: true, error: null);
+    try {
+      await _repo.confirmPasswordReset(
+        emailOrPhone: emailOrPhone.trim(),
+        otp: otp.trim(),
+        newPassword: newPassword,
+      );
+      state = state.copyWith(loading: false);
+    } catch (e) {
+      final s = e.toString();
+      final msg = s.contains('OTP_INVALID')
+          ? 'OTP không đúng'
+          : s.contains('OTP_NOT_REQUESTED')
+          ? 'Bạn chưa yêu cầu OTP'
+          : 'Không thể đặt lại mật khẩu. Vui lòng thử lại.';
+      _fail(msg);
+    }
   }
 }

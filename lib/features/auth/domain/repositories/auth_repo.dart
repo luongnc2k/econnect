@@ -8,13 +8,18 @@ abstract class AuthRepo {
     required UserRole role,
   });
 
-  Future<void> login({
-    required String emailOrPhone,
-    required String password,
-  });
+  Future<void> login({required String emailOrPhone, required String password});
 
   Future<void> logout();
 
   Future<UserRole?> getSavedRole();
   Future<bool> hasToken();
+
+  // ✅ Forgot password
+  Future<void> requestPasswordReset({required String emailOrPhone});
+  Future<void> confirmPasswordReset({
+    required String emailOrPhone,
+    required String otp,
+    required String newPassword,
+  });
 }

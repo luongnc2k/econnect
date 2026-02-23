@@ -30,11 +30,31 @@ class AuthApi {
   }) async {
     final res = await _dio.post(
       Endpoints.login,
-      data: {
-        'emailOrPhone': emailOrPhone,
-        'password': password,
-      },
+      data: {'emailOrPhone': emailOrPhone, 'password': password},
     );
     return AuthResponse.fromJson(res.data as Map<String, dynamic>);
+  }
+
+  // ✅ Forgot password (API endpoints bạn có thể đổi theo backend)
+  Future<void> requestPasswordReset({required String emailOrPhone}) async {
+    await _dio.post(
+      '/auth/forgot-password',
+      data: {'emailOrPhone': emailOrPhone},
+    );
+  }
+
+  Future<void> confirmPasswordReset({
+    required String emailOrPhone,
+    required String otp,
+    required String newPassword,
+  }) async {
+    await _dio.post(
+      '/auth/reset-password',
+      data: {
+        'emailOrPhone': emailOrPhone,
+        'otp': otp,
+        'newPassword': newPassword,
+      },
+    );
   }
 }

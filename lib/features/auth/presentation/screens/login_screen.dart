@@ -1,12 +1,15 @@
 /// Login screen for the authentication feature. This screen allows users to enter their credentials and log in to the application.
 /// It includes form validation and error handling to ensure a smooth user experience.
 
+// ignore_for_file: dangling_library_doc_comments
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:econnect_app/core/widget/widgets.dart';
 
 import '../../presentation/controllers/auth_controller.dart';
 import 'register_screen.dart';
+import 'forget_password.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -67,7 +70,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
                 const SizedBox(height: 6),
                 const Text(
-                  'Một ứng dụng giúp việc dạy và học trực tiếp trở nên dễ dàng hơn bao giờ hết.',
+                  'Kết nối đúng người, nâng tầm kiến thức.\n   Học cùng lĩnh vực, tri thức nhân đôi.',
                   style: TextStyle(fontSize: 14, color: Colors.black54),
                 ),
               ],
@@ -104,6 +107,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     emailOrPhone: _emailCtrl.text,
                     password: _passCtrl.text,
                   );
+            },
+          ),
+          const SizedBox(height: 12),
+
+          AppButton(
+            label: 'Quên mật khẩu?',
+            variant: AppButtonVariant.text,
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const ForgotPasswordScreen()),
+              );
             },
           ),
           const SizedBox(height: 12),

@@ -46,4 +46,25 @@ class AuthRepoMockImpl implements AuthRepo {
     final t = await SecureStorage.readToken();
     return t != null && t.isNotEmpty;
   }
+
+  // ✅ Forgot password
+  @override
+  Future<void> requestPasswordReset({required String emailOrPhone}) {
+    return _api.requestPasswordReset(emailOrPhone: emailOrPhone);
+  }
+
+  @override
+  Future<void> confirmPasswordReset({
+    required String emailOrPhone,
+    required String otp,
+    required String newPassword,
+  }) {
+    return _api.confirmPasswordReset(
+      emailOrPhone: emailOrPhone,
+      otp: otp,
+      newPassword: newPassword,
+    );
+  }
+
+  
 }
