@@ -1,3 +1,3 @@
 class ServerConstant {
-  static const String serverURL = 'http://100.110.69.76:8000';
+  static const String serverURL = 'http://127.0.0.1:8000';
 }
