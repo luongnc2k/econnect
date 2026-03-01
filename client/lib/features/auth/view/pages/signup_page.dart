@@ -29,7 +29,7 @@ class _SignupPageState extends ConsumerState<SignupPage> {
     emailController.dispose();
     passwordController.dispose();
     super.dispose();
-    formKey.currentState!.validate();
+    // formKey.currentState!.validate();
   }
 
   @override
@@ -37,7 +37,7 @@ class _SignupPageState extends ConsumerState<SignupPage> {
     final isLoading = ref.watch(
       authViewModelProvider.select((val) => val?.isLoading == true),
     );
-    
+
     ref.listen(authViewModelProvider, (_, next) {
       next?.when(
         data: (data) {
@@ -57,22 +57,33 @@ class _SignupPageState extends ConsumerState<SignupPage> {
       appBar: AppBar(),
       body: isLoading
           ? Loader()
-          : SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.all(15.0),
+          : Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20), // 20 padding all around
                 child: Form(
                   key: formKey,
                   child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisAlignment: MainAxisAlignment.center, // Center the column vertically
+                    crossAxisAlignment: CrossAxisAlignment.center, // Center the column horizontally
                     children: [
+                      // 🔥 LOGO
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: Image.asset(
+                          'images/logo.png',
+                          height: 200,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+
                       const Text(
-                        'Sign Up.',
+                        'Đăng ký',
                         style: TextStyle(
-                          fontSize: 50,
+                          fontSize: 40,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const SizedBox(height: 30),
+                      const SizedBox(height: 20),
                       CustomField(hintText: 'Name', controller: nameController),
                       const SizedBox(height: 15),
                       CustomField(

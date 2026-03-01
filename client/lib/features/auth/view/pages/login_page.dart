@@ -26,7 +26,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     emailController.dispose();
     passwordController.dispose();
     super.dispose();
-    formKey.currentState!.validate();
   }
 
   @override
@@ -55,33 +54,49 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       appBar: AppBar(),
       body: isLoading
           ? Loader()
-          : SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.all(15.0),
+          : Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
                 child: Form(
                   key: formKey,
                   child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
+                      // 🔥 LOGO
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: Image.asset(
+                          "images/logo.png", // ⚠ nếu pubspec khai báo - assets/
+                          height: 200,
+                        ),
+                      ),
+
+                      const SizedBox(height: 10),
+
                       const Text(
-                        'Sign In.',
+                        'Đăng nhập',
                         style: TextStyle(
-                          fontSize: 50,
+                          fontSize: 40,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
+
                       const SizedBox(height: 30),
+
                       CustomField(
                         hintText: 'Email',
                         controller: emailController,
                       ),
+
                       const SizedBox(height: 15),
+
                       CustomField(
                         hintText: 'Password',
                         controller: passwordController,
                         isObscureText: true,
                       ),
-                      const SizedBox(height: 20),
+
+                      const SizedBox(height: 25),
+
                       AuthGradientButton(
                         buttonText: 'Sign In',
                         onTap: () async {
@@ -97,7 +112,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                           }
                         },
                       ),
-                      const SizedBox(height: 20),
+
+                      const SizedBox(height: 25),
+
                       GestureDetector(
                         onTap: () {
                           Navigator.push(

@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+/// UserModel represents a user in the authentication system. It contains the user's name, email, id, and authentication token. The class provides methods for copying, converting to and from maps and JSON, and overrides for string representation and equality checks.
+
 class UserModel {
   final String name;
   final String email;
@@ -13,12 +15,7 @@ class UserModel {
     required this.token,
   });
 
-  UserModel copyWith({
-    String? name,
-    String? email,
-    String? id,
-    String? token,
-  }) {
+  UserModel copyWith({String? name, String? email, String? id, String? token}) {
     return UserModel(
       name: name ?? this.name,
       email: email ?? this.email,
@@ -67,9 +64,6 @@ class UserModel {
 
   @override
   int get hashCode {
-    return name.hashCode ^
-      email.hashCode ^
-      id.hashCode ^
-      token.hashCode;
+    return name.hashCode ^ email.hashCode ^ id.hashCode ^ token.hashCode;
   }
 }
