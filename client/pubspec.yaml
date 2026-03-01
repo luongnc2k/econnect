@@ -39,6 +39,7 @@ dependencies:
   flutter_riverpod: ^3.2.1
   riverpod_annotation: ^4.0.2
   shared_preferences: ^2.5.4
+  go_router: ^14.0.0
 
 dependency_overrides:
   analyzer: ^6.0.0
