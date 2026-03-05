@@ -3,21 +3,21 @@
 import 'package:client/core/theme/app_pallete.dart';
 import 'package:client/core/utils.dart';
 import 'package:client/core/widgets/loader.dart';
-import 'package:client/features/auth/view/pages/login_page.dart';
+import 'package:client/features/auth/view/screens/login_screen.dart';
 import 'package:client/features/auth/view/widgets/auth_gradient_button.dart';
 import 'package:client/features/auth/view/widgets/custom_field.dart';
 import 'package:client/features/auth/viewmodel/auth_viewmodel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class SignupPage extends ConsumerStatefulWidget {
-  const SignupPage({super.key});
+class SignupScreen extends ConsumerStatefulWidget {
+  const SignupScreen({super.key});
 
   @override
-  ConsumerState<SignupPage> createState() => _SignupPageState();
+  ConsumerState<SignupScreen> createState() => _SignupScreenState();
 }
 
-class _SignupPageState extends ConsumerState<SignupPage> {
+class _SignupScreenState extends ConsumerState<SignupScreen> {
   final nameController = TextEditingController();
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
@@ -44,7 +44,7 @@ class _SignupPageState extends ConsumerState<SignupPage> {
           showSnackBar(context, 'Account created successfully! Please login');
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => const LoginPage()),
+            MaterialPageRoute(builder: (context) => const LoginScreen()),
           );
         },
         error: (error, st) {
@@ -119,7 +119,7 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => const LoginPage(),
+                              builder: (context) => const LoginScreen(),
                             ),
                           );
                         },
