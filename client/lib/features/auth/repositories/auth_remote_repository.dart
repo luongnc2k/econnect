@@ -21,12 +21,13 @@ class AuthRemoteRepository {
     required String name,
     required String email,
     required String password,
+    required String role,
   }) async {
     try {
       final response = await http.post(
         Uri.parse('${ServerConstant.serverURL}/auth/signup'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'name': name, 'email': email, 'password': password}),
+        body: jsonEncode({'name': name, 'email': email, 'password': password, 'role': role}),
       );
 
       final resBodyMap = jsonDecode(response.body) as Map<String, dynamic>;

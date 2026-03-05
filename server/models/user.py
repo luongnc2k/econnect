@@ -8,3 +8,4 @@ class User(Base):
     name = Column(VARCHAR(100))
     email = Column(VARCHAR(100), unique=True, index=True)
     password = Column(LargeBinary)
+    role = Column(VARCHAR(20), nullable=False)  # 'student' or 'tutor'

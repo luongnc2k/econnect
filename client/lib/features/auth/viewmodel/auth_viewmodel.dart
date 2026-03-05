@@ -29,12 +29,14 @@ class AuthViewModel extends _$AuthViewModel {
     required String name,
     required String email,
     required String password,
+    required String role,
   }) async {
     state = const AsyncValue.loading();
     final res = await _authRemoteRepository.signup(
       name: name,
       email: email,
       password: password,
+      role: role,
     );
 
     final val = switch (res) {

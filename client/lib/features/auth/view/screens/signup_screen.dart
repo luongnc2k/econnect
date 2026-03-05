@@ -22,6 +22,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   final formKey = GlobalKey<FormState>();
+  String selectedRole = 'student';
 
   @override
   void dispose() {
@@ -29,7 +30,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     emailController.dispose();
     passwordController.dispose();
     super.dispose();
-    // formKey.currentState!.validate();
   }
 
   @override
@@ -59,14 +59,13 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
           ? Loader()
           : Center(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(20), // 20 padding all around
+                padding: const EdgeInsets.all(20),
                 child: Form(
                   key: formKey,
                   child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center, // Center the column vertically
-                    crossAxisAlignment: CrossAxisAlignment.center, // Center the column horizontally
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      // 🔥 LOGO
                       ClipRRect(
                         borderRadius: BorderRadius.circular(20),
                         child: Image.asset(
@@ -75,7 +74,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                         ),
                       ),
                       const SizedBox(height: 5),
-
                       const Text(
                         'Đăng ký',
                         style: TextStyle(
@@ -97,6 +95,27 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                         isObscureText: true,
                       ),
                       const SizedBox(height: 20),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: RadioListTile<String>(
+                              title: const Text('Học viên'),
+                              value: 'student',
+                              groupValue: selectedRole,
+                              onChanged: (val) => setState(() => selectedRole = val!),
+                            ),
+                          ),
+                          Expanded(
+                            child: RadioListTile<String>(
+                              title: const Text('Gia sư'),
+                              value: 'tutor',
+                              groupValue: selectedRole,
+                              onChanged: (val) => setState(() => selectedRole = val!),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
                       AuthGradientButton(
                         buttonText: 'Sign Up',
                         onTap: () async {
@@ -107,6 +126,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                                   name: nameController.text.trim(),
                                   email: emailController.text.trim(),
                                   password: passwordController.text,
+                                  role: selectedRole,
                                 );
                           } else {
                             showSnackBar(context, 'Missing fields!');
