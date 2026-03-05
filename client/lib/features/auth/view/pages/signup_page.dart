@@ -70,7 +70,7 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                       ClipRRect(
                         borderRadius: BorderRadius.circular(20),
                         child: Image.asset(
-                          'images/logo.png',
+                          'assets/images/logo.png',
                           height: 200,
                         ),
                       ),
