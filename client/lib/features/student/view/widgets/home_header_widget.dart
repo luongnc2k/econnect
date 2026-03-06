@@ -1,7 +1,9 @@
+import 'package:client/core/providers/theme_notifier.dart';
 import 'package:client/core/theme/app_pallete.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class HomeHeaderWidget extends StatelessWidget {
+class HomeHeaderWidget extends ConsumerWidget {
   final String greeting;
   final String userName;
   final String? avatarUrl;
@@ -18,7 +20,9 @@ class HomeHeaderWidget extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isDark = ref.watch(themeModeProvider) == ThemeMode.dark;
+
     return Row(
       children: [
         GestureDetector(
@@ -64,6 +68,10 @@ class HomeHeaderWidget extends StatelessWidget {
               ),
             ],
           ),
+        ),
+        IconButton(
+          onPressed: () => ref.read(themeModeProvider.notifier).toggle(),
+          icon: Icon(isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded),
         ),
         IconButton(
           onPressed: onNotificationTap,

@@ -1,4 +1,5 @@
 import 'package:client/core/providers/current_user_notifier.dart';
+import 'package:client/core/providers/theme_notifier.dart';
 import 'package:client/core/theme/theme.dart';
 import 'package:client/features/auth/model/user_model.dart';
 import 'package:client/features/auth/view/screens/signup_screen.dart';
@@ -32,11 +33,14 @@ class MyApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final currentUser = ref.watch(currentUserProvider);
+    final themeMode = ref.watch(themeModeProvider);
 
     return MaterialApp(
       title: 'econnect',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.darkThemeMode,
+      theme: AppTheme.lightThemeMode,
+      darkTheme: AppTheme.darkThemeMode,
+      themeMode: themeMode,
       home: currentUser == null ? const SignupScreen() : const HomePage(),
     );
   }

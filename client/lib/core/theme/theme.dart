@@ -40,4 +40,37 @@ class AppTheme {
       border: _border(Pallete.borderColor),
     ),
   );
+
+  static final lightThemeMode = ThemeData(
+    useMaterial3: true,
+    brightness: Brightness.light,
+    colorScheme: ColorScheme.light(
+      primary: Pallete.gradient2,
+      secondary: Pallete.gradient1,
+      surface: Pallete.whiteColor,
+      onPrimary: Pallete.whiteColor,
+      onSecondary: Pallete.whiteColor,
+      onSurface: Pallete.textPrimary,
+      error: Pallete.errorColor,
+    ),
+    scaffoldBackgroundColor: const Color(0xFFF5F5F5),
+    appBarTheme: const AppBarTheme(
+      backgroundColor: Color(0xFFF5F5F5),
+      foregroundColor: Pallete.textPrimary,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      systemOverlayStyle: SystemUiOverlayStyle(
+        statusBarBrightness: Brightness.light,
+        statusBarIconBrightness: Brightness.dark,
+        systemNavigationBarColor: Color(0xFFF5F5F5),
+        systemNavigationBarIconBrightness: Brightness.dark,
+      ),
+    ),
+    inputDecorationTheme: InputDecorationTheme(
+      contentPadding: const EdgeInsets.all(27),
+      enabledBorder: _border(Pallete.borderLight),
+      focusedBorder: _border(Pallete.gradient2),
+      border: _border(Pallete.borderLight),
+    ),
+  );
 }
