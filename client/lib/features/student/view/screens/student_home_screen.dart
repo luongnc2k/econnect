@@ -74,57 +74,72 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
 
     return Scaffold(
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
+        child: CustomScrollView(
+          slivers: [
+            // Header — cuộn theo
+            SliverToBoxAdapter(
+              child: Padding(
                 padding: const EdgeInsets.fromLTRB(
                   _horizontalPadding,
                   16,
                   _horizontalPadding,
                   0,
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    HomeHeaderWidget(
-                      userName: user?.name ?? 'Bạn',
-                      onAvatarTap: () {},
-                      onNotificationTap: () {},
-                    ),
-                    const SizedBox(height: _sectionSpacing),
-                    SearchBarWidget(onTap: () {}),
-                    const SizedBox(height: _sectionSpacing),
-                    CategoryFilterWidget(
-                      categories: _categories,
-                      selectedCategory: _selectedCategory,
-                      onCategorySelected: (value) =>
-                          setState(() => _selectedCategory = value),
-                    ),
-                    const SizedBox(height: _sectionSpacing),
-                    SectionHeaderWidget(
-                      title: 'Lớp học sắp diễn ra',
-                      actionText: 'Tất cả',
-                      onActionTap: () {},
-                    ),
-                  ],
+                child: HomeHeaderWidget(
+                  userName: user?.name ?? 'Bạn',
+                  onAvatarTap: () {},
+                  onNotificationTap: () {},
                 ),
               ),
+            ),
 
-              Padding(
+            // Search + Category — sticky
+            SliverPersistentHeader(
+              pinned: true,
+              delegate: _StickyFilterDelegate(
+                scaffoldColor: Theme.of(context).scaffoldBackgroundColor,
+                categories: _categories,
+                selectedCategory: _selectedCategory,
+                onCategorySelected: (val) =>
+                    setState(() => _selectedCategory = val),
+              ),
+            ),
+
+            // Lớp học sắp diễn ra
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  _horizontalPadding,
+                  0,
+                  _horizontalPadding,
+                  0,
+                ),
+                child: SectionHeaderWidget(
+                  title: 'Lớp học sắp diễn ra',
+                  actionText: 'Tất cả',
+                  onActionTap: () {},
+                ),
+              ),
+            ),
+
+            SliverToBoxAdapter(
+              child: Padding(
                 padding: const EdgeInsets.only(left: _horizontalPadding),
                 child: UpcomingClassListWidget(
                   classes: _mockClasses,
                   onClassTap: (session) {},
                 ),
               ),
+            ),
 
-              const SizedBox(height: _sectionSpacing),
-
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: _horizontalPadding,
+            // Giảng viên nổi bật
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  _horizontalPadding,
+                  _sectionSpacing,
+                  _horizontalPadding,
+                  16,
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -139,14 +154,67 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
                       teachers: _mockTeachers,
                       onTeacherTap: (teacher) {},
                     ),
-                    const SizedBox(height: 16),
                   ],
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
+}
+
+// height = top padding (12) + SearchBar (44) + gap (16) + CategoryFilter (36) + bottom padding (12)
+const double _stickyHeight = 12 + 44 + 16 + 36 + 12;
+
+class _StickyFilterDelegate extends SliverPersistentHeaderDelegate {
+  final Color scaffoldColor;
+  final List<String> categories;
+  final String selectedCategory;
+  final ValueChanged<String> onCategorySelected;
+
+  const _StickyFilterDelegate({
+    required this.scaffoldColor,
+    required this.categories,
+    required this.selectedCategory,
+    required this.onCategorySelected,
+  });
+
+  @override
+  double get minExtent => _stickyHeight;
+
+  @override
+  double get maxExtent => _stickyHeight;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return ColoredBox(
+      color: scaffoldColor,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SearchBarWidget(onTap: () {}),
+            const SizedBox(height: 16),
+            CategoryFilterWidget(
+              categories: categories,
+              selectedCategory: selectedCategory,
+              onCategorySelected: onCategorySelected,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  bool shouldRebuild(_StickyFilterDelegate old) =>
+      selectedCategory != old.selectedCategory ||
+      scaffoldColor != old.scaffoldColor;
 }
