@@ -72,28 +72,32 @@ class AuthViewModel extends _$AuthViewModel {
     return state = AsyncValue.data(user);
   }
 
-  Future<UserModel?> getData() async {
-    state = const AsyncValue.loading();
+  Future<void> getData() async {
     final token = _authLocalRepository.getToken();
     if (token == null) {
       state = null;
-      return null;
+      return;
     }
 
+    // Khôi phục từ cache NGAY LẬP TỨC trước khi gọi API
+    // Tránh trường hợp !ref.mounted sau await khiến user bị reset
+    final cached = _authLocalRepository.getUser();
+    if (cached != null) {
+      _getDataSuccess(cached.copyWith(token: token));
+    } else {
+      state = const AsyncValue.loading();
+    }
+
+    // Validate token với server
     final res = await _authRemoteRepository.getCurrentUserData(token);
-    if (!ref.mounted) return null;
+    if (!ref.mounted) return;
 
     switch (res) {
       case Left(value: final _):
-        // API không phản hồi — khôi phục từ cache nếu có
-        final cached = _authLocalRepository.getUser();
-        if (cached != null) {
-          return _getDataSuccess(cached.copyWith(token: token)).value;
-        }
-        state = null;
-        return null;
+        // Server không phản hồi — giữ nguyên cache nếu đã restore
+        if (cached == null) state = null;
       case Right(value: final r):
-        return _getDataSuccess(r).value;
+        _getDataSuccess(r);
     }
   }
 
