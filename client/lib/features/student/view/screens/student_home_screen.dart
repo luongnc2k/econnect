@@ -72,9 +72,8 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
   Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
 
-    return Scaffold(
-      body: SafeArea(
-        child: CustomScrollView(
+    return SafeArea(
+      child: CustomScrollView(
           slivers: [
             // Header — cuộn theo
             SliverToBoxAdapter(
@@ -160,8 +159,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
             ),
           ],
         ),
-      ),
-    );
+      );
   }
 }
 
