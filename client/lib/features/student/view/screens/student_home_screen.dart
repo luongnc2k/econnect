@@ -6,7 +6,7 @@ import 'package:client/features/student/view/widgets/featured_teacher_list_widge
 import 'package:client/features/student/view/widgets/home_header_widget.dart';
 import 'package:client/features/student/view/widgets/search_bar_widget.dart';
 import 'package:client/features/student/view/widgets/section_header_widget.dart';
-import 'package:client/features/student/view/widgets/upcomming_classlist_widget.dart';
+import 'package:client/features/student/view/widgets/upcoming_classlist_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 

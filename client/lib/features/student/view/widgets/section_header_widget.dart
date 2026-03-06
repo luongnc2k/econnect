@@ -1,4 +1,3 @@
-import 'package:client/core/theme/app_pallete.dart';
 import 'package:flutter/material.dart';
 
 class SectionHeaderWidget extends StatelessWidget {
@@ -15,6 +14,8 @@ class SectionHeaderWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final onSurface = Theme.of(context).colorScheme.onSurface;
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: Row(
@@ -22,10 +23,10 @@ class SectionHeaderWidget extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w700,
-              color: Pallete.whiteColor,
+              color: onSurface,
             ),
           ),
           if (actionText != null)
@@ -35,7 +36,7 @@ class SectionHeaderWidget extends StatelessWidget {
                 actionText!,
                 style: TextStyle(
                   fontSize: 14,
-                  color: Pallete.whiteColor.withValues(alpha: 0.7),
+                  color: onSurface.withValues(alpha: 0.6),
                   fontWeight: FontWeight.w500,
                 ),
               ),

@@ -54,6 +54,8 @@ class SearchBarWidget extends StatelessWidget {
                   color: Pallete.textSecondary,
                 ),
                 border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
                 isDense: true,
                 contentPadding: const EdgeInsets.symmetric(vertical: 12),
               ),
