@@ -67,6 +67,7 @@ class AuthViewModel extends _$AuthViewModel {
 
   AsyncValue<UserModel>? _loginSuccess(UserModel user) {
     _authLocalRepository.setToken(user.token);
+    _authLocalRepository.setUser(user);
     _currentUserNotifier.addUser(user);
     return state = AsyncValue.data(user);
   }
@@ -83,8 +84,13 @@ class AuthViewModel extends _$AuthViewModel {
     if (!ref.mounted) return null;
 
     switch (res) {
-      case Left(value: final l):
-        state = AsyncValue.error(l.message, StackTrace.current);
+      case Left(value: final _):
+        // API không phản hồi — khôi phục từ cache nếu có
+        final cached = _authLocalRepository.getUser();
+        if (cached != null) {
+          return _getDataSuccess(cached.copyWith(token: token)).value;
+        }
+        state = null;
         return null;
       case Right(value: final r):
         return _getDataSuccess(r).value;
@@ -92,6 +98,7 @@ class AuthViewModel extends _$AuthViewModel {
   }
 
   AsyncValue<UserModel> _getDataSuccess(UserModel user) {
+    _authLocalRepository.setUser(user);
     _currentUserNotifier.addUser(user);
     return state = AsyncValue.data(user);
   }
