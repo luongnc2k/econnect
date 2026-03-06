@@ -42,7 +42,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       next?.when(
         data: (data) {
           showSnackBar(context, 'Account created successfully! Please login');
-          Navigator.push(
+          Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (context) => const LoginScreen()),
           );
@@ -56,7 +56,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     return Scaffold(
       appBar: AppBar(),
       body: isLoading
-          ? Loader()
+          ? const Loader()
           : Center(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(20),
@@ -95,25 +95,27 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                         isObscureText: true,
                       ),
                       const SizedBox(height: 20),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: RadioListTile<String>(
-                              title: const Text('Học viên'),
-                              value: 'student',
-                              groupValue: selectedRole,
-                              onChanged: (val) => setState(() => selectedRole = val!),
+                      RadioGroup<String>(
+                        groupValue: selectedRole,
+                        onChanged: (val) {
+                          if (val != null) setState(() => selectedRole = val);
+                        },
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: RadioListTile<String>(
+                                title: const Text('Học viên'),
+                                value: 'student',
+                              ),
                             ),
-                          ),
-                          Expanded(
-                            child: RadioListTile<String>(
-                              title: const Text('Gia sư'),
-                              value: 'tutor',
-                              groupValue: selectedRole,
-                              onChanged: (val) => setState(() => selectedRole = val!),
+                            Expanded(
+                              child: RadioListTile<String>(
+                                title: const Text('Gia sư'),
+                                value: 'tutor',
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 10),
                       AuthGradientButton(

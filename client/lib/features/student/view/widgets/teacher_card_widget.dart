@@ -138,7 +138,12 @@ class _TeacherAvatar extends StatelessWidget {
       ),
       clipBehavior: Clip.antiAlias,
       child: avatarUrl != null && avatarUrl!.isNotEmpty
-          ? Image.network(avatarUrl!, fit: BoxFit.cover)
+          ? Image.network(
+              avatarUrl!,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stack) =>
+                  const Icon(Icons.person, size: 28, color: Pallete.textMuted),
+            )
           : const Icon(Icons.person, size: 28, color: Pallete.textMuted),
     );
   }

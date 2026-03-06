@@ -59,7 +59,7 @@ class HomeHeaderWidget extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w700,
-                  color: Pallete.whiteColor,
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
             ],
@@ -68,7 +68,6 @@ class HomeHeaderWidget extends StatelessWidget {
         IconButton(
           onPressed: onNotificationTap,
           icon: const Icon(Icons.notifications_rounded),
-          splashRadius: 22,
         ),
       ],
     );

@@ -133,7 +133,11 @@ class ClassCardWidget extends StatelessWidget {
           children: [
             Positioned.fill(
               child: imageUrl != null && imageUrl!.isNotEmpty
-                  ? Image.network(imageUrl!, fit: BoxFit.cover)
+                  ? Image.network(
+                      imageUrl!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stack) => const _PlaceholderImage(),
+                    )
                   : const _PlaceholderImage(),
             ),
             Positioned(

@@ -53,7 +53,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return Scaffold(
       appBar: AppBar(),
       body: isLoading
-          ? Loader()
+          ? const Loader()
           : Center(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(20),

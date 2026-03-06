@@ -39,16 +39,12 @@ class AuthViewModel extends _$AuthViewModel {
       role: role,
     );
 
-    final val = switch (res) {
-      Left(value: final l) => state = AsyncValue.error(
-        l.message,
-        StackTrace.current,
-      ),
-      Right(value: final r) => state = AsyncValue.data(r),
-    };
-
-    // ignore: avoid_print
-    print(val);
+    switch (res) {
+      case Left(value: final l):
+        state = AsyncValue.error(l.message, StackTrace.current);
+      case Right(value: final r):
+        state = AsyncValue.data(r);
+    }
   }
 
   Future<void> loginUser({
@@ -61,16 +57,12 @@ class AuthViewModel extends _$AuthViewModel {
       password: password,
     );
 
-    final val = switch (res) {
-      Left(value: final l) => state = AsyncValue.error(
-        l.message,
-        StackTrace.current,
-      ),
-      Right(value: final r) => _loginSuccess(r),
-    };
-
-    // ignore: avoid_print
-    print(val);
+    switch (res) {
+      case Left(value: final l):
+        state = AsyncValue.error(l.message, StackTrace.current);
+      case Right(value: final r):
+        _loginSuccess(r);
+    }
   }
 
   AsyncValue<UserModel>? _loginSuccess(UserModel user) {
@@ -82,21 +74,21 @@ class AuthViewModel extends _$AuthViewModel {
   Future<UserModel?> getData() async {
     state = const AsyncValue.loading();
     final token = _authLocalRepository.getToken();
-    if (token != null) {
-      final res = await _authRemoteRepository.getCurrentUserData(token);
-      if (!ref.mounted) return null;
-      final val = switch (res) {
-        Left(value: final l) => state = AsyncValue.error(
-          l.message,
-          StackTrace.current,
-        ),
-        Right(value: final r) => _getDataSuccess(r),
-      };
-
-      return val.value;
+    if (token == null) {
+      state = null;
+      return null;
     }
 
-    return null;
+    final res = await _authRemoteRepository.getCurrentUserData(token);
+    if (!ref.mounted) return null;
+
+    switch (res) {
+      case Left(value: final l):
+        state = AsyncValue.error(l.message, StackTrace.current);
+        return null;
+      case Right(value: final r):
+        return _getDataSuccess(r).value;
+    }
   }
 
   AsyncValue<UserModel> _getDataSuccess(UserModel user) {

@@ -68,7 +68,6 @@ class SearchBarWidget extends StatelessWidget {
             IconButton(
               onPressed: onFilterTap,
               icon: const Icon(Icons.tune_rounded),
-              splashRadius: 20,
               color: Pallete.iconMedium,
             ),
           ] else
