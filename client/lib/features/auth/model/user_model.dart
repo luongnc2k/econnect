@@ -1,49 +1,89 @@
 import 'dart:convert';
 
-/// UserModel represents a user in the authentication system. It contains the user's name, email, id, and authentication token. The class provides methods for copying, converting to and from maps and JSON, and overrides for string representation and equality checks.
-
 class UserModel {
-  final String name;
-  final String email;
   final String id;
-  final String token;
+  final String email;
+  final String fullName;
+  final String? phone;
+  final String? avatarUrl;
   final String role;
+  final bool isActive;
+  final DateTime? lastLoginAt;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+  final String token; // client-only — từ auth response, không có trong DB
 
   UserModel({
-    required this.name,
-    required this.email,
     required this.id,
-    required this.token,
+    required this.email,
+    required this.fullName,
+    this.phone,
+    this.avatarUrl,
     required this.role,
+    required this.isActive,
+    this.lastLoginAt,
+    this.createdAt,
+    this.updatedAt,
+    required this.token,
   });
 
-  UserModel copyWith({String? name, String? email, String? id, String? token, String? role}) {
+  UserModel copyWith({
+    String? id,
+    String? email,
+    String? fullName,
+    String? phone,
+    String? avatarUrl,
+    String? role,
+    bool? isActive,
+    DateTime? lastLoginAt,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    String? token,
+  }) {
     return UserModel(
-      name: name ?? this.name,
-      email: email ?? this.email,
       id: id ?? this.id,
-      token: token ?? this.token,
+      email: email ?? this.email,
+      fullName: fullName ?? this.fullName,
+      phone: phone ?? this.phone,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
       role: role ?? this.role,
+      isActive: isActive ?? this.isActive,
+      lastLoginAt: lastLoginAt ?? this.lastLoginAt,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      token: token ?? this.token,
     );
   }
 
   Map<String, dynamic> toMap() {
     return <String, dynamic>{
-      'name': name,
-      'email': email,
       'id': id,
-      'token': token,
+      'email': email,
+      'full_name': fullName,
+      'phone': phone,
+      'avatar_url': avatarUrl,
       'role': role,
+      'is_active': isActive,
+      'last_login_at': lastLoginAt?.toIso8601String(),
+      'created_at': createdAt?.toIso8601String(),
+      'updated_at': updatedAt?.toIso8601String(),
+      'token': token,
     };
   }
 
   factory UserModel.fromMap(Map<String, dynamic> map) {
     return UserModel(
-      name: map['name'] ?? '',
-      email: map['email'] ?? '',
       id: map['id'] ?? '',
-      token: map['token'] ?? '',
+      email: map['email'] ?? '',
+      fullName: map['full_name'] ?? '',
+      phone: map['phone'] as String?,
+      avatarUrl: map['avatar_url'] as String?,
       role: map['role'] ?? '',
+      isActive: map['is_active'] ?? true,
+      lastLoginAt: map['last_login_at'] != null ? DateTime.tryParse(map['last_login_at']) : null,
+      createdAt: map['created_at'] != null ? DateTime.tryParse(map['created_at']) : null,
+      updatedAt: map['updated_at'] != null ? DateTime.tryParse(map['updated_at']) : null,
+      token: map['token'] ?? '',
     );
   }
 
@@ -54,22 +94,15 @@ class UserModel {
 
   @override
   String toString() {
-    return 'UserModel(name: $name, email: $email, id: $id, token: $token, role: $role)';
+    return 'UserModel(id: $id, email: $email, fullName: $fullName, role: $role, isActive: $isActive)';
   }
 
   @override
   bool operator ==(covariant UserModel other) {
     if (identical(this, other)) return true;
-
-    return other.name == name &&
-        other.email == email &&
-        other.id == id &&
-        other.token == token &&
-        other.role == role;
+    return other.id == id && other.email == email && other.token == token;
   }
 
   @override
-  int get hashCode {
-    return name.hashCode ^ email.hashCode ^ id.hashCode ^ token.hashCode ^ role.hashCode;
-  }
+  int get hashCode => id.hashCode ^ email.hashCode ^ token.hashCode;
 }

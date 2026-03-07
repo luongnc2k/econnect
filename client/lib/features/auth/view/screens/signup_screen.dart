@@ -111,7 +111,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                             Expanded(
                               child: RadioListTile<String>(
                                 title: const Text('Gia sư'),
-                                value: 'tutor',
+                                value: 'teacher',
                               ),
                             ),
                           ],

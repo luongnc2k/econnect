@@ -36,7 +36,7 @@ class StudentHomeScreen extends ConsumerWidget {
                 0,
               ),
               child: HomeHeaderWidget(
-                userName: user?.name ?? 'Bạn',
+                userName: user?.fullName ?? 'Bạn',
                 onAvatarTap: onAvatarTap,
                 onNotificationTap: () {},
               ),

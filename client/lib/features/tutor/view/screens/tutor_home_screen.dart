@@ -79,7 +79,7 @@ class _TutorHomeTab extends ConsumerWidget {
             ],
           ),
           Expanded(
-            child: Center(child: Text('Xin chào, ${user?.name ?? ''}!')),
+            child: Center(child: Text('Xin chào, ${user?.fullName ?? ''}!')),
           ),
         ],
       ),

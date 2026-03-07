@@ -27,7 +27,7 @@ class AuthRemoteRepository {
       final response = await http.post(
         Uri.parse('${ServerConstant.serverURL}/auth/signup'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'name': name, 'email': email, 'password': password, 'role': role}),
+        body: jsonEncode({'full_name': name, 'email': email, 'password': password, 'role': role}),
       );
 
       final resBodyMap = jsonDecode(response.body) as Map<String, dynamic>;
@@ -81,7 +81,7 @@ class AuthRemoteRepository {
       final resBodyMap = jsonDecode(response.body) as Map<String, dynamic>;
 
       if (response.statusCode != 200) {
-        return Left(AppFailure(resBodyMap['detail']));
+        return Left(AppFailure(resBodyMap['detail'], response.statusCode));
       }
       return Right(
         UserModel.fromMap(resBodyMap).copyWith(

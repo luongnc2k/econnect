@@ -93,9 +93,14 @@ class AuthViewModel extends _$AuthViewModel {
     if (!ref.mounted) return;
 
     switch (res) {
-      case Left(value: final _):
-        // Server không phản hồi — giữ nguyên cache nếu đã restore
-        if (cached == null) state = null;
+      case Left(value: final l):
+        if (l.isAuthError) {
+          // Server xác nhận user không tồn tại hoặc token invalid → clear session
+          _authLocalRepository.clearSession();
+          _currentUserNotifier.addUser(null);
+          state = null;
+        }
+        // Network error → giữ nguyên cache nếu đã restore
       case Right(value: final r):
         _getDataSuccess(r);
     }

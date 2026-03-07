@@ -1,8 +1,9 @@
 from pydantic import BaseModel
 from typing import Literal
 
+
 class UserCreate(BaseModel):
-    name: str
+    full_name: str
     email: str
     password: str
-    role: Literal['student', 'tutor']
+    role: Literal['student', 'teacher']

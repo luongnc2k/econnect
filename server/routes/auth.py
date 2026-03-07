@@ -1,5 +1,6 @@
+from datetime import datetime, timezone
 
-from fastapi import Depends, HTTPException, Header
+from fastapi import Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic_schemas.user_create import UserCreate
 from pydantic_schemas.user_login import UserLogin
@@ -26,9 +27,10 @@ def signup_user(user: UserCreate, db: Session = Depends(get_db)):
     new_user = User(
         id=str(uuid.uuid4()),
         email=user.email,
-        password=hashed_pw,
-        name=user.name,
+        password_hash=hashed_pw,
+        full_name=user.full_name,
         role=user.role,
+        is_active=True,
     )
 
     db.add(new_user)
@@ -36,26 +38,30 @@ def signup_user(user: UserCreate, db: Session = Depends(get_db)):
     db.refresh(new_user)
     return new_user
 
+
 @router.post('/login')
 def login_user(user: UserLogin, db: Session = Depends(get_db)):
-    # check if a user with same email already exist
     user_db = db.query(User).filter(User.email == user.email).first()
 
     if not user_db:
         raise HTTPException(400, 'User with email does not exist!')
 
-    # password matching or not
-    is_match = bcrypt.checkpw(user.password.encode(), user_db.password)
+    is_match = bcrypt.checkpw(user.password.encode(), user_db.password_hash)
 
     if not is_match:
         raise HTTPException(400, 'Incorrect password!')
 
+    user_db.last_login_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(user_db)
+
     token = jwt.encode({'id': user_db.id}, 'password_key')
 
-    return {'token': token, 'user': user_db} 
+    return {'token': token, 'user': user_db}
+
 
 @router.get('/')
-def current_user_data(db: Session = Depends(get_db), user_dict = Depends(auth_middleware)):
+def current_user_data(db: Session = Depends(get_db), user_dict=Depends(auth_middleware)):
     user = db.query(User).filter(User.id == user_dict['uid']).first()
 
     if not user:
