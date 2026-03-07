@@ -13,11 +13,9 @@ import '../features/profile/viewmodel/profile_providers.dart';
 
 /// Giả sử có authProvider
 final authProvider = Provider<bool>((ref) {
-  /// TODO: thay bằng auth thật 
-  
-  
+  /// TODO: thay bằng auth thật
 
-
+  return false; // Giả sử chưa login
 });
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -45,35 +43,26 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
-
       /// Splash
       GoRoute(
         path: '/',
         builder: (context, state) =>
-            const Scaffold(
-              body: Center(child: CircularProgressIndicator()),
-            ),
+            const Scaffold(body: Center(child: CircularProgressIndicator())),
       ),
 
       /// Login
-      GoRoute(
-        path: '/login',
-        builder: (context, state) =>
-            const LoginPage(),
-      ),
+      GoRoute(path: '/login', builder: (context, state) => const LoginPage()),
 
       /// Register
       GoRoute(
         path: '/register',
-        builder: (context, state) =>
-            const SignupPage(),
+        builder: (context, state) => const SignupPage(),
       ),
 
       /// Create Profile
       GoRoute(
         path: '/create-profile',
-        builder: (context, state) =>
-            const CreateProfileScreen(),
+        builder: (context, state) => const CreateProfileScreen(),
       ),
 
       /// Shell Route (Bottom Navigation)
@@ -82,19 +71,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           return MainScreen(child: child);
         },
         routes: [
-
           /// Home
           GoRoute(
             path: '/home',
-            builder: (context, state) =>
-                const HomeScreen(),
+            builder: (context, state) => const HomeScreen(),
           ),
 
           /// My Profile
           GoRoute(
             path: '/my-profile',
-            builder: (context, state) =>
-                const MyProfileScreen(),
+            builder: (context, state) => const MyProfileScreen(),
           ),
         ],
       ),

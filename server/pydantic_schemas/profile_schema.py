@@ -31,3 +31,7 @@ class ProfileResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class AvatarUploadResponse(BaseModel):
+    avatar_url: str
+
