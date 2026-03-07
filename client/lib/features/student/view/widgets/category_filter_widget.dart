@@ -21,41 +21,71 @@ class CategoryFilterWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       height: 36,
-      child: ListView.separated(
-        padding: padding,
-        scrollDirection: Axis.horizontal,
-        itemCount: categories.length,
-        separatorBuilder: (_, _) => SizedBox(width: spacing),
-        itemBuilder: (context, index) {
-          final category = categories[index];
-          final isSelected = category == selectedCategory;
-
-          return InkWell(
-            onTap: () => onCategorySelected?.call(category),
-            borderRadius: BorderRadius.circular(18),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                color: isSelected ? Pallete.chipSelectedBg : Pallete.chipUnselectedBg,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(
-                  color: isSelected ? Pallete.chipSelectedBg : Pallete.borderFilter,
-                ),
-              ),
-              child: Center(
-                child: Text(
-                  category,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: isSelected ? Pallete.whiteColor : Pallete.textPrimary,
+      child: LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: padding,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minWidth: constraints.maxWidth),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                for (int i = 0; i < categories.length; i++) ...[
+                  if (i > 0) SizedBox(width: spacing),
+                  _FilterChip(
+                    label: categories[i],
+                    isSelected: categories[i] == selectedCategory,
+                    onTap: () => onCategorySelected?.call(categories[i]),
                   ),
-                ),
-              ),
+                ],
+              ],
             ),
-          );
-        },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FilterChip extends StatelessWidget {
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _FilterChip({
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? Pallete.chipSelectedBg : Pallete.chipUnselectedBg,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: isSelected ? Pallete.chipSelectedBg : Pallete.borderFilter,
+          ),
+        ),
+        child: Text(
+          label,
+          textHeightBehavior: const TextHeightBehavior(
+            applyHeightToFirstAscent: false,
+            applyHeightToLastDescent: false,
+          ),
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            height: 1.0,
+            color: isSelected ? Pallete.whiteColor : Pallete.textPrimary,
+          ),
+        ),
       ),
     );
   }

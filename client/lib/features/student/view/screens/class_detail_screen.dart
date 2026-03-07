@@ -1,3 +1,4 @@
+import 'package:client/core/utils.dart';
 import 'package:client/core/widgets/app_tag_chip.dart';
 import 'package:client/features/student/model/class_session.dart';
 import 'package:client/features/student/view/widgets/class_detail_enrolled_avatars.dart';
@@ -13,11 +14,12 @@ class ClassDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final hPad = responsiveHPad(context);
 
     return Scaffold(
       bottomNavigationBar: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+          padding: EdgeInsets.fromLTRB(hPad, 8, hPad, 12),
           child: FilledButton(
             onPressed: () {},
             style: FilledButton.styleFrom(
@@ -40,7 +42,7 @@ class ClassDetailScreen extends StatelessWidget {
             children: [
               // Back button
               Padding(
-                padding: const EdgeInsets.fromLTRB(8, 8, 16, 0),
+                padding: EdgeInsets.fromLTRB(hPad - 8, 8, hPad, 0),
                 child: TextButton.icon(
                   onPressed: () => Navigator.of(context).pop(),
                   icon: Icon(Icons.chevron_left, color: cs.primary),
@@ -54,7 +56,7 @@ class ClassDetailScreen extends StatelessWidget {
 
               // Hero image
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+                padding: EdgeInsets.fromLTRB(hPad, 4, hPad, 0),
                 child: _HeroCard(
                   imageUrl: session.imageUrl,
                   statusText: session.statusText,
@@ -64,7 +66,7 @@ class ClassDetailScreen extends StatelessWidget {
               const SizedBox(height: 16),
 
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                padding: EdgeInsets.symmetric(horizontal: hPad),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -74,9 +76,12 @@ class ClassDetailScreen extends StatelessWidget {
                         spacing: 8,
                         runSpacing: 8,
                         children: session.tags
-                            .map((t) => AppTagChip(label: t, fontSize: 13,
+                            .map((t) => AppTagChip(
+                                  label: t,
+                                  fontSize: 13,
                                   padding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 5)))
+                                      horizontal: 12, vertical: 5),
+                                ))
                             .toList(),
                       ),
                       const SizedBox(height: 12),
@@ -147,8 +152,8 @@ class ClassDetailScreen extends StatelessWidget {
               ),
             ],
           ),
+          ),
         ),
-      ),
     );
   }
 }

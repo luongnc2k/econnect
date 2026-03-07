@@ -1,4 +1,5 @@
 import 'package:client/core/providers/current_user_notifier.dart';
+import 'package:client/core/utils.dart';
 import 'package:client/features/student/view/screens/class_detail_screen.dart';
 import 'package:client/features/student/view/widgets/category_filter_widget.dart';
 import 'package:client/features/student/view/widgets/featured_teacher_list_widget.dart';
@@ -15,13 +16,13 @@ class StudentHomeScreen extends ConsumerWidget {
 
   const StudentHomeScreen({super.key, this.onAvatarTap});
 
-  static const double _horizontalPadding = 16;
   static const double _sectionSpacing = 16;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
     final state = ref.watch(studentHomeViewModelProvider);
+    final hPad = responsiveHPad(context);
 
     return SafeArea(
       child: CustomScrollView(
@@ -29,12 +30,7 @@ class StudentHomeScreen extends ConsumerWidget {
           // Header — cuộn theo
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                _horizontalPadding,
-                16,
-                _horizontalPadding,
-                0,
-              ),
+              padding: EdgeInsets.fromLTRB(hPad, 16, hPad, 0),
               child: HomeHeaderWidget(
                 userName: user?.fullName ?? 'Bạn',
                 onAvatarTap: onAvatarTap,
@@ -48,22 +44,22 @@ class StudentHomeScreen extends ConsumerWidget {
             pinned: true,
             delegate: _StickyFilterDelegate(
               scaffoldColor: Theme.of(context).scaffoldBackgroundColor,
+              horizontalPadding: hPad,
               categories: studentHomeCategories,
               selectedCategory: state.selectedCategory,
               onCategorySelected: (val) => ref
                   .read(studentHomeViewModelProvider.notifier)
                   .selectCategory(val),
-
             ),
           ),
 
           // Lớp học sắp diễn ra
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                _horizontalPadding,
+              padding: EdgeInsets.fromLTRB(
+                hPad,
                 0,
-                _horizontalPadding,
+                hPad,
                 0,
               ),
               child: SectionHeaderWidget(
@@ -76,7 +72,7 @@ class StudentHomeScreen extends ConsumerWidget {
 
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.only(left: _horizontalPadding),
+              padding: EdgeInsets.only(left: hPad),
               child: UpcomingClassListWidget(
                 classes: state.classes,
                 onClassTap: (session) => Navigator.of(context).push(
@@ -91,10 +87,10 @@ class StudentHomeScreen extends ConsumerWidget {
           // Giảng viên nổi bật
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                _horizontalPadding,
+              padding: EdgeInsets.fromLTRB(
+                hPad,
                 _sectionSpacing,
-                _horizontalPadding,
+                hPad,
                 16,
               ),
               child: Column(
@@ -125,12 +121,14 @@ const double _stickyHeight = 12 + 50 + 12 + 36 + 12;
 
 class _StickyFilterDelegate extends SliverPersistentHeaderDelegate {
   final Color scaffoldColor;
+  final double horizontalPadding;
   final List<String> categories;
   final String selectedCategory;
   final ValueChanged<String> onCategorySelected;
 
   const _StickyFilterDelegate({
     required this.scaffoldColor,
+    required this.horizontalPadding,
     required this.categories,
     required this.selectedCategory,
     required this.onCategorySelected,
@@ -151,7 +149,7 @@ class _StickyFilterDelegate extends SliverPersistentHeaderDelegate {
     return ColoredBox(
       color: scaffoldColor,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        padding: EdgeInsets.fromLTRB(horizontalPadding, 12, horizontalPadding, 12),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -171,5 +169,6 @@ class _StickyFilterDelegate extends SliverPersistentHeaderDelegate {
   @override
   bool shouldRebuild(_StickyFilterDelegate old) =>
       selectedCategory != old.selectedCategory ||
-      scaffoldColor != old.scaffoldColor;
+      scaffoldColor != old.scaffoldColor ||
+      horizontalPadding != old.horizontalPadding;
 }

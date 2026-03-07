@@ -14,8 +14,9 @@ class UpcomingClassListWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final h = (MediaQuery.of(context).size.height * 0.42).clamp(320.0, 460.0);
     return SizedBox(
-      height: 360,
+      height: h,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: classes.length,

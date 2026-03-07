@@ -44,7 +44,7 @@ class ClassCardWidget extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildThumbnail(cs),
+            Expanded(child: _buildThumbnail(cs)),
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
               child: Column(
@@ -125,7 +125,6 @@ class ClassCardWidget extends StatelessWidget {
     return ClipRRect(
       borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
       child: Container(
-        height: 150,
         width: double.infinity,
         color: cs.surfaceContainerHighest,
         child: Stack(
@@ -176,11 +175,13 @@ class _InfoColumn extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           value,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            fontSize: 18,
+            fontSize: 14,
             fontWeight: FontWeight.w600,
             color: cs.onSurface,
-            height: 1.1,
+            height: 1.2,
           ),
         ),
       ],

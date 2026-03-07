@@ -2,9 +2,10 @@
 
 import 'package:client/core/theme/app_pallete.dart';
 import 'package:client/core/utils.dart';
-import 'package:client/core/widgets/loader.dart';
 import 'package:client/features/auth/view/screens/login_screen.dart';
 import 'package:client/features/auth/view/widgets/auth_gradient_button.dart';
+import 'package:client/features/auth/view/widgets/auth_logo.dart';
+import 'package:client/features/auth/view/widgets/auth_scroll_body.dart';
 import 'package:client/features/auth/view/widgets/custom_field.dart';
 import 'package:client/features/auth/viewmodel/auth_viewmodel.dart';
 import 'package:flutter/material.dart';
@@ -53,119 +54,120 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         loading: () {},
       );
     });
+    final titleSize = (MediaQuery.of(context).size.width * 0.09).clamp(28.0, 40.0);
+
     return Scaffold(
-      appBar: AppBar(),
-      body: isLoading
-          ? const Loader()
-          : Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
-                child: Form(
-                  key: formKey,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.center,
+      body: AuthScrollBody(
+        isLoading: isLoading,
+        child: Form(
+          key: formKey,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const AuthLogo(heightFraction: 0.18, minHeight: 90, maxHeight: 160),
+
+              const SizedBox(height: 20),
+
+              Text(
+                'Đăng ký',
+                style: TextStyle(
+                  fontSize: titleSize,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+
+              const SizedBox(height: 6),
+
+              Text(
+                'Tạo tài khoản để bắt đầu học tập',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+
+              const SizedBox(height: 24),
+              CustomField(hintText: 'Name', controller: nameController),
+              const SizedBox(height: 15),
+              CustomField(hintText: 'Email', controller: emailController),
+              const SizedBox(height: 15),
+              CustomField(
+                hintText: 'Password',
+                controller: passwordController,
+                isObscureText: true,
+              ),
+              const SizedBox(height: 20),
+              RadioGroup<String>(
+                groupValue: selectedRole,
+                onChanged: (val) {
+                  if (val != null) setState(() => selectedRole = val);
+                },
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: RadioListTile<String>(
+                        title: const Text('Học viên'),
+                        value: 'student',
+                      ),
+                    ),
+                    Expanded(
+                      child: RadioListTile<String>(
+                        title: const Text('Gia sư'),
+                        value: 'teacher',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+              AuthGradientButton(
+                buttonText: 'Sign Up',
+                onTap: () async {
+                  if (formKey.currentState!.validate()) {
+                    await ref
+                        .read(authViewModelProvider.notifier)
+                        .signUpUser(
+                          name: nameController.text.trim(),
+                          email: emailController.text.trim(),
+                          password: passwordController.text,
+                          role: selectedRole,
+                        );
+                  } else {
+                    showSnackBar(context, 'Missing fields!');
+                  }
+                },
+              ),
+              const SizedBox(height: 20),
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const LoginScreen(),
+                    ),
+                  );
+                },
+                child: RichText(
+                  text: TextSpan(
+                    text: 'Already have an account? ',
+                    style: Theme.of(context).textTheme.titleMedium,
                     children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(20),
-                        child: Image.asset(
-                          'assets/images/logo.png',
-                          height: 200,
-                        ),
-                      ),
-                      const SizedBox(height: 5),
-                      const Text(
-                        'Đăng ký',
+                      TextSpan(
+                        text: 'Sign In',
                         style: TextStyle(
-                          fontSize: 40,
+                          color: Pallete.gradient2,
                           fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      CustomField(hintText: 'Name', controller: nameController),
-                      const SizedBox(height: 15),
-                      CustomField(
-                        hintText: 'Email',
-                        controller: emailController,
-                      ),
-                      const SizedBox(height: 15),
-                      CustomField(
-                        hintText: 'Password',
-                        controller: passwordController,
-                        isObscureText: true,
-                      ),
-                      const SizedBox(height: 20),
-                      RadioGroup<String>(
-                        groupValue: selectedRole,
-                        onChanged: (val) {
-                          if (val != null) setState(() => selectedRole = val);
-                        },
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: RadioListTile<String>(
-                                title: const Text('Học viên'),
-                                value: 'student',
-                              ),
-                            ),
-                            Expanded(
-                              child: RadioListTile<String>(
-                                title: const Text('Gia sư'),
-                                value: 'teacher',
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      AuthGradientButton(
-                        buttonText: 'Sign Up',
-                        onTap: () async {
-                          if (formKey.currentState!.validate()) {
-                            await ref
-                                .read(authViewModelProvider.notifier)
-                                .signUpUser(
-                                  name: nameController.text.trim(),
-                                  email: emailController.text.trim(),
-                                  password: passwordController.text,
-                                  role: selectedRole,
-                                );
-                          } else {
-                            showSnackBar(context, 'Missing fields!');
-                          }
-                        },
-                      ),
-                      const SizedBox(height: 20),
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const LoginScreen(),
-                            ),
-                          );
-                        },
-                        child: RichText(
-                          text: TextSpan(
-                            text: 'Already have an account? ',
-                            style: Theme.of(context).textTheme.titleMedium,
-                            children: [
-                              TextSpan(
-                                text: 'Sign In',
-                                style: TextStyle(
-                                  color: Pallete.gradient2,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
                         ),
                       ),
                     ],
                   ),
                 ),
               ),
-            ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

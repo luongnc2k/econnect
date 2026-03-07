@@ -20,17 +20,23 @@ class ClassDetailInfoGrid extends StatelessWidget {
       _InfoItem(icon: Icons.payments_outlined, label: 'Phí', value: session.priceText),
     ];
 
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 10,
-        childAspectRatio: 1.9,
-      ),
-      itemCount: items.length,
-      itemBuilder: (context, i) => _InfoCell(item: items[i]),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final cols = constraints.maxWidth >= 480 ? 3 : 2;
+        final ratio = cols == 3 ? 2.2 : 1.9;
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: cols,
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 10,
+            childAspectRatio: ratio,
+          ),
+          itemCount: items.length,
+          itemBuilder: (context, i) => _InfoCell(item: items[i]),
+        );
+      },
     );
   }
 }
