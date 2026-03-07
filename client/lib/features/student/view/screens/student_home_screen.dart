@@ -82,14 +82,20 @@ class StudentHomeScreen extends ConsumerWidget {
           SliverToBoxAdapter(
             child: Padding(
               padding: EdgeInsets.only(left: hPad),
-              child: UpcomingClassListWidget(
-                classes: state.classes,
-                onClassTap: (session) => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => ClassDetailScreen(session: session),
-                  ),
-                ),
-              ),
+              child: state.isLoading
+                  ? const _ClassListSkeleton()
+                  : state.error != null
+                      ? _ErrorBanner(message: state.error!)
+                      : state.classes.isEmpty
+                          ? const _EmptyClasses()
+                          : UpcomingClassListWidget(
+                              classes: state.classes,
+                              onClassTap: (session) => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => ClassDetailScreen(session: session),
+                                ),
+                              ),
+                            ),
             ),
           ),
 
@@ -121,6 +127,58 @@ class StudentHomeScreen extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _ClassListSkeleton extends StatelessWidget {
+  const _ClassListSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    final h = (MediaQuery.of(context).size.height * 0.42).clamp(320.0, 460.0);
+    return SizedBox(
+      height: h,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: 3,
+        separatorBuilder: (_, _) => const SizedBox(width: 12),
+        itemBuilder: (context, _) => Container(
+          width: 240,
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ErrorBanner extends StatelessWidget {
+  final String message;
+  const _ErrorBanner({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 16, top: 8),
+      child: Text(
+        'Không thể tải dữ liệu: $message',
+        style: TextStyle(color: Theme.of(context).colorScheme.error),
+      ),
+    );
+  }
+}
+
+class _EmptyClasses extends StatelessWidget {
+  const _EmptyClasses();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.only(top: 8),
+      child: Text('Chưa có lớp học sắp diễn ra.'),
     );
   }
 }

@@ -1,5 +1,5 @@
-import 'package:client/core/theme/app_pallete.dart';
 import 'package:client/core/widgets/app_tag_chip.dart';
+import 'package:client/core/widgets/status_badge.dart';
 import 'package:flutter/material.dart';
 
 class ClassCardWidget extends StatelessWidget {
@@ -141,7 +141,7 @@ class ClassCardWidget extends StatelessWidget {
             Positioned(
               top: 10,
               left: 10,
-              child: _StatusBadge(label: statusText),
+              child: StatusBadge(label: statusText),
             ),
             if (countdownText != null && countdownText!.isNotEmpty)
               Positioned(
@@ -189,32 +189,6 @@ class _InfoColumn extends StatelessWidget {
   }
 }
 
-
-class _StatusBadge extends StatelessWidget {
-  final String label;
-
-  const _StatusBadge({required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: Pallete.accentGreen,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          fontSize: 10,
-          color: Pallete.whiteColor,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.2,
-        ),
-      ),
-    );
-  }
-}
 
 class _OutlineBadge extends StatelessWidget {
   final String label;

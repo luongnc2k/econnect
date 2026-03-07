@@ -1,5 +1,6 @@
 import 'package:client/core/utils.dart';
 import 'package:client/core/widgets/app_tag_chip.dart';
+import 'package:client/core/widgets/status_badge.dart';
 import 'package:client/features/student/model/class_session.dart';
 import 'package:client/features/student/view/widgets/class_detail_enrolled_avatars.dart';
 import 'package:client/features/student/view/widgets/class_detail_info_grid.dart';
@@ -185,7 +186,7 @@ class _HeroCard extends StatelessWidget {
             Positioned(
               top: 12,
               left: 12,
-              child: _StatusBadge(label: statusText),
+              child: StatusBadge(label: statusText),
             ),
           ],
         ),
@@ -214,28 +215,3 @@ class _GradientPlaceholder extends StatelessWidget {
   }
 }
 
-class _StatusBadge extends StatelessWidget {
-  final String label;
-
-  const _StatusBadge({required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-      decoration: BoxDecoration(
-        color: const Color(0xFF51CF66),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          fontSize: 11,
-          color: Colors.white,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.3,
-        ),
-      ),
-    );
-  }
-}
