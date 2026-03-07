@@ -5,3 +5,5 @@ bcrypt
 PyJWT
 uvicorn
 python-dotenv
+minio
+python-multipart
