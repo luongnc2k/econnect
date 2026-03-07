@@ -1,7 +1,9 @@
 class ClassSession {
+  final String? id;
   final String title;
   final String location;
   final String teacherName;
+  final String? teacherAvatarUrl;
   final String timeText;
   final String priceText;
   final String? imageUrl;
@@ -20,9 +22,11 @@ class ClassSession {
   final int? extraEnrolled;
 
   const ClassSession({
+    this.id,
     required this.title,
     required this.location,
     required this.teacherName,
+    this.teacherAvatarUrl,
     required this.timeText,
     required this.priceText,
     this.imageUrl,

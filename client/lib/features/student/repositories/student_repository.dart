@@ -18,7 +18,7 @@ class MockStudentRepository implements StudentRepository {
   List<ClassSession> getClasses() => _mockClasses;
 
   @override
-  List<TeacherPreview> getFeaturedTeachers() => _mockTeachers;
+  List<TeacherPreview> getFeaturedTeachers() => mockTeachers;
 }
 
 const _mockClasses = [
@@ -64,7 +64,7 @@ const _mockClasses = [
   ),
 ];
 
-const _mockTeachers = [
+const mockTeachers = [
   TeacherPreview(
     name: 'James Wilson',
     subtitle: 'Giảng viên giao tiếp và phát âm',
