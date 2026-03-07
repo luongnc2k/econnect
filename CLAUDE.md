@@ -76,6 +76,8 @@ Feature-first folder structure under `lib/`:
 
 **Server URL** is defined in `core/constants/server_constant.dart`.
 
+**Routing:** Uses `go_router`. All routes defined in `core/router/app_router.dart`. See [`docs/routing.md`](docs/routing.md) for how to add new screens and navigate.
+
 ### Server
 
 FastAPI app with SQLAlchemy + PostgreSQL.
