@@ -13,7 +13,7 @@ erDiagram
     users {
         UUID id PK
         VARCHAR email
-        VARCHAR password_hash
+        BYTEA password_hash
         VARCHAR full_name
         VARCHAR phone
         TEXT avatar_url
@@ -36,6 +36,8 @@ erDiagram
         INT total_reviews
         BOOLEAN is_verified
         TEXT[] verification_docs
+        TIMESTAMP created_at
+        TIMESTAMP updated_at
     }
 
     student_profiles {
@@ -44,6 +46,8 @@ erDiagram
         TEXT[] learning_goals
         TEXT bio
         INT total_classes_attended
+        TIMESTAMP created_at
+        TIMESTAMP updated_at
     }
 
     topics {
@@ -78,6 +82,7 @@ erDiagram
         DECIMAL price
         ENUM status
         TIMESTAMP created_at
+        TIMESTAMP updated_at
     }
 
     bookings {
@@ -144,7 +149,7 @@ erDiagram
 |---|---|---|
 | id | UUID | PK |
 | email | VARCHAR(255) | UNIQUE |
-| password_hash | VARCHAR(255) | bcrypt |
+| password_hash | BYTEA | bcrypt hash |
 | full_name | VARCHAR(100) | |
 | phone | VARCHAR(20) | |
 | avatar_url | TEXT | |
@@ -170,6 +175,8 @@ erDiagram
 | total_reviews | INT | denormalized |
 | is_verified | BOOLEAN | |
 | verification_docs | TEXT[] | URLs to uploaded documents |
+| created_at | TIMESTAMP | |
+| updated_at | TIMESTAMP | |
 
 > `user_id` là PK (quan hệ 1-1 với users, không cần surrogate id riêng)
 
@@ -183,6 +190,8 @@ erDiagram
 | learning_goals | TEXT[] | |
 | bio | TEXT | |
 | total_classes_attended | INT | denormalized |
+| created_at | TIMESTAMP | |
+| updated_at | TIMESTAMP | |
 
 > `user_id` là PK (quan hệ 1-1 với users, không cần surrogate id riêng)
 
@@ -230,6 +239,7 @@ erDiagram
 | price | DECIMAL(10,0) | VND |
 | status | ENUM('scheduled','ongoing','completed','cancelled') | |
 | created_at | TIMESTAMP | |
+| updated_at | TIMESTAMP | |
 
 > `current_participants` là denormalized. Phải cập nhật transactional cùng với insert/cancel booking.
 
