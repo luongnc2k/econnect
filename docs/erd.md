@@ -80,6 +80,7 @@ erDiagram
         SMALLINT max_participants
         SMALLINT current_participants
         DECIMAL price
+        TEXT thumbnail_url
         ENUM status
         TIMESTAMP created_at
         TIMESTAMP updated_at
@@ -237,6 +238,7 @@ erDiagram
 | max_participants | SMALLINT | |
 | current_participants | SMALLINT | denormalized — sync với bookings |
 | price | DECIMAL(10,0) | VND |
+| thumbnail_url | TEXT | nullable — MinIO URL |
 | status | ENUM('scheduled','ongoing','completed','cancelled') | |
 | created_at | TIMESTAMP | |
 | updated_at | TIMESTAMP | |
