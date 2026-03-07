@@ -1,5 +1,6 @@
 import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/features/student/model/class_session.dart';
+import 'package:client/features/student/view/screens/class_detail_screen.dart';
 import 'package:client/features/student/model/teacher_preview.dart';
 import 'package:client/features/student/view/widgets/category_filter_widget.dart';
 import 'package:client/features/student/view/widgets/featured_teacher_list_widget.dart';
@@ -126,7 +127,11 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
                 padding: const EdgeInsets.only(left: _horizontalPadding),
                 child: UpcomingClassListWidget(
                   classes: _mockClasses,
-                  onClassTap: (session) {},
+                  onClassTap: (session) => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => ClassDetailScreen(session: session),
+                    ),
+                  ),
                 ),
               ),
             ),
