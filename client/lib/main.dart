@@ -2,7 +2,7 @@ import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/core/providers/theme_notifier.dart';
 import 'package:client/core/theme/theme.dart';
 import 'package:client/features/auth/model/user_model.dart';
-import 'package:client/features/auth/view/screens/signup_screen.dart';
+import 'package:client/features/auth/view/screens/login_screen.dart';
 import 'package:client/features/auth/viewmodel/auth_viewmodel.dart';
 import 'package:client/features/home/view/pages/home_page.dart';
 import 'package:flutter/material.dart';
@@ -41,7 +41,7 @@ class MyApp extends ConsumerWidget {
       theme: AppTheme.lightThemeMode,
       darkTheme: AppTheme.darkThemeMode,
       themeMode: themeMode,
-      home: currentUser == null ? const SignupScreen() : const HomePage(),
+      home: currentUser == null ? const LoginScreen() : const HomePage(),
     );
   }
 }
