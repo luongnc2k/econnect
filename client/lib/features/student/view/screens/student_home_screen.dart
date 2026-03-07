@@ -18,6 +18,13 @@ class StudentHomeScreen extends ConsumerWidget {
 
   static const double _sectionSpacing = 16;
 
+  String _greeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Chào buổi sáng,';
+    if (hour < 18) return 'Chào buổi chiều,';
+    return 'Chào buổi tối,';
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
@@ -32,7 +39,9 @@ class StudentHomeScreen extends ConsumerWidget {
             child: Padding(
               padding: EdgeInsets.fromLTRB(hPad, 16, hPad, 0),
               child: HomeHeaderWidget(
+                greeting: _greeting(),
                 userName: user?.fullName ?? 'Bạn',
+                avatarUrl: user?.avatarUrl,
                 onAvatarTap: onAvatarTap,
                 onNotificationTap: () {},
               ),
