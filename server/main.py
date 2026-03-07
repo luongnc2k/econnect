@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from models.base import Base
 from database import engine
-from routes import auth, upload, classes
+from routes import auth, upload, classes, topics
 
 # Import all models so Base.metadata knows about them
 from models.user import User
@@ -27,6 +27,7 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/auth")
 app.include_router(upload.router, prefix="/upload")
 app.include_router(classes.router, prefix="/classes")
+app.include_router(topics.router, prefix="/topics")
 
 # Base.metadata.drop_all(bind=engine)
 Base.metadata.create_all(bind=engine)
