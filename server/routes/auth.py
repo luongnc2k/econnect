@@ -1,6 +1,7 @@
+import os
 from datetime import datetime, timezone
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends, Header, HTTPException
 from sqlalchemy.orm import Session
 from pydantic_schemas.user_create import UserCreate
 from pydantic_schemas.user_login import UserLogin
@@ -12,6 +13,8 @@ import bcrypt
 import jwt
 
 from middleware.auth_middleware import auth_middleware
+
+ADMIN_CREATE_SECRET = os.getenv("ADMIN_CREATE_SECRET", "")
 
 
 router = APIRouter()
@@ -58,6 +61,33 @@ def login_user(user: UserLogin, db: Session = Depends(get_db)):
     token = jwt.encode({'id': user_db.id}, 'password_key')
 
     return {'token': token, 'user': user_db}
+
+
+@router.post("/create-admin", status_code=201)
+def create_admin(
+    user: UserCreate,
+    x_admin_secret: str = Header(),
+    db: Session = Depends(get_db),
+):
+    if not ADMIN_CREATE_SECRET or x_admin_secret != ADMIN_CREATE_SECRET:
+        raise HTTPException(status_code=403, detail="Invalid admin secret")
+
+    if db.query(User).filter(User.email == user.email).first():
+        raise HTTPException(status_code=400, detail="User with the same email already exists!")
+
+    hashed_pw = bcrypt.hashpw(user.password.encode(), bcrypt.gensalt())
+    new_user = User(
+        id=str(uuid.uuid4()),
+        email=user.email,
+        password_hash=hashed_pw,
+        full_name=user.full_name,
+        role="admin",
+        is_active=True,
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    return new_user
 
 
 @router.get('/')
