@@ -11,11 +11,11 @@ class StudentNavShell extends StatefulWidget {
 class _StudentNavShellState extends State<StudentNavShell> {
   int _currentIndex = 0;
 
-  static const _screens = [
-    StudentHomeScreen(),
-    _PlaceholderTab(label: 'Tìm kiếm'),
-    _PlaceholderTab(label: 'Lớp học'),
-    _PlaceholderTab(label: 'Hồ sơ'),
+  List<Widget> get _screens => [
+    StudentHomeScreen(onAvatarTap: () => setState(() => _currentIndex = 3)),
+    const _PlaceholderTab(label: 'Tìm kiếm'),
+    const _PlaceholderTab(label: 'Lớp học'),
+    const _PlaceholderTab(label: 'Hồ sơ'),
   ];
 
   @override

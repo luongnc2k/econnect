@@ -1,4 +1,5 @@
 import 'package:client/core/theme/app_pallete.dart';
+import 'package:client/core/widgets/app_tag_chip.dart';
 import 'package:flutter/material.dart';
 
 class ClassCardWidget extends StatelessWidget {
@@ -29,20 +30,21 @@ class ClassCardWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Container(
         width: 280,
         decoration: BoxDecoration(
-          color: Pallete.cardSurface,
+          color: cs.surfaceContainer,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Pallete.borderStrong, width: 1),
+          border: Border.all(color: cs.outlineVariant, width: 1),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildThumbnail(),
+            _buildThumbnail(cs),
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
               child: Column(
@@ -52,7 +54,7 @@ class ClassCardWidget extends StatelessWidget {
                     Wrap(
                       spacing: 6,
                       runSpacing: 6,
-                      children: tags.map((tag) => _TagChip(label: tag)).toList(),
+                      children: tags.map((tag) => AppTagChip(label: tag)).toList(),
                     ),
                     const SizedBox(height: 10),
                   ],
@@ -60,10 +62,10 @@ class ClassCardWidget extends StatelessWidget {
                     title,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w700,
-                      color: Pallete.textPrimary,
+                      color: cs.onSurface,
                       height: 1.2,
                     ),
                   ),
@@ -72,19 +74,19 @@ class ClassCardWidget extends StatelessWidget {
                     location,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
-                      color: Pallete.textSecondary,
+                      color: cs.onSurfaceVariant,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.account_circle_outlined,
                         size: 16,
-                        color: Pallete.iconMedium,
+                        color: cs.onSurfaceVariant,
                       ),
                       const SizedBox(width: 4),
                       Expanded(
@@ -92,10 +94,7 @@ class ClassCardWidget extends StatelessWidget {
                           teacherName,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Pallete.textEmphasis,
-                          ),
+                          style: TextStyle(fontSize: 12, color: cs.onSurface),
                         ),
                       ),
                     ],
@@ -122,13 +121,13 @@ class ClassCardWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildThumbnail() {
+  Widget _buildThumbnail(ColorScheme cs) {
     return ClipRRect(
       borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
       child: Container(
         height: 150,
         width: double.infinity,
-        color: Pallete.surfaceMuted,
+        color: cs.surfaceContainerHighest,
         child: Stack(
           children: [
             Positioned.fill(
@@ -136,9 +135,9 @@ class ClassCardWidget extends StatelessWidget {
                   ? Image.network(
                       imageUrl!,
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stack) => const _PlaceholderImage(),
+                      errorBuilder: (_, _, _) => _PlaceholderImage(cs: cs),
                     )
-                  : const _PlaceholderImage(),
+                  : _PlaceholderImage(cs: cs),
             ),
             Positioned(
               top: 10,
@@ -166,20 +165,21 @@ class _InfoColumn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
-          style: const TextStyle(fontSize: 11, color: Pallete.textSecondary),
+          style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
         ),
         const SizedBox(height: 4),
         Text(
           value,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w600,
-            color: Pallete.textPrimary,
+            color: cs.onSurface,
             height: 1.1,
           ),
         ),
@@ -188,31 +188,6 @@ class _InfoColumn extends StatelessWidget {
   }
 }
 
-class _TagChip extends StatelessWidget {
-  final String label;
-
-  const _TagChip({required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: Pallete.cardSurface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Pallete.borderStrong),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          fontSize: 11,
-          color: Pallete.textPrimary,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-    );
-  }
-}
 
 class _StatusBadge extends StatelessWidget {
   final String label;
@@ -247,18 +222,19 @@ class _OutlineBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: Pallete.cardSurface,
+        color: cs.surfaceContainer,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Pallete.borderStrong),
+        border: Border.all(color: cs.outlineVariant),
       ),
       child: Text(
         label,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 10,
-          color: Pallete.textPrimary,
+          color: cs.onSurface,
           fontWeight: FontWeight.w600,
         ),
       ),
@@ -267,12 +243,14 @@ class _OutlineBadge extends StatelessWidget {
 }
 
 class _PlaceholderImage extends StatelessWidget {
-  const _PlaceholderImage();
+  final ColorScheme cs;
+
+  const _PlaceholderImage({required this.cs});
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: Icon(Icons.image_outlined, size: 56, color: Pallete.textMuted),
+    return Center(
+      child: Icon(Icons.image_outlined, size: 56, color: cs.onSurfaceVariant),
     );
   }
 }

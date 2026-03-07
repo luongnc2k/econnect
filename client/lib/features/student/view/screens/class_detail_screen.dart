@@ -1,5 +1,8 @@
-import 'package:client/core/theme/app_pallete.dart';
+import 'package:client/core/widgets/app_tag_chip.dart';
 import 'package:client/features/student/model/class_session.dart';
+import 'package:client/features/student/view/widgets/class_detail_enrolled_avatars.dart';
+import 'package:client/features/student/view/widgets/class_detail_info_grid.dart';
+import 'package:client/features/student/view/widgets/class_detail_teacher_card.dart';
 import 'package:flutter/material.dart';
 
 class ClassDetailScreen extends StatelessWidget {
@@ -9,237 +12,198 @@ class ClassDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
     return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            expandedHeight: 240,
-            pinned: true,
-            leading: _BackButton(),
-            flexibleSpace: FlexibleSpaceBar(
-              background: _HeroImage(imageUrl: session.imageUrl),
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Tags
-                  if (session.tags.isNotEmpty) ...[
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: session.tags
-                          .map((tag) => _TagChip(label: tag))
-                          .toList(),
-                    ),
-                    const SizedBox(height: 14),
-                  ],
-
-                  // Status + countdown
-                  Row(
-                    children: [
-                      _StatusBadge(label: session.statusText),
-                      if (session.countdownText != null &&
-                          session.countdownText!.isNotEmpty) ...[
-                        const SizedBox(width: 8),
-                        _OutlineBadge(label: session.countdownText!),
-                      ],
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-
-                  // Title
-                  Text(
-                    session.title,
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: Theme.of(context).colorScheme.onSurface,
-                          height: 1.2,
-                        ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Info rows
-                  _InfoRow(
-                    icon: Icons.location_on_outlined,
-                    label: 'Địa điểm',
-                    value: session.location,
-                  ),
-                  const SizedBox(height: 12),
-                  _InfoRow(
-                    icon: Icons.account_circle_outlined,
-                    label: 'Giảng viên',
-                    value: session.teacherName,
-                  ),
-                  const SizedBox(height: 12),
-                  _InfoRow(
-                    icon: Icons.access_time_rounded,
-                    label: 'Thời gian',
-                    value: session.timeText,
-                  ),
-                  const SizedBox(height: 12),
-                  _InfoRow(
-                    icon: Icons.payments_outlined,
-                    label: 'Phí tham gia',
-                    value: session.priceText,
-                    valueColor: Pallete.accentOrange,
-                  ),
-
-                  const SizedBox(height: 32),
-
-                  // Register button
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      onPressed: () {},
-                      style: FilledButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Text(
-                        'Đăng ký tham gia',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+          child: FilledButton(
+            onPressed: () {},
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(52),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
               ),
             ),
+            child: const Text(
+              'Đăng ký tham gia',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _BackButton extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(8),
-      child: CircleAvatar(
-        backgroundColor: Colors.black45,
-        child: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
         ),
       ),
-    );
-  }
-}
-
-class _HeroImage extends StatelessWidget {
-  final String? imageUrl;
-
-  const _HeroImage({this.imageUrl});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: Pallete.surfaceMuted,
-      child: imageUrl != null && imageUrl!.isNotEmpty
-          ? Image.network(
-              imageUrl!,
-              fit: BoxFit.cover,
-              width: double.infinity,
-              errorBuilder: (_, e, __) => const _PlaceholderImage(),
-            )
-          : const _PlaceholderImage(),
-    );
-  }
-}
-
-class _PlaceholderImage extends StatelessWidget {
-  const _PlaceholderImage();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Icon(
-        Icons.image_outlined,
-        size: 64,
-        color: Theme.of(context).colorScheme.onSurfaceVariant,
-      ),
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-  final Color? valueColor;
-
-  const _InfoRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-    this.valueColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, size: 20, color: cs.onSurfaceVariant),
-        const SizedBox(width: 10),
-        Expanded(
+      body: SafeArea(
+        child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                label,
-                style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
+              // Back button
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 8, 16, 0),
+                child: TextButton.icon(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: Icon(Icons.chevron_left, color: cs.primary),
+                  label: Text(
+                    'Quay lại',
+                    style: TextStyle(color: cs.primary, fontSize: 16),
+                  ),
+                  style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                ),
               ),
-              const SizedBox(height: 2),
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: valueColor ?? cs.onSurface,
+
+              // Hero image
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+                child: _HeroCard(
+                  imageUrl: session.imageUrl,
+                  statusText: session.statusText,
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Tags
+                    if (session.tags.isNotEmpty) ...[
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: session.tags
+                            .map((t) => AppTagChip(label: t, fontSize: 13,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 5)))
+                            .toList(),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+
+                    // Title
+                    Text(
+                      session.title,
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: cs.onSurface,
+                        height: 1.2,
+                      ),
+                    ),
+
+                    // Description
+                    if (session.description != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        session.description!,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: cs.onSurfaceVariant,
+                          height: 1.55,
+                        ),
+                      ),
+                    ],
+
+                    const SizedBox(height: 20),
+
+                    ClassDetailInfoGrid(session: session),
+
+                    const SizedBox(height: 24),
+
+                    Text(
+                      'Giảng viên',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: cs.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    ClassDetailTeacherCard(
+                      name: session.teacherName,
+                      rating: session.teacherRating,
+                      sessionCount: session.teacherSessionCount,
+                    ),
+
+                    if (session.enrolledInitials.isNotEmpty) ...[
+                      const SizedBox(height: 24),
+                      Text(
+                        'Học viên đã đăng ký (${session.slotText?.split(' ').first ?? ''})',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: cs.onSurface,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      ClassDetailEnrolledAvatars(
+                        initials: session.enrolledInitials,
+                        extra: session.extraEnrolled ?? 0,
+                      ),
+                    ],
+
+                    const SizedBox(height: 16),
+                  ],
                 ),
               ),
             ],
           ),
         ),
-      ],
+      ),
     );
   }
 }
 
-class _TagChip extends StatelessWidget {
-  final String label;
+// ─── Hero card ────────────────────────────────────────────────────────────────
 
-  const _TagChip({required this.label});
+class _HeroCard extends StatelessWidget {
+  final String? imageUrl;
+  final String statusText;
+
+  const _HeroCard({this.imageUrl, required this.statusText});
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: cs.outline),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 12,
-          color: cs.onSurface,
-          fontWeight: FontWeight.w500,
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: AspectRatio(
+        aspectRatio: 16 / 9,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            imageUrl != null && imageUrl!.isNotEmpty
+                ? Image.network(
+                    imageUrl!,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => const _GradientPlaceholder(),
+                  )
+                : const _GradientPlaceholder(),
+            Positioned(
+              top: 12,
+              left: 12,
+              child: _StatusBadge(label: statusText),
+            ),
+          ],
         ),
+      ),
+    );
+  }
+}
+
+class _GradientPlaceholder extends StatelessWidget {
+  const _GradientPlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF3B5BDB), Color(0xFF5C7CFA)],
+        ),
+      ),
+      child: const Center(
+        child: Icon(Icons.menu_book_rounded, size: 56, color: Colors.white54),
       ),
     );
   }
@@ -255,42 +219,16 @@ class _StatusBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
       decoration: BoxDecoration(
-        color: Pallete.accentGreen,
+        color: const Color(0xFF51CF66),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
         label,
         style: const TextStyle(
           fontSize: 11,
-          color: Pallete.whiteColor,
+          color: Colors.white,
           fontWeight: FontWeight.w700,
-          letterSpacing: 0.2,
-        ),
-      ),
-    );
-  }
-}
-
-class _OutlineBadge extends StatelessWidget {
-  final String label;
-
-  const _OutlineBadge({required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: cs.outlineVariant),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 11,
-          color: cs.onSurface,
-          fontWeight: FontWeight.w600,
+          letterSpacing: 0.3,
         ),
       ),
     );

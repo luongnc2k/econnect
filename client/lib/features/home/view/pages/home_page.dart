@@ -13,6 +13,7 @@ class HomePage extends ConsumerWidget {
     if (user?.role == 'tutor') {
       return const TutorNavShell();
     }
+    // Default to student shell (covers 'student' role and any unexpected values)
     return const StudentNavShell();
   }
 }
