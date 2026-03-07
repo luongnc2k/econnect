@@ -11,9 +11,9 @@ import '../features/home/view/screen/home_screen.dart';
 import 'main_screen.dart';
 import '../features/profile/viewmodel/profile_providers.dart';
 
-/// Giả sử bạn có authProvider
+/// Giả sử có authProvider
 final authProvider = Provider<bool>((ref) {
-  /// TODO: thay bằng auth thật (Firebase / API)
+  /// TODO: thay bằng auth thật 
   
   
 

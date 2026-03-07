@@ -1,6 +1,8 @@
 from typing import Optional
-from fastapi import HTTPException, Header
+from fastapi import HTTPException, Header, UploadFile, File
 import jwt
+import os
+import uuid
 
 def auth_middleware(x_auth_token: Optional[str] = Header(default=None)):
     if not x_auth_token:
