@@ -1,6 +1,6 @@
 import 'package:client/core/providers/current_user_notifier.dart';
+import 'package:client/core/router/app_router.dart';
 import 'package:client/core/utils.dart';
-import 'package:client/features/student/view/screens/class_detail_screen.dart';
 import 'package:client/features/student/view/widgets/category_filter_widget.dart';
 import 'package:client/features/student/view/widgets/featured_teacher_list_widget.dart';
 import 'package:client/features/student/view/widgets/home_header_widget.dart';
@@ -10,6 +10,7 @@ import 'package:client/features/student/view/widgets/upcoming_classlist_widget.d
 import 'package:client/features/student/viewmodel/student_home_viewmodel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 class StudentHomeScreen extends ConsumerWidget {
   final VoidCallback? onAvatarTap;
@@ -90,10 +91,9 @@ class StudentHomeScreen extends ConsumerWidget {
                           ? const _EmptyClasses()
                           : UpcomingClassListWidget(
                               classes: state.classes,
-                              onClassTap: (session) => Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => ClassDetailScreen(session: session),
-                                ),
+                              onClassTap: (session) => context.go(
+                                AppRoutes.classDetail,
+                                extra: session,
                               ),
                             ),
             ),
