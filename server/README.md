@@ -1,37 +1,15 @@
-## For Linux
-## Create environment
+# EConnect Server
+
+FastAPI backend cho EConnect. Xem hướng dẫn đầy đủ tại [README gốc](../README.md).
+
+## Khởi động nhanh
+
 ```bash
 python3 -m venv venv
-source ./venv/bin/activate
-
-# install requirements package
+source venv/bin/activate
 pip install -r requirements.txt
-```
-## Run server
-```bash
+
 uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-
-## For Window
-# Create environment
-```bash
-python -m venv venv
-.\venv\Scripts\Activate
-```
-
-# Install requirements
-```bash
-pip install -r requirements.txt
-```
-
-# Create db
-```bash
-cd "C:\Program Files\PostgreSQL\15\bin"
-.\psql -U postgres
-```
-
-# Run server
-```bash
-python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-```
+Swagger UI: http://localhost:8000/docs

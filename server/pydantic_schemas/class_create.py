@@ -15,15 +15,31 @@ class ClassCreate(BaseModel):
     longitude: Optional[Decimal] = None
     start_time: datetime
     end_time: datetime
+    min_participants: int = 1
     max_participants: int
     price: Decimal
     thumbnail_url: Optional[str] = None
+
+    @field_validator('min_participants')
+    @classmethod
+    def min_participants_positive(cls, v: int) -> int:
+        if v < 1:
+            raise ValueError('min_participants phải lớn hơn 0')
+        return v
 
     @field_validator('max_participants')
     @classmethod
     def max_participants_positive(cls, v: int) -> int:
         if v < 1:
             raise ValueError('max_participants phải lớn hơn 0')
+        return v
+
+    @field_validator('max_participants')
+    @classmethod
+    def max_gte_min(cls, v: int, info) -> int:
+        min_p = info.data.get('min_participants', 1)
+        if v < min_p:
+            raise ValueError('max_participants phải >= min_participants')
         return v
 
     @field_validator('price')

@@ -77,6 +77,7 @@ erDiagram
         DECIMAL longitude
         TIMESTAMP start_time
         TIMESTAMP end_time
+        SMALLINT min_participants
         SMALLINT max_participants
         SMALLINT current_participants
         DECIMAL price
@@ -235,6 +236,7 @@ erDiagram
 | longitude | DECIMAL(10,7) | |
 | start_time | TIMESTAMP | |
 | end_time | TIMESTAMP | |
+| min_participants | SMALLINT | số học viên tối thiểu để lớp diễn ra |
 | max_participants | SMALLINT | |
 | current_participants | SMALLINT | denormalized — sync với bookings |
 | price | DECIMAL(10,0) | VND |

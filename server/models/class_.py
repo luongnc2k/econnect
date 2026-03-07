@@ -18,6 +18,7 @@ class Class(Base):
     longitude = Column(Numeric(10, 7), nullable=True)
     start_time = Column(DateTime(timezone=True), nullable=False)
     end_time = Column(DateTime(timezone=True), nullable=False)
+    min_participants = Column(SmallInteger, default=1, nullable=False)
     max_participants = Column(SmallInteger, nullable=False)
     current_participants = Column(SmallInteger, default=0, nullable=False)
     price = Column(Numeric(10, 0), nullable=False)

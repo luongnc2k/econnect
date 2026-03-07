@@ -34,6 +34,7 @@ class ClassResponse(BaseModel):
     location_address: Optional[str] = None
     start_time: datetime
     end_time: datetime
+    min_participants: int
     max_participants: int
     current_participants: int
     price: Decimal
