@@ -116,9 +116,10 @@ flutter run
 
 ### Upload — `/upload`
 
-| Method | Endpoint            | Auth | Mô tả                         |
-|--------|---------------------|------|-------------------------------|
-| POST   | `/upload/thumbnail` | ✓    | Upload ảnh thumbnail (≤ 5MB)  |
+| Method | Endpoint            | Auth | Mô tả                                              |
+|--------|---------------------|------|----------------------------------------------------|
+| POST   | `/upload/thumbnail` | ✓    | Upload thumbnail lớp học (≤ 5MB) → trả về URL      |
+| POST   | `/upload/avatar`    | ✓    | Upload avatar user (≤ 2MB) → lưu vào DB luôn       |
 
 ---
 
