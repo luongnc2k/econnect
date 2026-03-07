@@ -10,7 +10,7 @@ class CurrentUserNotifier extends _$CurrentUserNotifier {
     return null;
   }
 
-  void addUser(UserModel user) {
+  void addUser(UserModel? user) {
     state = user;
   }
 }
