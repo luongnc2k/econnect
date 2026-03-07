@@ -54,7 +54,10 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         loading: () {},
       );
     });
-    final titleSize = (MediaQuery.of(context).size.width * 0.09).clamp(28.0, 40.0);
+    final titleSize = (MediaQuery.of(context).size.width * 0.09).clamp(
+      28.0,
+      40.0,
+    );
 
     return Scaffold(
       body: AuthScrollBody(
@@ -65,7 +68,11 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const AuthLogo(heightFraction: 0.18, minHeight: 90, maxHeight: 160),
+              const AuthLogo(
+                heightFraction: 0.18,
+                minHeight: 90,
+                maxHeight: 160,
+              ),
 
               const SizedBox(height: 20),
 

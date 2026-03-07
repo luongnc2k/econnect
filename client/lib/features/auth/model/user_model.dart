@@ -13,6 +13,7 @@ class UserModel {
   final DateTime? updatedAt;
   final String token; // client-only — từ auth response, không có trong DB
 
+  // Constructor
   UserModel({
     required this.id,
     required this.email,
@@ -27,6 +28,7 @@ class UserModel {
     required this.token,
   });
 
+  // Tạo một bản sao của UserModel với các trường có thể được cập nhật
   UserModel copyWith({
     String? id,
     String? email,
@@ -55,6 +57,7 @@ class UserModel {
     );
   }
 
+  // Chuyển đổi UserModel thành Map để dễ dàng lưu trữ hoặc truyền qua mạng
   Map<String, dynamic> toMap() {
     return <String, dynamic>{
       'id': id,
@@ -71,6 +74,7 @@ class UserModel {
     };
   }
 
+  // Tạo một UserModel từ Map, thường được sử dụng khi nhận dữ liệu từ API hoặc lưu trữ
   factory UserModel.fromMap(Map<String, dynamic> map) {
     return UserModel(
       id: map['id'] ?? '',
@@ -87,22 +91,27 @@ class UserModel {
     );
   }
 
+  // Chuyển đổi UserModel thành JSON string để lưu trữ hoặc truyền qua mạng
   String toJson() => json.encode(toMap());
 
+  // Tạo một UserModel từ JSON string, thường được sử dụng khi nhận dữ liệu từ API hoặc lưu trữ
   factory UserModel.fromJson(String source) =>
       UserModel.fromMap(json.decode(source) as Map<String, dynamic>);
 
+  // Override toString để dễ dàng debug và log thông tin người dùng
   @override
   String toString() {
     return 'UserModel(id: $id, email: $email, fullName: $fullName, role: $role, isActive: $isActive)';
   }
 
+  // Override == và hashCode để so sánh UserModel dựa trên id, email và token
   @override
   bool operator ==(covariant UserModel other) {
     if (identical(this, other)) return true;
     return other.id == id && other.email == email && other.token == token;
   }
 
+  // Override hashCode để đảm bảo rằng các đối tượng UserModel có cùng id, email và token sẽ có cùng hash code
   @override
   int get hashCode => id.hashCode ^ email.hashCode ^ token.hashCode;
 }
