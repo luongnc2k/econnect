@@ -22,7 +22,7 @@ class SearchBarWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 44,
+      height: 50,
       decoration: BoxDecoration(
         color: Pallete.cardSurface,
         borderRadius: BorderRadius.circular(24),

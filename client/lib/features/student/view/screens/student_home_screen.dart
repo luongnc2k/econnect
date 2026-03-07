@@ -163,8 +163,8 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
   }
 }
 
-// height = top padding (12) + SearchBar (44) + gap (16) + CategoryFilter (36) + bottom padding (12)
-const double _stickyHeight = 12 + 44 + 16 + 36 + 12;
+// height = top padding (12) + SearchBar (44) + gap (12) + CategoryFilter (36) + bottom padding (12)
+const double _stickyHeight = 12 + 50 + 12 + 36 + 12;
 
 class _StickyFilterDelegate extends SliverPersistentHeaderDelegate {
   final Color scaffoldColor;
@@ -199,7 +199,7 @@ class _StickyFilterDelegate extends SliverPersistentHeaderDelegate {
           mainAxisSize: MainAxisSize.min,
           children: [
             SearchBarWidget(onTap: () {}),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             CategoryFilterWidget(
               categories: categories,
               selectedCategory: selectedCategory,
