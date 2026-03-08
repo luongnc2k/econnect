@@ -1,3 +1,4 @@
+import 'package:client/features/profile/view/widgets/my_profile_view.dart';
 import 'package:client/features/student/view/screens/student_home_screen.dart';
 import 'package:flutter/material.dart';
 
@@ -11,21 +12,27 @@ class StudentNavShell extends StatefulWidget {
 class _StudentNavShellState extends State<StudentNavShell> {
   int _currentIndex = 0;
 
-  List<Widget> get _screens => [
-    StudentHomeScreen(onAvatarTap: () => setState(() => _currentIndex = 3)),
+  late final List<Widget> _screens = [
+    StudentHomeScreen(
+      onAvatarTap: () => setState(() => _currentIndex = 3),
+    ),
     const _PlaceholderTab(label: 'Tìm kiếm'),
     const _PlaceholderTab(label: 'Lớp học'),
-    const _PlaceholderTab(label: 'Hồ sơ'),
+    const MyProfileTab(),
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(index: _currentIndex, children: _screens),
+      body: IndexedStack(
+        index: _currentIndex,
+        children: _screens,
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
-        onDestinationSelected: (index) =>
-            setState(() => _currentIndex = index),
+        onDestinationSelected: (index) {
+          setState(() => _currentIndex = index);
+        },
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.home_outlined),
@@ -53,10 +60,23 @@ class _StudentNavShellState extends State<StudentNavShell> {
   }
 }
 
+class MyProfileTab extends StatelessWidget {
+  const MyProfileTab({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const SafeArea(
+      child: MyProfileView(),
+    );
+  }
+}
+
 class _PlaceholderTab extends StatelessWidget {
   final String label;
 
-  const _PlaceholderTab({required this.label});
+  const _PlaceholderTab({
+    required this.label,
+  });
 
   @override
   Widget build(BuildContext context) {
