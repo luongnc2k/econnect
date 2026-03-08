@@ -64,6 +64,33 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
 Server sẵn sàng tại `http://localhost:8000` — Swagger UI tại `http://localhost:8000/docs`.
 
+**Reset database** (xóa toàn bộ bảng và tạo lại schema):
+
+```bash
+# Kết nối vào PostgreSQL container
+docker exec -it econnect-postgres psql -U postgres -d econnect
+
+-- Xóa toàn bộ bảng trong schema public
+DROP SCHEMA public CASCADE;
+CREATE SCHEMA public;
+\q
+
+# Khởi động lại server để SQLAlchemy tự tạo lại các bảng
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+**Hoặc dùng Python** — bỏ comment dòng `drop_all` trong `server/main.py`:
+
+```python
+# server/main.py
+Base.metadata.drop_all(bind=engine)   # ← uncomment dòng này
+Base.metadata.create_all(bind=engine)
+```
+
+Khởi động server một lần để drop & recreate, sau đó **comment lại ngay** để tránh mất dữ liệu mỗi lần restart.
+
+> **Cảnh báo:** Các cách trên xóa toàn bộ dữ liệu không thể khôi phục. Chỉ dùng trong môi trường dev.
+
 **Seed dữ liệu mẫu** (chạy sau khi server đã khởi động lần đầu):
 
 ```bash
@@ -116,9 +143,10 @@ flutter run
 
 ### Upload — `/upload`
 
-| Method | Endpoint            | Auth | Mô tả                         |
-|--------|---------------------|------|-------------------------------|
-| POST   | `/upload/thumbnail` | ✓    | Upload ảnh thumbnail (≤ 5MB)  |
+| Method | Endpoint            | Auth | Mô tả                                              |
+|--------|---------------------|------|----------------------------------------------------|
+| POST   | `/upload/thumbnail` | ✓    | Upload thumbnail lớp học (≤ 5MB) → trả về URL      |
+| POST   | `/upload/avatar`    | ✓    | Upload avatar user (≤ 2MB) → lưu vào DB luôn       |
 
 ---
 

@@ -76,6 +76,8 @@ Feature-first folder structure under `lib/`:
 
 **Server URL** is defined in `core/constants/server_constant.dart`.
 
+**Routing:** Uses `go_router`. All routes defined in `core/router/app_router.dart`. See [`docs/routing.md`](docs/routing.md) for how to add new screens and navigate.
+
 ### Server
 
 FastAPI app with SQLAlchemy + PostgreSQL.
@@ -88,8 +90,23 @@ FastAPI app with SQLAlchemy + PostgreSQL.
 - `middleware/` — JWT verification middleware
 
 **Auth endpoints** (`/auth` prefix):
-- `POST /auth/signup` → creates user, returns user object
+- `POST /auth/signup` → creates user (role: student | teacher)
 - `POST /auth/login` → returns `{token, user}`
 - `GET /auth/` → returns current user (requires `x-auth-token` header)
+- `POST /auth/create-admin` → creates admin user (requires `x-admin-secret` header)
+
+**Classes endpoints** (`/classes` prefix):
+- `GET /classes/upcoming` → upcoming scheduled classes (auth required, optional `?topic=slug`)
+- `POST /classes` → create class (teacher only)
+
+**Topics endpoints** (`/topics` prefix):
+- `GET /topics` → list active topics (public)
+- `POST /topics` → create topic (admin only)
+
+**Upload endpoints** (`/upload` prefix):
+- `POST /upload/thumbnail` → upload class thumbnail to MinIO, returns URL (≤ 5MB)
+- `POST /upload/avatar` → upload user avatar to MinIO + update users.avatar_url in DB (≤ 2MB)
+
+**File storage:** MinIO (S3-compatible). Buckets: `class-thumbnails`, `user-avatars`. Both public-read.
 
 Passwords are bcrypt-hashed. JWT payload contains `{'id': user_id}`.
