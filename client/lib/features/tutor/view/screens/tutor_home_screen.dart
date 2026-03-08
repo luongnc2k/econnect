@@ -1,5 +1,6 @@
 import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/core/providers/theme_notifier.dart';
+import 'package:client/features/auth/viewmodel/auth_viewmodel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -17,7 +18,7 @@ class _TutorNavShellState extends State<TutorNavShell> {
     _TutorHomeTab(),
     _PlaceholderTab(label: 'Lịch dạy'),
     _PlaceholderTab(label: 'Học viên'),
-    _PlaceholderTab(label: 'Hồ sơ'),
+    _ProfileTab(),
   ];
 
   @override
@@ -96,6 +97,24 @@ class _PlaceholderTab extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Text(label, style: Theme.of(context).textTheme.titleMedium),
+    );
+  }
+}
+
+class _ProfileTab extends ConsumerWidget {
+  const _ProfileTab();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Center(
+      child: FilledButton.tonal(
+        onPressed: () => ref.read(authViewModelProvider.notifier).logout(),
+        style: FilledButton.styleFrom(
+          backgroundColor: Theme.of(context).colorScheme.errorContainer,
+          foregroundColor: Theme.of(context).colorScheme.onErrorContainer,
+        ),
+        child: const Text('Đăng xuất'),
+      ),
     );
   }
 }
