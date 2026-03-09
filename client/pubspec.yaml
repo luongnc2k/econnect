@@ -28,6 +28,9 @@ environment:
 # the latest version available on pub.dev. To see which dependencies have newer
 # versions available, run `flutter pub outdated`.
 dependencies:
+  image_picker: ^1.1.2
+  dio: ^5.7.0
+  permission_handler: ^11.3.1
   flutter:
     sdk: flutter
 

@@ -15,6 +15,7 @@ import jwt
 from middleware.auth_middleware import auth_middleware
 
 ADMIN_CREATE_SECRET = os.getenv("ADMIN_CREATE_SECRET", "")
+JWT_SECRET = os.getenv("JWT_SECRET", "dev_jwt_secret_change_me_please_32bytes")
 
 
 router = APIRouter()
@@ -58,7 +59,7 @@ def login_user(user: UserLogin, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(user_db)
 
-    token = jwt.encode({'id': user_db.id}, 'password_key')
+    token = jwt.encode({'id': user_db.id}, JWT_SECRET, algorithm="HS256")
 
     return {'token': token, 'user': user_db}
 

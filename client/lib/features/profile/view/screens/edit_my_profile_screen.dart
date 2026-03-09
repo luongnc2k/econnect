@@ -1,9 +1,13 @@
+import 'dart:io';
+
 import 'package:client/features/auth/model/user_model.dart';
 import 'package:client/features/profile/model/student_my_profile_model.dart';
 import 'package:client/features/profile/model/teacher_my_profile_model.dart';
 import 'package:client/features/profile/viewmodel/my_profile_viewmodel.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
 class EditMyProfileScreen extends ConsumerStatefulWidget {
   const EditMyProfileScreen({super.key});
@@ -27,13 +31,25 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
   final _yearsOfExperienceController = TextEditingController();
   final _hourlyRateController = TextEditingController();
 
+  final _picker = ImagePicker();
+  ImageProvider? _avatarPreviewImageProvider;
+  bool _didInitForm = false;
+
+  bool _isDesktopDevice() {
+    if (kIsWeb) return false;
+    return defaultTargetPlatform == TargetPlatform.windows ||
+        defaultTargetPlatform == TargetPlatform.macOS ||
+        defaultTargetPlatform == TargetPlatform.linux;
+  }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
 
+    if (_didInitForm) return;
+
     final profile = ref.read(myProfileViewModelProvider).profile;
     if (profile == null) return;
-    if (_fullNameController.text.isNotEmpty) return;
 
     _fullNameController.text = profile.fullName;
     _phoneController.text = profile.phone ?? '';
@@ -49,6 +65,8 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
       _yearsOfExperienceController.text = profile.yearsOfExperience.toString();
       _hourlyRateController.text = profile.hourlyRate?.toStringAsFixed(0) ?? '';
     }
+
+    _didInitForm = true;
   }
 
   @override
@@ -64,20 +82,121 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
     super.dispose();
   }
 
+  Future<void> _showAvatarSourcePicker() async {
+    final isDesktop = _isDesktopDevice();
+
+    await showModalBottomSheet(
+      context: context,
+      builder: (_) {
+        return SafeArea(
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo_library_outlined),
+                title: const Text('Chọn từ thư viện'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickAvatar(ImageSource.gallery);
+                },
+              ),
+              if (!isDesktop)
+                ListTile(
+                  leading: const Icon(Icons.camera_alt_outlined),
+                  title: const Text('Chụp ảnh'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickAvatar(ImageSource.camera);
+                  },
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _pickAvatar(ImageSource source) async {
+    final isDesktop = _isDesktopDevice();
+
+    if (isDesktop && source == ImageSource.camera) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Chuc nang chup anh chua ho tro tren desktop'),
+        ),
+      );
+      return;
+    }
+
+    XFile? image;
+    try {
+      image = await _picker.pickImage(
+        source: source,
+        imageQuality: 80,
+        maxWidth: 1200,
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Khong the mo trinh chon anh')),
+      );
+      return;
+    }
+
+    if (image == null) return;
+    final pickedImage = image;
+    final fileBytes = await pickedImage.readAsBytes();
+    final fileName = pickedImage.name.isEmpty
+        ? 'avatar_${DateTime.now().millisecondsSinceEpoch}.jpg'
+        : pickedImage.name;
+
+    setState(() {
+      _avatarPreviewImageProvider = kIsWeb
+          ? NetworkImage(pickedImage.path)
+          : FileImage(File(pickedImage.path));
+    });
+
+    final success = await ref
+        .read(myProfileViewModelProvider.notifier)
+        .uploadMyAvatar(
+          fileName: fileName,
+          fileBytes: fileBytes,
+          filePath: kIsWeb ? null : pickedImage.path,
+        );
+
+    if (!mounted) return;
+
+    if (success) {
+      setState(() {
+        _avatarPreviewImageProvider = null;
+      });
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          success ? 'Cap nhat avatar thanh cong' : 'Cap nhat avatar that bai',
+        ),
+      ),
+    );
+  }
   Future<void> _submit(UserModel profile) async {
     if (!_formKey.currentState!.validate()) return;
 
+    final latestProfile =
+        ref.read(myProfileViewModelProvider).profile ?? profile;
+
     late UserModel updatedProfile;
 
-    if (profile is StudentMyProfileModel) {
-      updatedProfile = profile.copyWith(
+    if (latestProfile is StudentMyProfileModel) {
+      updatedProfile = latestProfile.copyWith(
         fullName: _fullNameController.text.trim(),
         phone: _phoneController.text.trim(),
         learningGoal: _learningGoalController.text.trim(),
         englishLevel: _englishLevelController.text.trim(),
       );
-    } else if (profile is TeacherMyProfileModel) {
-      updatedProfile = profile.copyWith(
+    } else if (latestProfile is TeacherMyProfileModel) {
+      updatedProfile = latestProfile.copyWith(
         fullName: _fullNameController.text.trim(),
         phone: _phoneController.text.trim(),
         specialization: _specializationController.text.trim(),
@@ -87,7 +206,7 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
         hourlyRate: double.tryParse(_hourlyRateController.text.trim()),
       );
     } else {
-      updatedProfile = profile.copyWith(
+      updatedProfile = latestProfile.copyWith(
         fullName: _fullNameController.text.trim(),
         phone: _phoneController.text.trim(),
       );
@@ -124,15 +243,15 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Chỉnh sửa hồ sơ của tôi'),
-      ),
+      appBar: AppBar(title: const Text('Chỉnh sửa hồ sơ của tôi')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Form(
           key: _formKey,
           child: Column(
             children: [
+              _buildAvatarSection(profile, state.isUploadingAvatar),
+              const SizedBox(height: 16),
               _buildField(
                 controller: _fullNameController,
                 label: 'Họ và tên',
@@ -144,10 +263,7 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
                 },
               ),
               const SizedBox(height: 12),
-              _buildField(
-                controller: _phoneController,
-                label: 'Số điện thoại',
-              ),
+              _buildField(controller: _phoneController, label: 'Số điện thoại'),
               const SizedBox(height: 12),
               if (profile is StudentMyProfileModel) ...[
                 _buildField(
@@ -207,6 +323,52 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
     );
   }
 
+  Widget _buildAvatarSection(UserModel profile, bool isUploading) {
+    final avatarUrl = profile.avatarUrl;
+    final hasNetworkAvatar =
+        avatarUrl != null &&
+        avatarUrl.isNotEmpty &&
+        (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://'));
+
+    final imageProvider =
+        _avatarPreviewImageProvider ??
+        (hasNetworkAvatar ? NetworkImage(avatarUrl) : null);
+
+    return Column(
+      children: [
+        Stack(
+          alignment: Alignment.center,
+          children: [
+            CircleAvatar(
+              radius: 52,
+              backgroundImage: imageProvider,
+              child: imageProvider == null
+                  ? const Icon(Icons.person, size: 48)
+                  : null,
+            ),
+            if (isUploading)
+              Container(
+                width: 104,
+                height: 104,
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.25),
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                child: const CircularProgressIndicator(strokeWidth: 3),
+              ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        OutlinedButton.icon(
+          onPressed: isUploading ? null : _showAvatarSourcePicker,
+          icon: const Icon(Icons.photo_camera_outlined),
+          label: Text(isUploading ? 'Đang tải ảnh...' : 'Thay đổi avatar'),
+        ),
+      ],
+    );
+  }
+
   Widget _buildField({
     required TextEditingController controller,
     required String label,
@@ -221,10 +383,9 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
       validator: validator,
       decoration: InputDecoration(
         labelText: label,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }
 }
+

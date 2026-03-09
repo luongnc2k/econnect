@@ -11,10 +11,7 @@ import 'package:go_router/go_router.dart';
 class MyProfileView extends ConsumerStatefulWidget {
   final bool showAppBarSpacing;
 
-  const MyProfileView({
-    super.key,
-    this.showAppBarSpacing = false,
-  });
+  const MyProfileView({super.key, this.showAppBarSpacing = false});
 
   @override
   ConsumerState<MyProfileView> createState() => _MyProfileViewState();
@@ -36,40 +33,18 @@ class _MyProfileViewState extends ConsumerState<MyProfileView> {
         '${date.year}';
   }
 
-  Future<void> _uploadAvatar() async {
-    final success = await ref
-        .read(myProfileViewModelProvider.notifier)
-        .uploadMyAvatar('/fake/path/avatar.png'); // Simulate file path
-
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          success
-              ? 'Cập nhật ảnh đại diện thành công'
-              : 'Cập nhật ảnh đại diện thất bại',
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(myProfileViewModelProvider);
 
     if (state.isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     final profile = state.profile;
     if (profile == null) {
       return Center(
-        child: Text(
-          state.errorMessage ?? 'Không có dữ liệu hồ sơ',
-        ),
+        child: Text(state.errorMessage ?? 'Kh\u00F4ng c\u00F3 d\u1EEF li\u1EC7u h\u1ED3 s\u01A1'),
       );
     }
 
@@ -85,31 +60,29 @@ class _MyProfileViewState extends ConsumerState<MyProfileView> {
         padding: const EdgeInsets.all(16),
         children: [
           if (widget.showAppBarSpacing) const SizedBox(height: 4),
-          MyProfileHeader(
-            profile: profile,
-            isUploadingAvatar: state.isUploadingAvatar,
-            onEditAvatar: _uploadAvatar,
-          ),
+          MyProfileHeader(profile: profile),
           const SizedBox(height: 16),
           ProfileInfoCard(
-            title: 'Thông tin cá nhân',
+            title: 'Th\u00F4ng tin c\u00E1 nh\u00E2n',
             items: [
-              ProfileInfoItem(label: 'Họ và tên', value: profile.fullName),
+              ProfileInfoItem(label: 'H\u1ECD v\u00E0 t\u00EAn', value: profile.fullName),
               ProfileInfoItem(label: 'Email', value: profile.email),
               ProfileInfoItem(
-                label: 'Số điện thoại',
+                label: 'S\u1ED1 \u0111i\u1EC7n tho\u1EA1i',
                 value: profile.phone ?? '--',
               ),
               ProfileInfoItem(
-                label: 'Trạng thái',
-                value: profile.isActive ? 'Đang hoạt động' : 'Ngưng hoạt động',
+                label: 'Tr\u1EA1ng th\u00E1i',
+                value: profile.isActive
+                    ? '\u0110ang ho\u1EA1t \u0111\u1ED9ng'
+                    : 'Ng\u01B0ng ho\u1EA1t \u0111\u1ED9ng',
               ),
               ProfileInfoItem(
-                label: 'Lần đăng nhập cuối',
+                label: 'L\u1EA7n \u0111\u0103ng nh\u1EADp cu\u1ED1i',
                 value: _formatDate(profile.lastLoginAt),
               ),
               ProfileInfoItem(
-                label: 'Ngày tạo',
+                label: 'Ng\u00E0y t\u1EA1o',
                 value: _formatDate(profile.createdAt),
               ),
             ],
@@ -117,52 +90,52 @@ class _MyProfileViewState extends ConsumerState<MyProfileView> {
           const SizedBox(height: 16),
           if (profile is StudentMyProfileModel)
             ProfileInfoCard(
-              title: 'Thông tin học viên',
+              title: 'Th\u00F4ng tin h\u1ECDc vi\u00EAn',
               items: [
                 ProfileInfoItem(
-                  label: 'Trình độ',
+                  label: 'Tr\u00ECnh \u0111\u1ED9',
                   value: profile.englishLevel ?? '--',
                 ),
                 ProfileInfoItem(
-                  label: 'Mục tiêu',
+                  label: 'M\u1EE5c ti\u00EAu',
                   value: profile.learningGoal ?? '--',
                 ),
                 ProfileInfoItem(
-                  label: 'Tổng buổi học',
+                  label: 'T\u1ED5ng bu\u1ED5i h\u1ECDc',
                   value: profile.totalLessons.toString(),
                 ),
                 ProfileInfoItem(
-                  label: 'Điểm trung bình',
+                  label: '\u0110i\u1EC3m trung b\u00ECnh',
                   value: profile.averageScore?.toStringAsFixed(1) ?? '--',
                 ),
               ],
             ),
           if (profile is TeacherMyProfileModel)
             ProfileInfoCard(
-              title: 'Thông tin giáo viên',
+              title: 'Th\u00F4ng tin gi\u00E1o vi\u00EAn',
               items: [
                 ProfileInfoItem(
-                  label: 'Chuyên môn',
+                  label: 'Chuy\u00EAn m\u00F4n',
                   value: profile.specialization ?? '--',
                 ),
                 ProfileInfoItem(
-                  label: 'Kinh nghiệm',
-                  value: '${profile.yearsOfExperience} năm',
+                  label: 'Kinh nghi\u1EC7m',
+                  value: '${profile.yearsOfExperience} n\u0103m',
                 ),
                 ProfileInfoItem(
-                  label: 'Đánh giá',
+                  label: '\u0110\u00E1nh gi\u00E1',
                   value: profile.rating.toStringAsFixed(1),
                 ),
                 ProfileInfoItem(
-                  label: 'Số học viên',
+                  label: 'S\u1ED1 h\u1ECDc vi\u00EAn',
                   value: profile.totalStudents.toString(),
                 ),
                 ProfileInfoItem(
-                  label: 'Học phí / buổi',
+                  label: 'H\u1ECDc ph\u00ED / bu\u1ED5i',
                   value: profile.hourlyRate?.toStringAsFixed(0) ?? '--',
                 ),
                 ProfileInfoItem(
-                  label: 'Giới thiệu',
+                  label: 'Gi\u1EDBi thi\u1EC7u',
                   value: profile.bio ?? '--',
                 ),
               ],
@@ -170,7 +143,7 @@ class _MyProfileViewState extends ConsumerState<MyProfileView> {
           const SizedBox(height: 20),
           ElevatedButton(
             onPressed: () => context.push(editPath),
-            child: const Text('Chỉnh sửa hồ sơ'),
+            child: const Text('Ch\u1EC9nh s\u1EEDa h\u1ED3 s\u01A1'),
           ),
           if (state.errorMessage != null) ...[
             const SizedBox(height: 12),

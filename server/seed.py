@@ -28,13 +28,12 @@ def _future(days: int = 0, hour: int = 9, minute: int = 0) -> datetime:
     base = now + timedelta(days=days)
     return base.replace(hour=hour, minute=minute, second=0, microsecond=0)
 
-
 # ── seed ─────────────────────────────────────────────────────────────────────
 
 def seed():
     db = SessionLocal()
     try:
-        # ── Topics ────────────────────────────────────────────────────────────
+        # ── Topics ───────────────────────────────────────────────────────────
         topics_data = [
             {"name": "Giao tiếp", "slug": "giao-tiep", "icon": "💬"},
             {"name": "IELTS",     "slug": "ielts",      "icon": "📝"},
@@ -54,6 +53,7 @@ def seed():
                 topics[t["slug"]] = existing
 
         # ── Teachers ──────────────────────────────────────────────────────────
+
         teachers_data = [
             {
                 "email": "alexander@example.com",
@@ -118,6 +118,7 @@ def seed():
             teacher_users[t["email"]] = user
 
         # ── Classes ───────────────────────────────────────────────────────────
+        
         classes_data = [
             {
                 "teacher_email": "alexander@example.com",

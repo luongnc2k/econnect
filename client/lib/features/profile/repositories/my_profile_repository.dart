@@ -1,5 +1,9 @@
+import 'dart:typed_data';
+
+import 'package:client/core/network/dio_provider.dart';
 import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/features/auth/model/user_model.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../model/student_my_profile_model.dart';
@@ -7,75 +11,46 @@ import '../model/teacher_my_profile_model.dart';
 
 abstract class IMyProfileRepository {
   Future<UserModel> getMyProfile();
-  Future<UserModel> createMyProfile(UserModel profile);
   Future<UserModel> updateMyProfile(UserModel profile);
-  Future<String> uploadMyAvatar(String filePath);
+  Future<String> uploadMyAvatar({
+    required String fileName,
+    required Uint8List fileBytes,
+    String? filePath,
+  });
 }
 
 class MyProfileRepository implements IMyProfileRepository {
   final Ref ref;
+  final Dio dio;
 
-  MyProfileRepository(this.ref);
+  MyProfileRepository(this.ref, this.dio);
 
   @override
   Future<UserModel> getMyProfile() async {
-    await Future.delayed(const Duration(milliseconds: 400));
-
     final currentUser = ref.read(currentUserProvider);
-    final isTeacher = currentUser?.role == 'teacher';
+    final token = currentUser?.token ?? '';
 
-    if (isTeacher) {
-      return TeacherMyProfileModel(
-        id: currentUser?.id ?? '',
-        email: currentUser?.email ?? '',
-        fullName: currentUser?.fullName ?? '',
-        phone: currentUser?.phone,
-        avatarUrl: currentUser?.avatarUrl,
-        role: currentUser?.role ?? 'teacher',
-        isActive: currentUser?.isActive ?? true,
-        lastLoginAt: currentUser?.lastLoginAt,
-        createdAt: currentUser?.createdAt,
-        updatedAt: currentUser?.updatedAt,
-        token: currentUser?.token ?? '',
-        specialization: 'IELTS & Speaking',
-        yearsOfExperience: 3,
-        rating: 4.8,
-        totalStudents: 80,
-        bio: 'English teacher',
-        hourlyRate: 200000,
-      );
+    if (token.isEmpty) {
+      throw Exception('Thieu token dang nhap');
     }
 
-    return StudentMyProfileModel(
-      id: currentUser?.id ?? '',
-      email: currentUser?.email ?? '',
-      fullName: currentUser?.fullName ?? '',
-      phone: currentUser?.phone,
-      avatarUrl: currentUser?.avatarUrl,
-      role: currentUser?.role ?? 'student',
-      isActive: currentUser?.isActive ?? true,
-      lastLoginAt: currentUser?.lastLoginAt,
-      createdAt: currentUser?.createdAt,
-      updatedAt: currentUser?.updatedAt,
-      token: currentUser?.token ?? '',
-      englishLevel: 'A2',
-      learningGoal: 'Improve speaking',
-      totalLessons: 12,
-      averageScore: 8.0,
+    final response = await dio.get(
+      '/profile/me',
+      options: Options(
+        headers: {'x-auth-token': token},
+      ),
     );
-  }
 
-  @override
-  Future<UserModel> createMyProfile(UserModel profile) async {
-    await Future.delayed(const Duration(milliseconds: 400));
+    final data = response.data;
+    if (response.statusCode != 200 || data is! Map<String, dynamic>) {
+      throw Exception('Khong the tai ho so');
+    }
 
-    ref
-        .read(currentUserProvider.notifier)
-        .updateUser(
-          fullName: profile.fullName,
-          phone: profile.phone,
-          avatarUrl: profile.avatarUrl,
-          updatedAt: DateTime.now(),
+    final mapped = {...data, 'token': token};
+    final profile = _mapProfile(mapped);
+
+    ref.read(currentUserProvider.notifier).setUser(
+          UserModel.fromMap(mapped).copyWith(token: token),
         );
 
     return profile;
@@ -83,27 +58,86 @@ class MyProfileRepository implements IMyProfileRepository {
 
   @override
   Future<UserModel> updateMyProfile(UserModel profile) async {
-    await Future.delayed(const Duration(milliseconds: 400));
+    final currentUser = ref.read(currentUserProvider);
+    final token = currentUser?.token ?? '';
 
-    ref
-        .read(currentUserProvider.notifier)
-        .updateUser(
-          fullName: profile.fullName,
-          phone: profile.phone,
-          avatarUrl: profile.avatarUrl,
-          updatedAt: DateTime.now(),
+    if (token.isEmpty) {
+      throw Exception('Thieu token dang nhap');
+    }
+
+    final response = await dio.put(
+      '/profile/me',
+      data: profile.toMap(),
+      options: Options(
+        headers: {'x-auth-token': token},
+      ),
+    );
+
+    final data = response.data;
+    if (response.statusCode != 200 || data is! Map<String, dynamic>) {
+      throw Exception('Cap nhat ho so that bai');
+    }
+
+    final mapped = {...data, 'token': token};
+    final updatedProfile = _mapProfile(mapped);
+
+    ref.read(currentUserProvider.notifier).setUser(
+          UserModel.fromMap(mapped).copyWith(token: token),
         );
 
-    return profile;
+    return updatedProfile;
   }
 
   @override
-  Future<String> uploadMyAvatar(String filePath) async {
-    await Future.delayed(const Duration(milliseconds: 400));
-    return 'https://i.pravatar.cc/300?img=15';
+  Future<String> uploadMyAvatar({
+    required String fileName,
+    required Uint8List fileBytes,
+    String? filePath,
+  }) async {
+    final currentUser = ref.read(currentUserProvider);
+    final token = currentUser?.token ?? '';
+
+    if (token.isEmpty) {
+      throw Exception('Thieu token dang nhap');
+    }
+
+    final formData = FormData.fromMap({
+      'file': filePath != null
+          ? await MultipartFile.fromFile(filePath, filename: fileName)
+          : MultipartFile.fromBytes(fileBytes, filename: fileName),
+    });
+
+    final response = await dio.post(
+      '/upload/avatar',
+      data: formData,
+      options: Options(
+        headers: {
+          'x-auth-token': token,
+        },
+      ),
+    );
+
+    final data = response.data;
+
+    if (response.statusCode == 200 &&
+        data is Map<String, dynamic> &&
+        data['url'] != null) {
+      return data['url'].toString();
+    }
+
+    throw Exception('Upload avatar that bai');
+  }
+
+  UserModel _mapProfile(Map<String, dynamic> map) {
+    final role = (map['role'] ?? '').toString();
+    if (role == 'teacher') {
+      return TeacherMyProfileModel.fromMap(map);
+    }
+    return StudentMyProfileModel.fromMap(map);
   }
 }
 
 final myProfileRepositoryProvider = Provider<IMyProfileRepository>((ref) {
-  return MyProfileRepository(ref);
+  final dio = ref.watch(dioProvider);
+  return MyProfileRepository(ref, dio);
 });
