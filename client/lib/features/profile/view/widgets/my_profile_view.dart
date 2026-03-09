@@ -1,3 +1,4 @@
+import 'package:client/core/constants/server_constant.dart';
 import 'package:client/core/router/app_router.dart';
 import 'package:client/features/profile/model/student_my_profile_model.dart';
 import 'package:client/features/profile/model/teacher_my_profile_model.dart';
@@ -18,6 +19,80 @@ class MyProfileView extends ConsumerStatefulWidget {
 }
 
 class _MyProfileViewState extends ConsumerState<MyProfileView> {
+  String _normalizeDocUrl(String url) {
+    final docUri = Uri.tryParse(url);
+    final serverUri = Uri.tryParse(ServerConstant.serverURL);
+    if (docUri == null || serverUri == null) return url;
+
+    final isLocalLoopback = docUri.host == '127.0.0.1' || docUri.host == 'localhost';
+    if (!isLocalLoopback) return url;
+
+    return docUri
+        .replace(
+          scheme: serverUri.scheme,
+          host: serverUri.host,
+          port: serverUri.hasPort ? serverUri.port : null,
+        )
+        .toString();
+  }
+
+  Future<void> _openLink(String url) async {
+    final normalized = _normalizeDocUrl(url);
+    final uri = Uri.tryParse(normalized);
+    if (uri == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Link khong hop le')),
+      );
+      return;
+    }
+    if (!mounted) return;
+
+    await showDialog<void>(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          insetPadding: const EdgeInsets.all(12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Anh chung chi',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
+                ),
+              ),
+              Flexible(
+                child: InteractiveViewer(
+                  child: Image.network(
+                    normalized,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => const Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Text('Khong tai duoc anh chung chi'),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -138,8 +213,46 @@ class _MyProfileViewState extends ConsumerState<MyProfileView> {
                   label: 'Gi\u1EDBi thi\u1EC7u',
                   value: profile.bio ?? '--',
                 ),
+                ProfileInfoItem(
+                  label: 'Ch\u1EE9ng ch\u1EC9 / b\u1EB1ng c\u1EA5p',
+                  value: profile.certifications.isEmpty
+                      ? '--'
+                      : profile.certifications.join(', '),
+                ),
               ],
             ),
+          if (profile is TeacherMyProfileModel &&
+              profile.verificationDocs.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Li\u00EAn k\u1EBFt \u1EA3nh ch\u1EE9ng ch\u1EC9',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                    ),
+                    const SizedBox(height: 10),
+                    ...profile.verificationDocs.asMap().entries.map(
+                      (entry) => Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton(
+                          onPressed: () => _openLink(entry.value),
+                          child: Text(
+                            'M\u1EDF link ch\u1EE9ng ch\u1EC9 #${entry.key + 1}',
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 20),
           ElevatedButton(
             onPressed: () => context.push(editPath),

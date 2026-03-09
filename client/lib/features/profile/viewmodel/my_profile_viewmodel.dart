@@ -102,6 +102,46 @@ class MyProfileViewModel extends Notifier<MyProfileState> {
       return false;
     }
   }
+
+  Future<bool> uploadTutorDocument({
+    required String fileName,
+    required Uint8List fileBytes,
+    String? filePath,
+  }) async {
+    final current = state.profile;
+    if (current == null || current is! TeacherMyProfileModel) return false;
+
+    state = state.copyWith(
+      isUploadingAvatar: true,
+      clearError: true,
+    );
+
+    try {
+      final uploadedUrl = await repository.uploadTutorDocument(
+        fileName: fileName,
+        fileBytes: fileBytes,
+        filePath: filePath,
+      );
+
+      final existing = List<String>.from(current.verificationDocs);
+      existing.add(uploadedUrl);
+
+      final updated = current.copyWith(verificationDocs: existing);
+      await repository.updateMyProfile(updated);
+
+      state = state.copyWith(
+        isUploadingAvatar: false,
+        profile: updated,
+      );
+      return true;
+    } catch (e) {
+      state = state.copyWith(
+        isUploadingAvatar: false,
+        errorMessage: 'Cap nhat chung chi that bai',
+      );
+      return false;
+    }
+  }
 }
 
 final myProfileViewModelProvider =

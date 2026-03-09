@@ -7,6 +7,8 @@ class TeacherMyProfileModel extends UserModel {
   final int totalStudents;
   final String? bio;
   final double? hourlyRate;
+  final List<String> certifications;
+  final List<String> verificationDocs;
 
   TeacherMyProfileModel({
     required super.id,
@@ -26,6 +28,8 @@ class TeacherMyProfileModel extends UserModel {
     this.totalStudents = 0,
     this.bio,
     this.hourlyRate,
+    this.certifications = const [],
+    this.verificationDocs = const [],
   });
 
   factory TeacherMyProfileModel.fromMap(Map<String, dynamic> map) {
@@ -57,6 +61,14 @@ class TeacherMyProfileModel extends UserModel {
       hourlyRate: map['hourly_rate'] == null
           ? null
           : (map['hourly_rate'] as num).toDouble(),
+      certifications: (map['certifications'] as List<dynamic>? ?? const [])
+          .map((item) => item.toString())
+          .where((item) => item.trim().isNotEmpty)
+          .toList(),
+      verificationDocs: (map['verification_docs'] as List<dynamic>? ?? const [])
+          .map((item) => item.toString())
+          .where((item) => item.trim().isNotEmpty)
+          .toList(),
     );
   }
 
@@ -70,6 +82,8 @@ class TeacherMyProfileModel extends UserModel {
       'total_students': totalStudents,
       'bio': bio,
       'hourly_rate': hourlyRate,
+      'certifications': certifications,
+      'verification_docs': verificationDocs,
     });
     return map;
   }
@@ -93,6 +107,8 @@ class TeacherMyProfileModel extends UserModel {
     int? totalStudents,
     String? bio,
     double? hourlyRate,
+    List<String>? certifications,
+    List<String>? verificationDocs,
   }) {
     return TeacherMyProfileModel(
       id: id ?? this.id,
@@ -112,6 +128,8 @@ class TeacherMyProfileModel extends UserModel {
       totalStudents: totalStudents ?? this.totalStudents,
       bio: bio ?? this.bio,
       hourlyRate: hourlyRate ?? this.hourlyRate,
+      certifications: certifications ?? this.certifications,
+      verificationDocs: verificationDocs ?? this.verificationDocs,
     );
   }
 }
