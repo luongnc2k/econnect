@@ -142,6 +142,41 @@ class MyProfileViewModel extends Notifier<MyProfileState> {
       return false;
     }
   }
+
+  Future<bool> removeTutorDocument(String documentUrl) async {
+    final current = state.profile;
+    if (current == null || current is! TeacherMyProfileModel) return false;
+
+    final updatedDocs = current.verificationDocs
+        .where((doc) => doc != documentUrl)
+        .toList();
+    if (updatedDocs.length == current.verificationDocs.length) {
+      return false;
+    }
+
+    state = state.copyWith(
+      isSaving: true,
+      clearError: true,
+    );
+
+    try {
+      final updated = await repository.updateMyProfile(
+        current.copyWith(verificationDocs: updatedDocs),
+      );
+
+      state = state.copyWith(
+        isSaving: false,
+        profile: updated,
+      );
+      return true;
+    } catch (e) {
+      state = state.copyWith(
+        isSaving: false,
+        errorMessage: 'Xoa chung chi that bai',
+      );
+      return false;
+    }
+  }
 }
 
 final myProfileViewModelProvider =

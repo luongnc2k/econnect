@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:client/core/constants/server_constant.dart';
 import 'package:client/features/auth/model/user_model.dart';
 import 'package:client/features/profile/model/student_my_profile_model.dart';
 import 'package:client/features/profile/model/teacher_my_profile_model.dart';
@@ -35,6 +36,25 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
   final _picker = ImagePicker();
   ImageProvider? _avatarPreviewImageProvider;
   bool _didInitForm = false;
+  String? _deletingDocUrl;
+
+  String _normalizeDocUrl(String url) {
+    final docUri = Uri.tryParse(url);
+    final serverUri = Uri.tryParse(ServerConstant.serverURL);
+    if (docUri == null || serverUri == null) return url;
+
+    final isLocalLoopback =
+        docUri.host == '127.0.0.1' || docUri.host == 'localhost';
+    if (!isLocalLoopback) return url;
+
+    return docUri
+        .replace(
+          scheme: serverUri.scheme,
+          host: serverUri.host,
+          port: serverUri.hasPort ? serverUri.port : null,
+        )
+        .toString();
+  }
 
   bool _isDesktopDevice() {
     if (kIsWeb) return false;
@@ -231,6 +251,95 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
     );
   }
 
+  Future<void> _openDocument(String url) async {
+    final normalized = _normalizeDocUrl(url);
+    await showDialog<void>(
+      context: context,
+      builder: (context) => Dialog(
+        insetPadding: const EdgeInsets.all(12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Anh chung chi',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+            ),
+            Flexible(
+              child: InteractiveViewer(
+                child: Image.network(
+                  normalized,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => const Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Text('Khong tai duoc anh chung chi'),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _deleteTutorDocument(String url, int index) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Xoa chung chi'),
+        content: Text('Ban co chac muon xoa chung chi #${index + 1}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Huy'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Xoa'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() {
+      _deletingDocUrl = url;
+    });
+
+    final success = await ref
+        .read(myProfileViewModelProvider.notifier)
+        .removeTutorDocument(url);
+
+    if (!mounted) return;
+
+    setState(() {
+      _deletingDocUrl = null;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          success ? 'Xoa chung chi thanh cong' : 'Xoa chung chi that bai',
+        ),
+      ),
+    );
+  }
+
   Future<void> _submit(UserModel profile) async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -367,11 +476,68 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
                 Align(
                   alignment: Alignment.centerLeft,
                   child: OutlinedButton.icon(
-                    onPressed: state.isUploadingAvatar ? null : _uploadTutorDocument,
+                    onPressed:
+                        state.isUploadingAvatar ? null : _uploadTutorDocument,
                     icon: const Icon(Icons.file_upload_outlined),
                     label: const Text('T\u1EA3i \u1EA3nh ch\u1EE9ng ch\u1EC9 / b\u1EB1ng c\u1EA5p'),
                   ),
                 ),
+                if (profile.verificationDocs.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Chung chi da tai len',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          const SizedBox(height: 8),
+                          ...profile.verificationDocs.asMap().entries.map((entry) {
+                            final isDeleting = _deletingDocUrl == entry.value;
+                            return Row(
+                              children: [
+                                Expanded(
+                                  child: TextButton(
+                                    onPressed: isDeleting
+                                        ? null
+                                        : () => _openDocument(entry.value),
+                                    child: Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: Text(
+                                        'Chung chi #${entry.key + 1}',
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                IconButton(
+                                  onPressed: isDeleting
+                                      ? null
+                                      : () => _deleteTutorDocument(
+                                            entry.value,
+                                            entry.key,
+                                          ),
+                                  tooltip: 'Xoa chung chi',
+                                  icon: isDeleting
+                                      ? const SizedBox(
+                                          width: 18,
+                                          height: 18,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
+                                        )
+                                      : const Icon(Icons.delete_outline),
+                                ),
+                              ],
+                            );
+                          }),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ],
               const SizedBox(height: 20),
               SizedBox(
