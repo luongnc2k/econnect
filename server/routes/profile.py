@@ -47,6 +47,8 @@ def _serialize_profile(
                 "total_students": teacher_profile.total_sessions if teacher_profile else 0,
                 "bio": teacher_profile.bio if teacher_profile else None,
                 "hourly_rate": None,
+                "certifications": list(teacher_profile.certifications or []) if teacher_profile else [],
+                "verification_docs": list(teacher_profile.verification_docs or []) if teacher_profile else [],
             }
         )
 
@@ -59,6 +61,26 @@ def get_my_profile(
     db: Session = Depends(get_db),
 ):
     user = db.query(User).filter(User.id == user_dict["uid"]).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    student_profile = None
+    teacher_profile = None
+    if user.role == "student":
+        student_profile = db.query(StudentProfile).filter(StudentProfile.user_id == user.id).first()
+    elif user.role == "teacher":
+        teacher_profile = db.query(TeacherProfile).filter(TeacherProfile.user_id == user.id).first()
+
+    return _serialize_profile(user, student_profile, teacher_profile)
+
+
+@router.get("/{user_id}")
+def get_user_profile(
+    user_id: str,
+    _: dict = Depends(auth_middleware),
+    db: Session = Depends(get_db),
+):
+    user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
@@ -117,6 +139,22 @@ def update_my_profile(
             teacher_profile.years_experience = int(years) if years is not None else None
         if "specialization" in payload:
             teacher_profile.native_language = payload.get("specialization")
+        if "certifications" in payload:
+            certifications = payload.get("certifications")
+            if isinstance(certifications, list):
+                teacher_profile.certifications = [str(item).strip() for item in certifications if str(item).strip()]
+            elif isinstance(certifications, str):
+                teacher_profile.certifications = [
+                    item.strip()
+                    for item in certifications.split(",")
+                    if item.strip()
+                ]
+            else:
+                teacher_profile.certifications = []
+        if "verification_docs" in payload:
+            docs = payload.get("verification_docs")
+            if isinstance(docs, list):
+                teacher_profile.verification_docs = [str(item).strip() for item in docs if str(item).strip()]
 
     db.commit()
     db.refresh(user)

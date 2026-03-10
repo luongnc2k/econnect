@@ -24,6 +24,7 @@ class UpcomingClassListWidget extends StatelessWidget {
         itemBuilder: (context, index) {
           final session = classes[index];
           return ClassCardWidget(
+            classCode: session.classCode,
             title: session.title,
             location: session.location,
             teacherName: session.teacherName,

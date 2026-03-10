@@ -11,8 +11,10 @@ class ClassSessionMapper {
 
     return ClassSession(
       id: m['id'] as String,
+      classCode: m['class_code'] as String?,
       title: m['title'] as String,
       location: m['location_name'] as String,
+      teacherId: teacher['id'] as String?,
       teacherName: teacher['full_name'] as String,
       teacherAvatarUrl: teacher['avatar_url'] as String?,
       timeText: formatTime(startTime),

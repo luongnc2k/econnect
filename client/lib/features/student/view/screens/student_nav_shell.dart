@@ -1,4 +1,6 @@
-import 'package:client/features/auth/viewmodel/auth_viewmodel.dart';
+import 'package:client/features/student/view/screens/class_search_screen.dart';
+import 'package:client/features/profile/view/screens/user_search_screen.dart';
+import 'package:client/features/profile/view/widgets/my_profile_view.dart';
 import 'package:client/features/student/view/screens/student_home_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,10 +18,12 @@ class _StudentNavShellState extends State<StudentNavShell> {
   late final List<Widget> _screens = [
     StudentHomeScreen(
       onAvatarTap: () => setState(() => _currentIndex = 3),
+      onSearchTap: () => setState(() => _currentIndex = 1),
+      onClassesTap: () => setState(() => _currentIndex = 2),
     ),
-    const _PlaceholderTab(label: 'Tìm kiếm'),
-    const _PlaceholderTab(label: 'Lớp học'),
-    const _ProfileTab(),
+    const UserSearchScreen(),
+    const ClassSearchScreen(),
+    const MyProfileTab(),
   ];
 
   @override
@@ -38,22 +42,22 @@ class _StudentNavShellState extends State<StudentNavShell> {
           NavigationDestination(
             icon: Icon(Icons.home_outlined),
             selectedIcon: Icon(Icons.home_rounded),
-            label: 'Trang chủ',
+            label: 'Trang chu',
           ),
           NavigationDestination(
             icon: Icon(Icons.search_outlined),
             selectedIcon: Icon(Icons.search_rounded),
-            label: 'Tìm kiếm',
+            label: 'Tim kiem',
           ),
           NavigationDestination(
             icon: Icon(Icons.menu_book_outlined),
             selectedIcon: Icon(Icons.menu_book_rounded),
-            label: 'Lớp học',
+            label: 'Lop hoc',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline_rounded),
             selectedIcon: Icon(Icons.person_rounded),
-            label: 'Hồ sơ',
+            label: 'Ho so',
           ),
         ],
       ),
@@ -68,42 +72,6 @@ class MyProfileTab extends StatelessWidget {
   Widget build(BuildContext context) {
     return const SafeArea(
       child: MyProfileView(),
-    );
-  }
-}
-
-class _PlaceholderTab extends StatelessWidget {
-  final String label;
-
-  const _PlaceholderTab({
-    required this.label,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.titleMedium,
-      ),
-    );
-  }
-}
-
-class _ProfileTab extends ConsumerWidget {
-  const _ProfileTab();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Center(
-      child: FilledButton.tonal(
-        onPressed: () => ref.read(authViewModelProvider.notifier).logout(),
-        style: FilledButton.styleFrom(
-          backgroundColor: Theme.of(context).colorScheme.errorContainer,
-          foregroundColor: Theme.of(context).colorScheme.onErrorContainer,
-        ),
-        child: const Text('Đăng xuất'),
-      ),
     );
   }
 }

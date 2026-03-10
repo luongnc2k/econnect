@@ -27,6 +27,7 @@ class TeacherBrief(BaseModel):
 
 class ClassResponse(BaseModel):
     id: str
+    class_code: str
     title: str
     description: Optional[str] = None
     level: str

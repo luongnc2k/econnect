@@ -1,8 +1,10 @@
 import 'package:client/core/widgets/app_tag_chip.dart';
 import 'package:client/core/widgets/status_badge.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class ClassCardWidget extends StatelessWidget {
+  final String? classCode;
   final String title;
   final String location;
   final String teacherName;
@@ -16,6 +18,7 @@ class ClassCardWidget extends StatelessWidget {
 
   const ClassCardWidget({
     super.key,
+    this.classCode,
     required this.title,
     required this.location,
     required this.teacherName,
@@ -69,6 +72,46 @@ class ClassCardWidget extends StatelessWidget {
                       height: 1.2,
                     ),
                   ),
+                  if (classCode != null && classCode!.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    InkWell(
+                      borderRadius: BorderRadius.circular(8),
+                      onTap: () async {
+                        await Clipboard.setData(ClipboardData(text: classCode!));
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Da copy ma lop $classCode')),
+                        );
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 2),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                classCode!,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: cs.primary,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.4,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(
+                              Icons.content_copy_rounded,
+                              size: 12,
+                              color: cs.primary,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 6),
                   Text(
                     location,

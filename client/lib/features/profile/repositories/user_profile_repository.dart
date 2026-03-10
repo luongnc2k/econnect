@@ -1,4 +1,8 @@
+import 'package:client/core/network/dio_provider.dart';
+import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/features/auth/model/user_model.dart';
+import 'package:client/testing/manual_test_mocks.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../model/student_my_profile_model.dart';
@@ -9,48 +13,57 @@ abstract class IUserProfileRepository {
 }
 
 class UserProfileRepository implements IUserProfileRepository {
+  final Ref ref;
+  final Dio dio;
+
+  UserProfileRepository(this.ref, this.dio);
+
   @override
   Future<UserModel> getUserProfileById(String userId) async {
-    await Future.delayed(const Duration(milliseconds: 400));
+    final currentUser = ref.read(currentUserProvider);
+    final token = currentUser?.token ?? '';
 
-    if (userId.startsWith('teacher')) {
-      // Mock: Trả về dữ liệu mẫu cho giáo viên
-      return TeacherMyProfileModel(
-        id: userId,
-        email: 'teacher$userId@gmail.com',
-        fullName: 'Teacher $userId',
-        phone: '0900000000',
-        avatarUrl: null,
-        role: 'teacher',
-        isActive: true,
-        token: '',
-        specialization: 'Conversation',
-        yearsOfExperience: 5,
-        rating: 4.9,
-        totalStudents: 120,
-        bio: 'Experienced English teacher',
-        hourlyRate: 250000,
+    try {
+      if (token.isEmpty) {
+        throw Exception('Thieu token dang nhap');
+      }
+
+      final response = await dio.get(
+        '/profile/$userId',
+        options: Options(
+          headers: {'x-auth-token': token},
+        ),
       );
-    }
 
-    // Trả về dữ liệu mẫu cho học viên
-    return StudentMyProfileModel(
-      id: userId,
-      email: 'student$userId@gmail.com',
-      fullName: 'Student $userId',
-      phone: null,
-      avatarUrl: null,
-      role: 'student',
-      isActive: true,
-      token: '',
-      englishLevel: 'B1',
-      learningGoal: 'Improve IELTS',
-      totalLessons: 20,
-      averageScore: 7.5,
-    );
+      final data = response.data;
+      if (response.statusCode != 200 || data is! Map<String, dynamic>) {
+        throw Exception('Khong the tai ho so nguoi dung');
+      }
+
+      final mapped = {...data, 'token': token};
+      return _mapProfile(mapped);
+    } catch (_) {
+      if (ManualTestMocks.enabled) {
+        final mockProfile = ManualTestMocks.findProfile(userId);
+        if (mockProfile != null) {
+          return mockProfile;
+        }
+      }
+      rethrow;
+    }
   }
+
+  UserModel _mapProfile(Map<String, dynamic> mapped) {
+    final role = (mapped['role'] ?? '').toString();
+    if (role == 'teacher') {
+      return TeacherMyProfileModel.fromMap(mapped);
+    }
+    return StudentMyProfileModel.fromMap(mapped);
+  }
+
 }
 
 final userProfileRepositoryProvider = Provider<IUserProfileRepository>((ref) {
-  return UserProfileRepository();
+  final dio = ref.watch(dioProvider);
+  return UserProfileRepository(ref, dio);
 });

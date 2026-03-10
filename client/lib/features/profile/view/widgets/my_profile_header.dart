@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:client/features/auth/model/user_model.dart';
+import 'package:client/features/profile/model/teacher_my_profile_model.dart';
 import 'package:flutter/material.dart';
 
 class MyProfileHeader extends StatelessWidget {
@@ -81,7 +82,19 @@ class MyProfileHeader extends StatelessWidget {
             ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
-          Chip(label: Text(profile.role == 'teacher' ? 'Teacher' : 'Student')),
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              Chip(label: Text(profile.role == 'teacher' ? 'Teacher' : 'Student')),
+              if (profile is TeacherMyProfileModel)
+                Chip(
+                  avatar: const Icon(Icons.star, size: 18, color: Colors.amber),
+                  label: Text((profile as TeacherMyProfileModel).rating.toStringAsFixed(1)),
+                ),
+            ],
+          ),
         ],
       ),
     );

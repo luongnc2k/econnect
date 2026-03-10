@@ -18,6 +18,7 @@ UPLOAD_ROOT.mkdir(parents=True, exist_ok=True)
 
 BUCKET_THUMBNAILS = "class-thumbnails"
 BUCKET_AVATARS = "user-avatars"
+BUCKET_TEACHER_DOCS = "teacher-docs"
 
 client = Minio(
     MINIO_ENDPOINT,
@@ -121,5 +122,19 @@ def upload_avatar(file_data: bytes, content_type: str) -> str:
 def delete_avatar(url: str) -> None:
     if f"/{BUCKET_AVATARS}/" in url:
         _delete(BUCKET_AVATARS, url)
+    else:
+        _local_delete(url)
+
+
+def upload_teacher_document(file_data: bytes, content_type: str) -> str:
+    try:
+        return _upload(BUCKET_TEACHER_DOCS, file_data, content_type)
+    except Exception:
+        return _local_upload(BUCKET_TEACHER_DOCS, file_data, content_type)
+
+
+def delete_teacher_document(url: str) -> None:
+    if f"/{BUCKET_TEACHER_DOCS}/" in url:
+        _delete(BUCKET_TEACHER_DOCS, url)
     else:
         _local_delete(url)

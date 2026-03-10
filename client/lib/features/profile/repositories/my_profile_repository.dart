@@ -17,6 +17,11 @@ abstract class IMyProfileRepository {
     required Uint8List fileBytes,
     String? filePath,
   });
+  Future<String> uploadTutorDocument({
+    required String fileName,
+    required Uint8List fileBytes,
+    String? filePath,
+  });
 }
 
 class MyProfileRepository implements IMyProfileRepository {
@@ -126,6 +131,43 @@ class MyProfileRepository implements IMyProfileRepository {
     }
 
     throw Exception('Upload avatar that bai');
+  }
+
+  @override
+  Future<String> uploadTutorDocument({
+    required String fileName,
+    required Uint8List fileBytes,
+    String? filePath,
+  }) async {
+    final currentUser = ref.read(currentUserProvider);
+    final token = currentUser?.token ?? '';
+
+    if (token.isEmpty) {
+      throw Exception('Thieu token dang nhap');
+    }
+
+    final formData = FormData.fromMap({
+      'file': filePath != null
+          ? await MultipartFile.fromFile(filePath, filename: fileName)
+          : MultipartFile.fromBytes(fileBytes, filename: fileName),
+    });
+
+    final response = await dio.post(
+      '/upload/teacher-document',
+      data: formData,
+      options: Options(
+        headers: {'x-auth-token': token},
+      ),
+    );
+
+    final data = response.data;
+    if (response.statusCode == 200 &&
+        data is Map<String, dynamic> &&
+        data['url'] != null) {
+      return data['url'].toString();
+    }
+
+    throw Exception('Upload teacher document that bai');
   }
 
   UserModel _mapProfile(Map<String, dynamic> map) {

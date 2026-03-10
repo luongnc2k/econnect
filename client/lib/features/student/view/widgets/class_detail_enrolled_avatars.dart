@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:client/features/student/model/enrolled_student_preview.dart';
 
 const _avatarColors = [
   Color(0xFF7950F2),
@@ -9,13 +10,17 @@ const _avatarColors = [
 ];
 
 class ClassDetailEnrolledAvatars extends StatelessWidget {
+  final List<EnrolledStudentPreview> students;
   final List<String> initials;
   final int extra;
+  final ValueChanged<EnrolledStudentPreview>? onAvatarTap;
 
   const ClassDetailEnrolledAvatars({
     super.key,
+    this.students = const [],
     required this.initials,
     this.extra = 0,
+    this.onAvatarTap,
   });
 
   @override
@@ -32,9 +37,17 @@ class ClassDetailEnrolledAvatars extends StatelessWidget {
         children: [
           ...List.generate(initials.length, (i) {
             final color = _avatarColors[i % _avatarColors.length];
+            final student = i < students.length ? students[i] : null;
             return Positioned(
               left: i * (size - overlap),
-              child: _AvatarCircle(label: initials[i], color: color, size: size),
+              child: _AvatarCircle(
+                label: initials[i],
+                color: color,
+                size: size,
+                onTap: student == null || onAvatarTap == null
+                    ? null
+                    : () => onAvatarTap!(student),
+              ),
             );
           }),
           if (extra > 0)
@@ -60,6 +73,7 @@ class _AvatarCircle extends StatelessWidget {
   final Color? textColor;
   final Color? borderColor;
   final double size;
+  final VoidCallback? onTap;
 
   const _AvatarCircle({
     required this.label,
@@ -67,28 +81,32 @@ class _AvatarCircle extends StatelessWidget {
     this.textColor,
     this.borderColor,
     required this.size,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: color,
-        shape: BoxShape.circle,
-        border: Border.all(
-          color: borderColor ?? Theme.of(context).scaffoldBackgroundColor,
-          width: 2,
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: borderColor ?? Theme.of(context).scaffoldBackgroundColor,
+            width: 2,
+          ),
         ),
-      ),
-      child: Center(
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: label.startsWith('+') ? 11 : 13,
-            fontWeight: FontWeight.w700,
-            color: textColor ?? Colors.white,
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: label.startsWith('+') ? 11 : 13,
+              fontWeight: FontWeight.w700,
+              color: textColor ?? Colors.white,
+            ),
           ),
         ),
       ),

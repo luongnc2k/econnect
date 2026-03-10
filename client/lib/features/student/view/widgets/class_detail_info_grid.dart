@@ -1,5 +1,6 @@
 import 'package:client/features/student/model/class_session.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class ClassDetailInfoGrid extends StatelessWidget {
   final ClassSession session;
@@ -9,15 +10,46 @@ class ClassDetailInfoGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = [
-      _InfoItem(icon: Icons.location_on_outlined, label: 'Địa điểm', value: session.location),
-      _InfoItem(icon: Icons.access_time_rounded, label: 'Thời gian', value: session.timeText),
+      if (session.classCode != null)
+        _InfoItem(
+          icon: Icons.qr_code_2_rounded,
+          label: 'Ma lop',
+          value: session.classCode!,
+          copyable: true,
+        ),
+      _InfoItem(
+        icon: Icons.location_on_outlined,
+        label: 'Dia diem',
+        value: session.location,
+      ),
+      _InfoItem(
+        icon: Icons.access_time_rounded,
+        label: 'Thoi gian',
+        value: session.timeText,
+      ),
       if (session.dateText != null)
-        _InfoItem(icon: Icons.calendar_today_outlined, label: 'Ngày', value: session.dateText!),
+        _InfoItem(
+          icon: Icons.calendar_today_outlined,
+          label: 'Ngay',
+          value: session.dateText!,
+        ),
       if (session.slotText != null)
-        _InfoItem(icon: Icons.people_outline_rounded, label: 'Số lượng', value: session.slotText!),
+        _InfoItem(
+          icon: Icons.people_outline_rounded,
+          label: 'So luong',
+          value: session.slotText!,
+        ),
       if (session.levelText != null)
-        _InfoItem(icon: Icons.bar_chart_rounded, label: 'Trình độ', value: session.levelText!),
-      _InfoItem(icon: Icons.payments_outlined, label: 'Phí', value: session.priceText),
+        _InfoItem(
+          icon: Icons.bar_chart_rounded,
+          label: 'Trinh do',
+          value: session.levelText!,
+        ),
+      _InfoItem(
+        icon: Icons.payments_outlined,
+        label: 'Phi',
+        value: session.priceText,
+      ),
     ];
 
     return LayoutBuilder(
@@ -45,8 +77,14 @@ class _InfoItem {
   final IconData icon;
   final String label;
   final String value;
+  final bool copyable;
 
-  const _InfoItem({required this.icon, required this.label, required this.value});
+  const _InfoItem({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.copyable = false,
+  });
 }
 
 class _InfoCell extends StatelessWidget {
@@ -57,7 +95,7 @@ class _InfoCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return Container(
+    final child = Container(
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
       decoration: BoxDecoration(
         color: cs.surfaceContainerHighest,
@@ -71,14 +109,22 @@ class _InfoCell extends StatelessWidget {
             children: [
               Icon(item.icon, size: 13, color: cs.onSurfaceVariant),
               const SizedBox(width: 4),
-              Text(
-                item.label,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: cs.onSurfaceVariant,
-                  fontWeight: FontWeight.w500,
+              Expanded(
+                child: Text(
+                  item.label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: cs.onSurfaceVariant,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
+              if (item.copyable)
+                Icon(
+                  Icons.content_copy_rounded,
+                  size: 14,
+                  color: cs.primary,
+                ),
             ],
           ),
           const SizedBox(height: 4),
@@ -95,6 +141,22 @@ class _InfoCell extends StatelessWidget {
           ),
         ],
       ),
+    );
+
+    if (!item.copyable) {
+      return child;
+    }
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: () async {
+        await Clipboard.setData(ClipboardData(text: item.value));
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Da copy ma lop ${item.value}')),
+        );
+      },
+      child: child,
     );
   }
 }

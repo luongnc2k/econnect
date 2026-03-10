@@ -3,6 +3,7 @@ import 'package:client/features/auth/view/screens/login_screen.dart';
 import 'package:client/features/auth/view/screens/signup_screen.dart';
 import 'package:client/features/profile/view/screens/edit_my_profile_screen.dart';
 import 'package:client/features/profile/view/screens/my_profile_screen.dart';
+import 'package:client/features/profile/view/screens/user_profile_screen.dart';
 import 'package:client/features/student/model/class_session.dart';
 import 'package:client/features/student/view/screens/class_detail_screen.dart';
 import 'package:client/features/student/view/screens/student_nav_shell.dart';
@@ -18,6 +19,7 @@ abstract class AppRoutes {
   static const classDetail = '/student/class';
   static const studentMyProfile = '/student/profile';
   static const studentEditMyProfile = '/student/profile/edit';
+  static const userProfile = '/user/:userId';
 
   static const teacherHome = '/teacher';
   static const teacherMyProfile = '/teacher/profile';
@@ -55,6 +57,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.signup,
         builder: (context, state) => const SignupScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.userProfile,
+        builder: (context, state) {
+          final userId = state.pathParameters['userId'] ?? '';
+          return UserProfileScreen(userId: userId);
+        },
       ),
       GoRoute(
         path: AppRoutes.studentHome,
