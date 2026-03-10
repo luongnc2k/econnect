@@ -1,6 +1,7 @@
-import 'package:client/features/profile/view/widgets/my_profile_view.dart';
+import 'package:client/features/auth/viewmodel/auth_viewmodel.dart';
 import 'package:client/features/student/view/screens/student_home_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class StudentNavShell extends StatefulWidget {
   const StudentNavShell({super.key});
@@ -18,7 +19,7 @@ class _StudentNavShellState extends State<StudentNavShell> {
     ),
     const _PlaceholderTab(label: 'Tìm kiếm'),
     const _PlaceholderTab(label: 'Lớp học'),
-    const MyProfileTab(),
+    const _ProfileTab(),
   ];
 
   @override
@@ -84,6 +85,24 @@ class _PlaceholderTab extends StatelessWidget {
       child: Text(
         label,
         style: Theme.of(context).textTheme.titleMedium,
+      ),
+    );
+  }
+}
+
+class _ProfileTab extends ConsumerWidget {
+  const _ProfileTab();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Center(
+      child: FilledButton.tonal(
+        onPressed: () => ref.read(authViewModelProvider.notifier).logout(),
+        style: FilledButton.styleFrom(
+          backgroundColor: Theme.of(context).colorScheme.errorContainer,
+          foregroundColor: Theme.of(context).colorScheme.onErrorContainer,
+        ),
+        child: const Text('Đăng xuất'),
       ),
     );
   }
