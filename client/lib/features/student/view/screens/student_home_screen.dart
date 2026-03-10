@@ -14,8 +14,15 @@ import 'package:go_router/go_router.dart';
 
 class StudentHomeScreen extends ConsumerWidget {
   final VoidCallback? onAvatarTap;
+  final VoidCallback? onSearchTap;
+  final VoidCallback? onClassesTap;
 
-  const StudentHomeScreen({super.key, this.onAvatarTap});
+  const StudentHomeScreen({
+    super.key,
+    this.onAvatarTap,
+    this.onSearchTap,
+    this.onClassesTap,
+  });
 
   static const double _sectionSpacing = 16;
 
@@ -57,6 +64,7 @@ class StudentHomeScreen extends ConsumerWidget {
               horizontalPadding: hPad,
               categories: studentHomeCategories,
               selectedCategory: state.selectedCategory,
+              onSearchTap: onSearchTap,
               onCategorySelected: (val) => ref
                   .read(studentHomeViewModelProvider.notifier)
                   .selectCategory(val),
@@ -75,7 +83,7 @@ class StudentHomeScreen extends ConsumerWidget {
               child: SectionHeaderWidget(
                 title: 'Lớp học sắp diễn ra',
                 actionText: 'Tất cả',
-                onActionTap: () {},
+                onActionTap: onClassesTap,
               ),
             ),
           ),
@@ -194,6 +202,7 @@ class _StickyFilterDelegate extends SliverPersistentHeaderDelegate {
   final List<String> categories;
   final String selectedCategory;
   final ValueChanged<String> onCategorySelected;
+  final VoidCallback? onSearchTap;
 
   const _StickyFilterDelegate({
     required this.scaffoldColor,
@@ -201,6 +210,7 @@ class _StickyFilterDelegate extends SliverPersistentHeaderDelegate {
     required this.categories,
     required this.selectedCategory,
     required this.onCategorySelected,
+    this.onSearchTap,
   });
 
   @override
@@ -222,7 +232,11 @@ class _StickyFilterDelegate extends SliverPersistentHeaderDelegate {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            SearchBarWidget(onTap: () {}),
+            SearchBarWidget(
+              onTap: onSearchTap,
+              readOnly: true,
+              hintText: 'Tim user theo ten hoac so dien thoai',
+            ),
             const SizedBox(height: 12),
             CategoryFilterWidget(
               categories: categories,

@@ -110,6 +110,9 @@ flutter pub get
 flutter pub run build_runner build --delete-conflicting-outputs
 
 flutter run
+
+# Bật mock test thủ công khi cần
+flutter run --dart-define=ENABLE_MANUAL_TEST_MOCKS=true
 ```
 
 ---

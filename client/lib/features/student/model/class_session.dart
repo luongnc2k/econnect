@@ -2,6 +2,7 @@ import 'package:client/features/student/model/enrolled_student_preview.dart';
 
 class ClassSession {
   final String? id;
+  final String? classCode;
   final String title;
   final String location;
   final String? teacherId;
@@ -27,6 +28,7 @@ class ClassSession {
 
   const ClassSession({
     this.id,
+    this.classCode,
     required this.title,
     required this.location,
     this.teacherId,

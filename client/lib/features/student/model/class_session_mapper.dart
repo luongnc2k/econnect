@@ -11,6 +11,7 @@ class ClassSessionMapper {
 
     return ClassSession(
       id: m['id'] as String,
+      classCode: m['class_code'] as String?,
       title: m['title'] as String,
       location: m['location_name'] as String,
       teacherId: teacher['id'] as String?,

@@ -3,7 +3,7 @@ import 'package:client/features/student/model/class_session.dart';
 import 'package:client/features/student/model/teacher_preview.dart';
 import 'package:client/features/student/model/student_home_state.dart';
 import 'package:client/features/student/repositories/student_remote_repository.dart';
-import 'package:client/features/student/repositories/student_repository.dart';
+import 'package:client/testing/manual_test_mocks.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fpdart/fpdart.dart' show Left, Right;
 
@@ -39,8 +39,8 @@ class StudentHomeViewModel extends Notifier<StudentHomeState> {
       Future.microtask(() => _loadClasses(user.token));
     }
     return StudentHomeState(
-      classes: mockClasses,
-      teachers: mockTeachers,
+      classes: ManualTestMocks.enabled ? ManualTestMocks.mockClasses : const [],
+      teachers: ManualTestMocks.enabled ? ManualTestMocks.mockTeachers : const [],
       selectedCategory: studentHomeCategories.first,
       isLoading: user != null,
     );
@@ -52,19 +52,30 @@ class StudentHomeViewModel extends Notifier<StudentHomeState> {
     final result = await repo.getUpcomingClasses(token, topic: topicSlug);
     switch (result) {
       case Left(value: final failure):
+        if (ManualTestMocks.enabled) {
+          state = state.copyWith(
+            isLoading: false,
+            classes: ManualTestMocks.mockClasses,
+            error: null,
+            teachers: ManualTestMocks.mockTeachers,
+          );
+          return;
+        }
         state = state.copyWith(
           isLoading: false,
-          classes: mockClasses,
-          error: null,
-          teachers: mockTeachers,
+          error: failure.message,
         );
       case Right(value: final classes):
         final teachers = _mapTeachers(classes);
-        final resolvedClasses = classes.isEmpty ? mockClasses : classes;
+        final resolvedClasses = classes.isEmpty && ManualTestMocks.enabled
+            ? ManualTestMocks.mockClasses
+            : classes;
         state = state.copyWith(
           isLoading: false,
           classes: resolvedClasses,
-          teachers: teachers.isEmpty ? mockTeachers : teachers,
+          teachers: teachers.isEmpty && ManualTestMocks.enabled
+              ? ManualTestMocks.mockTeachers
+              : teachers,
         );
     }
   }

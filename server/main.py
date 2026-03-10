@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 
 from models.base import Base
 from database import engine
-from routes import auth, upload, classes, topics, profile
+from routes import auth, upload, classes, topics, profile, users
 
 # Import all models so Base.metadata knows about them
 from models.user import User
@@ -32,6 +32,7 @@ app.include_router(upload.router, prefix="/upload")
 app.include_router(classes.router, prefix="/classes")
 app.include_router(topics.router, prefix="/topics")
 app.include_router(profile.router, prefix="/profile")
+app.include_router(users.router, prefix="/users")
 
 uploads_dir = Path("uploads")
 uploads_dir.mkdir(parents=True, exist_ok=True)
