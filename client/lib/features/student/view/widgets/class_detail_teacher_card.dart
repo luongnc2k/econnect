@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 class ClassDetailTeacherCard extends StatelessWidget {
   final String name;
+  final String? avatarUrl;
   final double? rating;
   final int? sessionCount;
   final VoidCallback? onTap;
@@ -9,6 +10,7 @@ class ClassDetailTeacherCard extends StatelessWidget {
   const ClassDetailTeacherCard({
     super.key,
     required this.name,
+    this.avatarUrl,
     this.rating,
     this.sessionCount,
     this.onTap,
@@ -32,14 +34,19 @@ class ClassDetailTeacherCard extends StatelessWidget {
             CircleAvatar(
               radius: 24,
               backgroundColor: const Color(0xFF7950F2),
-              child: Text(
-                initial,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 18,
-                ),
-              ),
+              backgroundImage: avatarUrl != null && avatarUrl!.isNotEmpty
+                  ? NetworkImage(avatarUrl!)
+                  : null,
+              child: avatarUrl == null || avatarUrl!.isEmpty
+                  ? Text(
+                      initial,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 18,
+                      ),
+                    )
+                  : null,
             ),
             const SizedBox(width: 12),
             Expanded(

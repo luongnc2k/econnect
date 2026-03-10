@@ -119,7 +119,9 @@ class StudentHomeScreen extends ConsumerWidget {
                   const SizedBox(height: 12),
                   FeaturedTeacherListWidget(
                     teachers: state.teachers,
-                    onTeacherTap: (teacher) {},
+                    onTeacherTap: (teacher) => context.push(
+                      AppRoutes.userProfile.replaceFirst(':userId', teacher.id),
+                    ),
                   ),
                 ],
               ),

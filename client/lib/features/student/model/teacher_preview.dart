@@ -1,4 +1,5 @@
 class TeacherPreview {
+  final String id;
   final String name;
   final String subtitle;
   final double rating;
@@ -8,6 +9,7 @@ class TeacherPreview {
   final String? badgeText;
 
   const TeacherPreview({
+    required this.id,
     required this.name,
     required this.subtitle,
     required this.rating,

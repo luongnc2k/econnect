@@ -1,4 +1,6 @@
 import 'package:client/core/providers/current_user_notifier.dart';
+import 'package:client/features/student/model/class_session.dart';
+import 'package:client/features/student/model/teacher_preview.dart';
 import 'package:client/features/student/model/student_home_state.dart';
 import 'package:client/features/student/repositories/student_remote_repository.dart';
 import 'package:client/features/student/repositories/student_repository.dart';
@@ -37,7 +39,7 @@ class StudentHomeViewModel extends Notifier<StudentHomeState> {
       Future.microtask(() => _loadClasses(user.token));
     }
     return StudentHomeState(
-      classes: const [],
+      classes: mockClasses,
       teachers: mockTeachers,
       selectedCategory: studentHomeCategories.first,
       isLoading: user != null,
@@ -50,9 +52,20 @@ class StudentHomeViewModel extends Notifier<StudentHomeState> {
     final result = await repo.getUpcomingClasses(token, topic: topicSlug);
     switch (result) {
       case Left(value: final failure):
-        state = state.copyWith(isLoading: false, error: failure.message);
+        state = state.copyWith(
+          isLoading: false,
+          classes: mockClasses,
+          error: null,
+          teachers: mockTeachers,
+        );
       case Right(value: final classes):
-        state = state.copyWith(isLoading: false, classes: classes);
+        final teachers = _mapTeachers(classes);
+        final resolvedClasses = classes.isEmpty ? mockClasses : classes;
+        state = state.copyWith(
+          isLoading: false,
+          classes: resolvedClasses,
+          teachers: teachers.isEmpty ? mockTeachers : teachers,
+        );
     }
   }
 
@@ -62,5 +75,27 @@ class StudentHomeViewModel extends Notifier<StudentHomeState> {
     if (user == null) return;
     final slug = _categoryTopicSlug[category];
     _loadClasses(user.token, topicSlug: slug);
+  }
+
+  List<TeacherPreview> _mapTeachers(List<ClassSession> classes) {
+    final mapped = <String, TeacherPreview>{};
+
+    for (final session in classes) {
+      if (session.teacherId == null || mapped.containsKey(session.teacherId)) {
+        continue;
+      }
+
+      mapped[session.teacherId!] = TeacherPreview(
+        id: session.teacherId!,
+        name: session.teacherName,
+        subtitle: session.tags.join(', '),
+        rating: session.teacherRating ?? 0,
+        reviewCount: session.teacherSessionCount ?? 0,
+        specialties: session.tags,
+        avatarUrl: session.teacherAvatarUrl,
+      );
+    }
+
+    return mapped.values.toList();
   }
 }

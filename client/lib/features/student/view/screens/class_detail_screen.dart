@@ -1,3 +1,4 @@
+import 'package:client/core/router/app_router.dart';
 import 'package:client/core/utils.dart';
 import 'package:client/core/widgets/app_tag_chip.dart';
 import 'package:client/core/widgets/status_badge.dart';
@@ -6,6 +7,7 @@ import 'package:client/features/student/view/widgets/class_detail_enrolled_avata
 import 'package:client/features/student/view/widgets/class_detail_info_grid.dart';
 import 'package:client/features/student/view/widgets/class_detail_teacher_card.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 class ClassDetailScreen extends StatelessWidget {
   final ClassSession session;
@@ -127,8 +129,17 @@ class ClassDetailScreen extends StatelessWidget {
                     const SizedBox(height: 12),
                     ClassDetailTeacherCard(
                       name: session.teacherName,
+                      avatarUrl: session.teacherAvatarUrl,
                       rating: session.teacherRating,
                       sessionCount: session.teacherSessionCount,
+                      onTap: session.teacherId == null
+                          ? null
+                          : () => context.push(
+                                AppRoutes.userProfile.replaceFirst(
+                                  ':userId',
+                                  session.teacherId!,
+                                ),
+                              ),
                     ),
 
                     if (session.enrolledInitials.isNotEmpty) ...[
@@ -142,8 +153,15 @@ class ClassDetailScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 12),
                       ClassDetailEnrolledAvatars(
+                        students: session.enrolledStudents,
                         initials: session.enrolledInitials,
                         extra: session.extraEnrolled ?? 0,
+                        onAvatarTap: (student) => context.push(
+                          AppRoutes.userProfile.replaceFirst(
+                            ':userId',
+                            student.id,
+                          ),
+                        ),
                       ),
                     ],
 
