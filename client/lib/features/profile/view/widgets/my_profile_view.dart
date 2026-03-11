@@ -187,10 +187,6 @@ class _MyProfileViewState extends ConsumerState<MyProfileView> {
                   label: 'T\u1ED5ng bu\u1ED5i h\u1ECDc',
                   value: profile.totalLessons.toString(),
                 ),
-                ProfileInfoItem(
-                  label: '\u0110i\u1EC3m trung b\u00ECnh',
-                  value: profile.averageScore?.toStringAsFixed(1) ?? '--',
-                ),
               ],
             ),
           if (profile is TeacherMyProfileModel)

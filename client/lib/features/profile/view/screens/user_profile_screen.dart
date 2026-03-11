@@ -84,10 +84,6 @@ class UserProfileScreen extends ConsumerWidget {
                       label: 'Tong buoi hoc',
                       value: profile.totalLessons.toString(),
                     ),
-                    ProfileInfoItem(
-                      label: 'Diem trung binh',
-                      value: profile.averageScore?.toStringAsFixed(1) ?? '--',
-                    ),
                   ],
                 ),
               if (profile is TeacherMyProfileModel)
