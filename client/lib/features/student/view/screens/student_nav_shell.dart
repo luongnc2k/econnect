@@ -1,5 +1,5 @@
-import 'package:client/features/student/view/screens/class_search_screen.dart';
-import 'package:client/features/profile/view/screens/user_search_screen.dart';
+import 'package:client/features/search/view/screens/class_search_screen.dart';
+import 'package:client/features/search/view/screens/user_search_screen.dart';
 import 'package:client/features/profile/view/widgets/my_profile_view.dart';
 import 'package:client/features/student/view/screens/student_home_screen.dart';
 import 'package:flutter/material.dart';

@@ -4,7 +4,7 @@ import 'package:client/core/utils.dart';
 import 'package:client/features/student/view/widgets/category_filter_widget.dart';
 import 'package:client/features/student/view/widgets/featured_teacher_list_widget.dart';
 import 'package:client/features/student/view/widgets/home_header_widget.dart';
-import 'package:client/features/student/view/widgets/search_bar_widget.dart';
+import 'package:client/features/search/view/widgets/search_bar_widget.dart';
 import 'package:client/features/student/view/widgets/section_header_widget.dart';
 import 'package:client/features/student/view/widgets/upcoming_classlist_widget.dart';
 import 'package:client/features/student/viewmodel/student_home_viewmodel.dart';

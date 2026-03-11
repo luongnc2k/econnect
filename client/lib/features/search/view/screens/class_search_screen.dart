@@ -3,7 +3,7 @@ import 'package:client/core/router/app_router.dart';
 import 'package:client/features/student/model/class_session.dart';
 import 'package:client/features/student/repositories/student_remote_repository.dart';
 import 'package:client/features/student/view/widgets/upcoming_classlist_widget.dart';
-import 'package:client/features/student/view/widgets/search_bar_widget.dart';
+import 'package:client/features/search/view/widgets/search_bar_widget.dart';
 import 'package:client/testing/manual_test_mocks.dart';
 import 'package:fpdart/fpdart.dart' show Left, Right;
 import 'package:flutter/material.dart';
