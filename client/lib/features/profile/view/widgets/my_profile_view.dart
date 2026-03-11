@@ -1,5 +1,6 @@
 import 'package:client/core/constants/server_constant.dart';
 import 'package:client/core/router/app_router.dart';
+import 'package:client/features/auth/viewmodel/auth_viewmodel.dart';
 import 'package:client/features/profile/model/student_my_profile_model.dart';
 import 'package:client/features/profile/model/teacher_my_profile_model.dart';
 import 'package:client/features/profile/view/widgets/my_profile_header.dart';
@@ -24,7 +25,8 @@ class _MyProfileViewState extends ConsumerState<MyProfileView> {
     final serverUri = Uri.tryParse(ServerConstant.serverURL);
     if (docUri == null || serverUri == null) return url;
 
-    final isLocalLoopback = docUri.host == '127.0.0.1' || docUri.host == 'localhost';
+    final isLocalLoopback =
+        docUri.host == '127.0.0.1' || docUri.host == 'localhost';
     if (!isLocalLoopback) return url;
 
     return docUri
@@ -41,9 +43,9 @@ class _MyProfileViewState extends ConsumerState<MyProfileView> {
     final uri = Uri.tryParse(normalized);
     if (uri == null) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Link khong hop le')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Link khong hop le')));
       return;
     }
     if (!mounted) return;
@@ -119,7 +121,10 @@ class _MyProfileViewState extends ConsumerState<MyProfileView> {
     final profile = state.profile;
     if (profile == null) {
       return Center(
-        child: Text(state.errorMessage ?? 'Kh\u00F4ng c\u00F3 d\u1EEF li\u1EC7u h\u1ED3 s\u01A1'),
+        child: Text(
+          state.errorMessage ??
+              'Kh\u00F4ng c\u00F3 d\u1EEF li\u1EC7u h\u1ED3 s\u01A1',
+        ),
       );
     }
 
@@ -140,7 +145,10 @@ class _MyProfileViewState extends ConsumerState<MyProfileView> {
           ProfileInfoCard(
             title: 'Th\u00F4ng tin c\u00E1 nh\u00E2n',
             items: [
-              ProfileInfoItem(label: 'H\u1ECD v\u00E0 t\u00EAn', value: profile.fullName),
+              ProfileInfoItem(
+                label: 'H\u1ECD v\u00E0 t\u00EAn',
+                value: profile.fullName,
+              ),
               ProfileInfoItem(label: 'Email', value: profile.email),
               ProfileInfoItem(
                 label: 'S\u1ED1 \u0111i\u1EC7n tho\u1EA1i',
@@ -233,8 +241,8 @@ class _MyProfileViewState extends ConsumerState<MyProfileView> {
                     Text(
                       'Li\u00EAn k\u1EBFt \u1EA3nh ch\u1EE9ng ch\u1EC9',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                     const SizedBox(height: 10),
                     ...profile.verificationDocs.asMap().entries.map(
@@ -267,6 +275,14 @@ class _MyProfileViewState extends ConsumerState<MyProfileView> {
             ),
           ],
           const SizedBox(height: 24),
+          FilledButton.tonal(
+            onPressed: () => ref.read(authViewModelProvider.notifier).logout(),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.errorContainer,
+              foregroundColor: Theme.of(context).colorScheme.onErrorContainer,
+            ),
+            child: const Text('Đăng xuất'),
+          ),
         ],
       ),
     );
