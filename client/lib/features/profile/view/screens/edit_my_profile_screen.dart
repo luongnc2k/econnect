@@ -28,6 +28,9 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
   final _learningGoalController = TextEditingController();
 
   final _specializationController = TextEditingController();
+  final _bankNameController = TextEditingController();
+  final _bankAccountNumberController = TextEditingController();
+  final _bankAccountHolderController = TextEditingController();
   final _certificationsController = TextEditingController();
   final _bioController = TextEditingController();
   final _yearsOfExperienceController = TextEditingController();
@@ -82,6 +85,9 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
 
     if (profile is TeacherMyProfileModel) {
       _specializationController.text = profile.specialization ?? '';
+      _bankNameController.text = profile.bankName ?? '';
+      _bankAccountNumberController.text = profile.bankAccountNumber ?? '';
+      _bankAccountHolderController.text = profile.bankAccountHolder ?? '';
       _certificationsController.text = profile.certifications.join(', ');
       _bioController.text = profile.bio ?? '';
       _yearsOfExperienceController.text = profile.yearsOfExperience.toString();
@@ -98,6 +104,9 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
     _englishLevelController.dispose();
     _learningGoalController.dispose();
     _specializationController.dispose();
+    _bankNameController.dispose();
+    _bankAccountNumberController.dispose();
+    _bankAccountHolderController.dispose();
     _certificationsController.dispose();
     _bioController.dispose();
     _yearsOfExperienceController.dispose();
@@ -365,6 +374,9 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
         fullName: _fullNameController.text.trim(),
         phone: _phoneController.text.trim(),
         specialization: _specializationController.text.trim(),
+        bankName: _bankNameController.text.trim(),
+        bankAccountNumber: _bankAccountNumberController.text.trim(),
+        bankAccountHolder: _bankAccountHolderController.text.trim(),
         certifications: certifications,
         bio: _bioController.text.trim(),
         yearsOfExperience:
@@ -444,33 +456,65 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
                 ),
               ],
               if (profile is TeacherMyProfileModel) ...[
-                _buildField(
-                  controller: _specializationController,
-                  label: 'Chuy\u00EAn m\u00F4n',
+                _buildSectionCard(
+                  title: 'Thong tin giao vien',
+                  child: Column(
+                    children: [
+                      _buildField(
+                        controller: _specializationController,
+                        label: 'Chuyen mon',
+                      ),
+                      const SizedBox(height: 12),
+                      _buildField(
+                        controller: _certificationsController,
+                        label: 'Chung chi, bang cap (phan tach bang dau phay)',
+                        maxLines: 2,
+                      ),
+                      const SizedBox(height: 12),
+                      _buildField(
+                        controller: _yearsOfExperienceController,
+                        label: 'So nam kinh nghiem',
+                        keyboardType: TextInputType.number,
+                      ),
+                      const SizedBox(height: 12),
+                      _buildField(
+                        controller: _hourlyRateController,
+                        label: 'Hoc phi / buoi',
+                        keyboardType: TextInputType.number,
+                      ),
+                      const SizedBox(height: 12),
+                      _buildField(
+                        controller: _bioController,
+                        label: 'Gioi thieu',
+                        maxLines: 4,
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 12),
-                _buildField(
-                  controller: _certificationsController,
-                  label: 'Ch\u1EE9ng ch\u1EC9, b\u1EB1ng c\u1EA5p (ph\u00E2n t\u00E1ch b\u1EB1ng d\u1EA5u ph\u1EA9y)',
-                  maxLines: 2,
-                ),
-                const SizedBox(height: 12),
-                _buildField(
-                  controller: _yearsOfExperienceController,
-                  label: 'S\u1ED1 n\u0103m kinh nghi\u1EC7m',
-                  keyboardType: TextInputType.number,
-                ),
-                const SizedBox(height: 12),
-                _buildField(
-                  controller: _hourlyRateController,
-                  label: 'H\u1ECDc ph\u00ED / bu\u1ED5i',
-                  keyboardType: TextInputType.number,
-                ),
-                const SizedBox(height: 12),
-                _buildField(
-                  controller: _bioController,
-                  label: 'Gi\u1EDBi thi\u1EC7u',
-                  maxLines: 4,
+                _buildSectionCard(
+                  title: 'Tai khoan ngan hang',
+                  subtitle:
+                      'Thong tin thanh toan duoc tach rieng de de kiem tra va cap nhat.',
+                  child: Column(
+                    children: [
+                      _buildField(
+                        controller: _bankNameController,
+                        label: 'Ngan hang',
+                      ),
+                      const SizedBox(height: 12),
+                      _buildField(
+                        controller: _bankAccountNumberController,
+                        label: 'So tai khoan',
+                        keyboardType: TextInputType.number,
+                      ),
+                      const SizedBox(height: 12),
+                      _buildField(
+                        controller: _bankAccountHolderController,
+                        label: 'Chu tai khoan',
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 12),
                 Align(
@@ -624,6 +668,40 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
       decoration: InputDecoration(
         labelText: label,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+  }
+
+  Widget _buildSectionCard({
+    required String title,
+    String? subtitle,
+    required Widget child,
+  }) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            if (subtitle != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                subtitle,
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: Colors.grey[700]),
+              ),
+            ],
+            const SizedBox(height: 12),
+            child,
+          ],
+        ),
       ),
     );
   }

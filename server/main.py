@@ -16,6 +16,7 @@ from models.student_profile import StudentProfile
 from models.teacher_specialty import TeacherSpecialty
 from models.class_ import Class
 from models.booking import Booking
+from schema_sync import sync_schema
 
 app = FastAPI()
 
@@ -40,3 +41,4 @@ app.mount("/static", StaticFiles(directory=uploads_dir), name="static")
 
 # Base.metadata.drop_all(bind=engine)
 Base.metadata.create_all(bind=engine)
+sync_schema(engine)

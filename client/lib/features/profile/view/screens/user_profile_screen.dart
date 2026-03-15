@@ -122,6 +122,26 @@ class UserProfileScreen extends ConsumerWidget {
                     ),
                   ],
                 ),
+              if (profile is TeacherMyProfileModel) ...[
+                const SizedBox(height: 16),
+                ProfileInfoCard(
+                  title: 'Tai khoan ngan hang',
+                  items: [
+                    ProfileInfoItem(
+                      label: 'Ngan hang',
+                      value: profile.bankName ?? '--',
+                    ),
+                    ProfileInfoItem(
+                      label: 'So tai khoan',
+                      value: profile.bankAccountNumber ?? '--',
+                    ),
+                    ProfileInfoItem(
+                      label: 'Chu tai khoan',
+                      value: profile.bankAccountHolder ?? '--',
+                    ),
+                  ],
+                ),
+              ],
             ],
           );
         },

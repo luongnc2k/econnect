@@ -225,6 +225,26 @@ class _MyProfileViewState extends ConsumerState<MyProfileView> {
                 ),
               ],
             ),
+          if (profile is TeacherMyProfileModel)
+            const SizedBox(height: 16),
+          if (profile is TeacherMyProfileModel)
+            ProfileInfoCard(
+              title: 'T\u00E0i kho\u1EA3n ng\u00E2n h\u00E0ng',
+              items: [
+                ProfileInfoItem(
+                  label: 'Ng\u00E2n h\u00E0ng',
+                  value: profile.bankName ?? '--',
+                ),
+                ProfileInfoItem(
+                  label: 'S\u1ED1 t\u00E0i kho\u1EA3n',
+                  value: profile.bankAccountNumber ?? '--',
+                ),
+                ProfileInfoItem(
+                  label: 'Ch\u1EE7 t\u00E0i kho\u1EA3n',
+                  value: profile.bankAccountHolder ?? '--',
+                ),
+              ],
+            ),
           if (profile is TeacherMyProfileModel &&
               profile.verificationDocs.isNotEmpty) ...[
             const SizedBox(height: 12),

@@ -2,6 +2,9 @@ import 'package:client/features/auth/model/user_model.dart';
 
 class TeacherMyProfileModel extends UserModel {
   final String? specialization;
+  final String? bankName;
+  final String? bankAccountNumber;
+  final String? bankAccountHolder;
   final int yearsOfExperience;
   final double rating;
   final int totalStudents;
@@ -23,6 +26,9 @@ class TeacherMyProfileModel extends UserModel {
     super.updatedAt,
     required super.token,
     this.specialization,
+    this.bankName,
+    this.bankAccountNumber,
+    this.bankAccountHolder,
     this.yearsOfExperience = 0,
     this.rating = 0,
     this.totalStudents = 0,
@@ -52,6 +58,9 @@ class TeacherMyProfileModel extends UserModel {
           : null,
       token: map['token'] ?? '',
       specialization: map['specialization'] as String?,
+      bankName: map['bank_name'] as String?,
+      bankAccountNumber: map['bank_account_number'] as String?,
+      bankAccountHolder: map['bank_account_holder'] as String?,
       yearsOfExperience:
           int.tryParse(map['years_of_experience']?.toString() ?? '0') ?? 0,
       rating: map['rating'] == null ? 0 : (map['rating'] as num).toDouble(),
@@ -77,6 +86,9 @@ class TeacherMyProfileModel extends UserModel {
     final map = super.toMap();
     map.addAll({
       'specialization': specialization,
+      'bank_name': bankName,
+      'bank_account_number': bankAccountNumber,
+      'bank_account_holder': bankAccountHolder,
       'years_of_experience': yearsOfExperience,
       'rating': rating,
       'total_students': totalStudents,
@@ -102,6 +114,9 @@ class TeacherMyProfileModel extends UserModel {
     DateTime? updatedAt,
     String? token,
     String? specialization,
+    String? bankName,
+    String? bankAccountNumber,
+    String? bankAccountHolder,
     int? yearsOfExperience,
     double? rating,
     int? totalStudents,
@@ -123,6 +138,9 @@ class TeacherMyProfileModel extends UserModel {
       updatedAt: updatedAt ?? this.updatedAt,
       token: token ?? this.token,
       specialization: specialization ?? this.specialization,
+      bankName: bankName ?? this.bankName,
+      bankAccountNumber: bankAccountNumber ?? this.bankAccountNumber,
+      bankAccountHolder: bankAccountHolder ?? this.bankAccountHolder,
       yearsOfExperience: yearsOfExperience ?? this.yearsOfExperience,
       rating: rating ?? this.rating,
       totalStudents: totalStudents ?? this.totalStudents,

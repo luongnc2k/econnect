@@ -42,6 +42,9 @@ def _serialize_profile(
         data.update(
             {
                 "specialization": teacher_profile.native_language if teacher_profile else None,
+                "bank_name": teacher_profile.bank_name if teacher_profile else None,
+                "bank_account_number": teacher_profile.bank_account_number if teacher_profile else None,
+                "bank_account_holder": teacher_profile.bank_account_holder if teacher_profile else None,
                 "years_of_experience": teacher_profile.years_experience if teacher_profile else 0,
                 "rating": float(teacher_profile.rating_avg) if teacher_profile else 0.0,
                 "total_students": teacher_profile.total_sessions if teacher_profile else 0,
@@ -139,6 +142,12 @@ def update_my_profile(
             teacher_profile.years_experience = int(years) if years is not None else None
         if "specialization" in payload:
             teacher_profile.native_language = payload.get("specialization")
+        if "bank_name" in payload:
+            teacher_profile.bank_name = (payload.get("bank_name") or "").strip() or None
+        if "bank_account_number" in payload:
+            teacher_profile.bank_account_number = (payload.get("bank_account_number") or "").strip() or None
+        if "bank_account_holder" in payload:
+            teacher_profile.bank_account_holder = (payload.get("bank_account_holder") or "").strip() or None
         if "certifications" in payload:
             certifications = payload.get("certifications")
             if isinstance(certifications, list):
