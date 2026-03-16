@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 
 from models.base import Base
 from database import engine
-from routes import auth, upload, classes, topics, profile, users
+from routes import auth, upload, classes, topics, profile, users, payments
 
 # Import all models so Base.metadata knows about them
 from models.user import User
@@ -16,6 +16,7 @@ from models.student_profile import StudentProfile
 from models.teacher_specialty import TeacherSpecialty
 from models.class_ import Class
 from models.booking import Booking
+from models.payment import Payment
 from schema_sync import sync_schema
 
 app = FastAPI()
@@ -34,6 +35,7 @@ app.include_router(classes.router, prefix="/classes")
 app.include_router(topics.router, prefix="/topics")
 app.include_router(profile.router, prefix="/profile")
 app.include_router(users.router, prefix="/users")
+app.include_router(payments.router, prefix="/payments")
 
 uploads_dir = Path("uploads")
 uploads_dir.mkdir(parents=True, exist_ok=True)

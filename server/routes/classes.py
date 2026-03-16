@@ -13,6 +13,7 @@ from models.user import User
 from models.teacher_profile import TeacherProfile
 from pydantic_schemas.class_create import ClassCreate
 from pydantic_schemas.class_response import ClassResponse, TeacherBrief, TopicBrief
+from pydantic_schemas.payment import calculate_creation_fee
 
 router = APIRouter()
 
@@ -140,6 +141,8 @@ def create_class(
     if not topic:
         raise HTTPException(status_code=404, detail="Topic không tồn tại")
 
+    creation_fee = calculate_creation_fee(body.price)
+
     new_class = Class(
         id=str(uuid.uuid4()),
         teacher_id=teacher.id,
@@ -157,8 +160,12 @@ def create_class(
         max_participants=body.max_participants,
         current_participants=0,
         price=body.price,
+        creation_fee_amount=creation_fee,
+        creation_payment_status="paid",
         thumbnail_url=body.thumbnail_url,
         status="scheduled",
+        tutor_payout_status="pending",
+        tutor_payout_amount=0,
     )
 
     db.add(new_class)

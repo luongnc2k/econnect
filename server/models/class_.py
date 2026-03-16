@@ -1,4 +1,4 @@
-from sqlalchemy import Column, DateTime, Numeric, SmallInteger, TEXT, VARCHAR, ForeignKey
+from sqlalchemy import Boolean, Column, DateTime, Numeric, SmallInteger, TEXT, VARCHAR, ForeignKey
 from sqlalchemy.sql import func
 from models.base import Base
 
@@ -22,7 +22,18 @@ class Class(Base):
     max_participants = Column(SmallInteger, nullable=False)
     current_participants = Column(SmallInteger, default=0, nullable=False)
     price = Column(Numeric(10, 0), nullable=False)
+    creation_fee_amount = Column(Numeric(10, 0), nullable=False)
+    creation_payment_status = Column(TEXT, default="unpaid", nullable=False)  # unpaid | pending | paid | refunded
+    creation_payment_reference = Column(TEXT, nullable=True)
+    creation_paid_at = Column(DateTime(timezone=True), nullable=True)
     thumbnail_url = Column(TEXT, nullable=True)
-    status = Column(TEXT, default="scheduled", nullable=False)  # scheduled | ongoing | completed | cancelled
+    status = Column(TEXT, default="draft", nullable=False)  # draft | scheduled | ongoing | completed | cancelled
+    cancellation_reason = Column(TEXT, nullable=True)
+    cancelled_at = Column(DateTime(timezone=True), nullable=True)
+    tutor_payout_status = Column(TEXT, default="pending", nullable=False)  # pending | on_hold | paid | withheld
+    tutor_payout_amount = Column(Numeric(10, 0), default=0, nullable=False)
+    tutor_paid_at = Column(DateTime(timezone=True), nullable=True)
+    complaint_deadline = Column(DateTime(timezone=True), nullable=True)
+    has_active_dispute = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)

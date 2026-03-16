@@ -14,6 +14,7 @@ from models.topic import Topic
 from models.teacher_profile import TeacherProfile
 from models.teacher_specialty import TeacherSpecialty
 from models.class_ import Class
+from pydantic_schemas.payment import calculate_creation_fee
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -136,7 +137,11 @@ def seed():
                 "max_participants": 6,
                 "current_participants": 3,
                 "price": 120000,
+                "creation_fee_amount": calculate_creation_fee(120000),
+                "creation_payment_status": "paid",
                 "status": "scheduled",
+                "tutor_payout_status": "pending",
+                "tutor_payout_amount": 0,
             },
             {
                 "teacher_email": "sarah@example.com",
@@ -154,7 +159,11 @@ def seed():
                 "max_participants": 6,
                 "current_participants": 4,
                 "price": 150000,
+                "creation_fee_amount": calculate_creation_fee(150000),
+                "creation_payment_status": "paid",
                 "status": "scheduled",
+                "tutor_payout_status": "pending",
+                "tutor_payout_amount": 0,
             },
             {
                 "teacher_email": "alexander@example.com",
@@ -169,7 +178,11 @@ def seed():
                 "max_participants": 8,
                 "current_participants": 1,
                 "price": 90000,
+                "creation_fee_amount": calculate_creation_fee(90000),
+                "creation_payment_status": "paid",
                 "status": "scheduled",
+                "tutor_payout_status": "pending",
+                "tutor_payout_amount": 0,
             },
             {
                 "teacher_email": "sarah@example.com",
@@ -184,7 +197,11 @@ def seed():
                 "max_participants": 5,
                 "current_participants": 0,
                 "price": 100000,
+                "creation_fee_amount": calculate_creation_fee(100000),
+                "creation_payment_status": "paid",
                 "status": "scheduled",
+                "tutor_payout_status": "pending",
+                "tutor_payout_amount": 0,
             },
         ]
 
