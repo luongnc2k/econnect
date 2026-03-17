@@ -1,5 +1,6 @@
 import 'package:client/features/auth/viewmodel/auth_viewmodel.dart';
 import 'package:client/features/tutor/view/screens/tutor_home_tab.dart';
+import 'package:client/features/tutor/view/screens/tutor_schedule_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -18,7 +19,7 @@ class _TutorNavShellState extends State<TutorNavShell> {
       onProfileTap: () => setState(() => _currentIndex = 3),
       onScheduleTap: () => setState(() => _currentIndex = 1),
     ),
-    const _PlaceholderTab(label: 'Lịch dạy'),
+    const TutorScheduleScreen(),
     const _PlaceholderTab(label: 'Học viên'),
     const _ProfileTab(),
   ];

@@ -17,6 +17,7 @@ class ClassSessionMapper {
       teacherId: teacher['id'] as String?,
       teacherName: teacher['full_name'] as String,
       teacherAvatarUrl: teacher['avatar_url'] as String?,
+      startDateTime: startTime,
       timeText: formatTime(startTime),
       priceText: formatPrice(m['price']),
       imageUrl: m['thumbnail_url'] as String?,
