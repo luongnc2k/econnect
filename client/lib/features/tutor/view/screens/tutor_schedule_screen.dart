@@ -1,6 +1,5 @@
 import 'package:client/core/router/app_router.dart';
 import 'package:client/features/student/model/class_session.dart';
-import 'package:client/features/tutor/view/widgets/tutor_class_card_widget.dart';
 import 'package:client/features/tutor/viewmodel/tutor_home_viewmodel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -214,28 +213,21 @@ class _TutorScheduleScreenState extends ConsumerState<TutorScheduleScreen> {
             ),
           ),
 
-          // ── Class list ─────────────────────────────────────────
+          // ── Timeline ───────────────────────────────────────────
           Expanded(
             child: isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : RefreshIndicator(
                     onRefresh: () =>
                         ref.read(tutorHomeViewModelProvider.notifier).refresh(),
-                    child: todayClasses.isEmpty
-                        ? _EmptyDay(date: _selectedDate)
-                        : ListView.separated(
-                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                            itemCount: todayClasses.length,
-                            separatorBuilder: (_, _) =>
-                                const SizedBox(height: 10),
-                            itemBuilder: (_, i) => TutorClassCardWidget(
-                              session: todayClasses[i],
-                              onTap: () => context.push(
-                                AppRoutes.teacherClassDetail,
-                                extra: todayClasses[i],
-                              ),
-                            ),
-                          ),
+                    child: _DayTimeline(
+                      date: _selectedDate,
+                      classes: todayClasses,
+                      onTapClass: (s) => context.push(
+                        AppRoutes.teacherClassDetail,
+                        extra: s,
+                      ),
+                    ),
                   ),
           ),
         ],
@@ -323,44 +315,280 @@ class _DayCell extends StatelessWidget {
   }
 }
 
-// ─── Empty state ─────────────────────────────────────────────────────────────
+// ─── Day Timeline ─────────────────────────────────────────────────────────────
 
-class _EmptyDay extends StatelessWidget {
+class _DayTimeline extends StatelessWidget {
   final DateTime date;
+  final List<ClassSession> classes;
+  final void Function(ClassSession) onTapClass;
 
-  const _EmptyDay({required this.date});
+  // Timeline covers 06:00 – 22:00
+  static const _startHour = 6;
+  static const _endHour = 22;
+  static const _hourHeight = 64.0; // px per hour
+  static const _labelWidth = 44.0;
+
+  const _DayTimeline({
+    required this.date,
+    required this.classes,
+    required this.onTapClass,
+  });
+
+  double _topFor(DateTime dt) =>
+      ((dt.hour - _startHour) + dt.minute / 60) * _hourHeight;
+
+  double _heightFor(DateTime start, DateTime end) {
+    final mins = end.difference(start).inMinutes;
+    return (mins / 60) * _hourHeight;
+  }
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final isToday = date ==
-        DateTime(
-            DateTime.now().year, DateTime.now().month, DateTime.now().day);
-    return ListView(
+    final totalHours = _endHour - _startHour;
+    final totalHeight = totalHours * _hourHeight;
+
+    // Current time indicator
+    final now = DateTime.now();
+    final isToday = date.year == now.year &&
+        date.month == now.month &&
+        date.day == now.day;
+    final nowTop = isToday && now.hour >= _startHour && now.hour < _endHour
+        ? _topFor(now)
+        : null;
+
+    return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
-      children: [
-        SizedBox(
-          height: 260,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.event_available_outlined,
-                  size: 52, color: cs.onSurfaceVariant),
-              const SizedBox(height: 12),
-              Text(
-                isToday
-                    ? 'Hôm nay không có lớp nào'
-                    : 'Không có lớp học ngày này',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
-                  color: cs.onSurfaceVariant,
-                ),
+      padding: const EdgeInsets.fromLTRB(0, 8, 16, 32),
+      child: SizedBox(
+        height: totalHeight + 24,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Hour labels ──────────────────────────────────────
+            SizedBox(
+              width: _labelWidth,
+              height: totalHeight,
+              child: Stack(
+                children: [
+                  for (int h = _startHour; h <= _endHour; h++)
+                    Positioned(
+                      top: (h - _startHour) * _hourHeight - 8,
+                      left: 0,
+                      right: 0,
+                      child: Text(
+                        '${h.toString().padLeft(2, '0')}:00',
+                        textAlign: TextAlign.right,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: cs.onSurfaceVariant.withValues(alpha: 0.7),
+                        ),
+                      ),
+                    ),
+                ],
               ),
-            ],
+            ),
+
+            const SizedBox(width: 8),
+
+            // ── Grid + class blocks ──────────────────────────────
+            Expanded(
+              child: Stack(
+                children: [
+                  // Hour grid lines
+                  for (int h = 0; h <= totalHours; h++)
+                    Positioned(
+                      top: h * _hourHeight,
+                      left: 0,
+                      right: 0,
+                      child: Divider(
+                        height: 1,
+                        color: h == 0
+                            ? cs.outlineVariant
+                            : cs.outlineVariant.withValues(alpha: 0.4),
+                      ),
+                    ),
+
+                  // Half-hour dashed lines
+                  for (int h = 0; h < totalHours; h++)
+                    Positioned(
+                      top: h * _hourHeight + _hourHeight / 2,
+                      left: 0,
+                      right: 0,
+                      child: Divider(
+                        height: 1,
+                        color: cs.outlineVariant.withValues(alpha: 0.2),
+                      ),
+                    ),
+
+                  // Current time indicator
+                  if (nowTop != null) ...[
+                    Positioned(
+                      top: nowTop - 1,
+                      left: 0,
+                      right: 0,
+                      child: Container(
+                        height: 2,
+                        color: cs.error,
+                      ),
+                    ),
+                    Positioned(
+                      top: nowTop - 5,
+                      left: -4,
+                      child: Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: cs.error,
+                        ),
+                      ),
+                    ),
+                  ],
+
+                  // Class blocks
+                  for (final s in classes)
+                    if (s.startDateTime != null && s.endDateTime != null)
+                      Positioned(
+                        top: _topFor(s.startDateTime!),
+                        left: 0,
+                        right: 0,
+                        height: _heightFor(
+                          s.startDateTime!,
+                          s.endDateTime!,
+                        ).clamp(28.0, double.infinity),
+                        child: _ClassBlock(
+                          session: s,
+                          cs: cs,
+                          onTap: () => onTapClass(s),
+                        ),
+                      ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ClassBlock extends StatelessWidget {
+  final ClassSession session;
+  final ColorScheme cs;
+  final VoidCallback onTap;
+
+  const _ClassBlock({
+    required this.session,
+    required this.cs,
+    required this.onTap,
+  });
+
+  Color _blockColor() {
+    switch (session.statusText) {
+      case 'DONE':
+        return cs.secondaryContainer;
+      case 'HUỶ':
+        return cs.errorContainer;
+      default:
+        return cs.primaryContainer;
+    }
+  }
+
+  Color _textColor() {
+    switch (session.statusText) {
+      case 'DONE':
+        return cs.onSecondaryContainer;
+      case 'HUỶ':
+        return cs.onErrorContainer;
+      default:
+        return cs.onPrimaryContainer;
+    }
+  }
+
+  String _timeRange() {
+    final s = session.startDateTime!;
+    final e = session.endDateTime!;
+    final sh = s.hour.toString().padLeft(2, '0');
+    final sm = s.minute.toString().padLeft(2, '0');
+    final eh = e.hour.toString().padLeft(2, '0');
+    final em = e.minute.toString().padLeft(2, '0');
+    return '$sh:$sm – $eh:$em';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final blockColor = _blockColor();
+    final textColor = _textColor();
+    final durationMins =
+        session.endDateTime!.difference(session.startDateTime!).inMinutes;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 1),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: blockColor,
+          borderRadius: BorderRadius.circular(8),
+          border: Border(
+            left: BorderSide(
+              color: session.statusText == 'DONE'
+                  ? cs.secondary
+                  : session.statusText == 'HUỶ'
+                      ? cs.error
+                      : cs.primary,
+              width: 3,
+            ),
           ),
         ),
-      ],
+        child: durationMins < 45
+            // compact: single line
+            ? Text(
+                session.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: textColor,
+                ),
+              )
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    session.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: textColor,
+                      height: 1.3,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    _timeRange(),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: textColor.withValues(alpha: 0.75),
+                    ),
+                  ),
+                  if (durationMins >= 75 && session.tags.isNotEmpty) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      session.tags.first,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: textColor.withValues(alpha: 0.65),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+      ),
     );
   }
 }
