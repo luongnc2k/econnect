@@ -16,6 +16,7 @@ class TutorScheduleScreen extends ConsumerStatefulWidget {
 class _TutorScheduleScreenState extends ConsumerState<TutorScheduleScreen> {
   late DateTime _selectedDate;
   late final ScrollController _stripController;
+  late final ScrollController _timelineController;
   bool _showPast = false;
 
   static const _dayCount = 60;
@@ -28,15 +29,46 @@ class _TutorScheduleScreenState extends ConsumerState<TutorScheduleScreen> {
     final today = _dateOnly(DateTime.now());
     _selectedDate = today;
     _futureDays = List.generate(_dayCount, (i) => today.add(Duration(days: i)));
-    // past: 60 days back, most recent first
     _pastDays = List.generate(_dayCount, (i) => today.subtract(Duration(days: i)));
     _stripController = ScrollController();
+    _timelineController = ScrollController();
   }
 
   @override
   void dispose() {
     _stripController.dispose();
+    _timelineController.dispose();
     super.dispose();
+  }
+
+  void _scrollTimelineTo(List<ClassSession> classes) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_timelineController.hasClients) return;
+
+      final now = DateTime.now();
+      final isToday = _selectedDate.year == now.year &&
+          _selectedDate.month == now.month &&
+          _selectedDate.day == now.day;
+
+      double focusHour;
+      if (isToday) {
+        focusHour = now.hour.toDouble() - 1;
+      } else if (classes.isNotEmpty && classes.first.startDateTime != null) {
+        focusHour = classes.first.startDateTime!.hour.toDouble() - 0.5;
+      } else {
+        return;
+      }
+
+      final offset = ((focusHour - _DayTimeline.startHour) *
+              _DayTimeline.hourHeight)
+          .clamp(0.0, _timelineController.position.maxScrollExtent);
+
+      _timelineController.animateTo(
+        offset,
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeOut,
+      );
+    });
   }
 
   DateTime _dateOnly(DateTime dt) => DateTime(dt.year, dt.month, dt.day);
@@ -89,6 +121,8 @@ class _TutorScheduleScreenState extends ConsumerState<TutorScheduleScreen> {
     final activeDates = _datesWithClasses(sourceClasses);
     final todayClasses = _classesForDate(sourceClasses, _selectedDate);
     final stripDays = _showPast ? _pastDays : _futureDays;
+
+    if (!isLoading) _scrollTimelineTo(todayClasses);
 
     return SafeArea(
       child: Column(
@@ -223,6 +257,7 @@ class _TutorScheduleScreenState extends ConsumerState<TutorScheduleScreen> {
                     child: _DayTimeline(
                       date: _selectedDate,
                       classes: todayClasses,
+                      controller: _timelineController,
                       onTapClass: (s) => context.push(
                         AppRoutes.teacherClassDetail,
                         extra: s,
@@ -320,44 +355,47 @@ class _DayCell extends StatelessWidget {
 class _DayTimeline extends StatelessWidget {
   final DateTime date;
   final List<ClassSession> classes;
+  final ScrollController controller;
   final void Function(ClassSession) onTapClass;
 
-  // Timeline covers 06:00 – 22:00
-  static const _startHour = 6;
+  // Timeline covers 06:00 – 22:00 (public so parent can compute scroll offset)
+  static const startHour = 6;
   static const _endHour = 22;
-  static const _hourHeight = 64.0; // px per hour
+  static const hourHeight = 64.0; // px per hour
   static const _labelWidth = 44.0;
 
   const _DayTimeline({
     required this.date,
     required this.classes,
+    required this.controller,
     required this.onTapClass,
   });
 
   double _topFor(DateTime dt) =>
-      ((dt.hour - _startHour) + dt.minute / 60) * _hourHeight;
+      ((dt.hour - startHour) + dt.minute / 60) * hourHeight;
 
   double _heightFor(DateTime start, DateTime end) {
     final mins = end.difference(start).inMinutes;
-    return (mins / 60) * _hourHeight;
+    return (mins / 60) * hourHeight;
   }
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final totalHours = _endHour - _startHour;
-    final totalHeight = totalHours * _hourHeight;
+    final totalHours = _endHour - startHour;
+    final totalHeight = totalHours * hourHeight;
 
     // Current time indicator
     final now = DateTime.now();
     final isToday = date.year == now.year &&
         date.month == now.month &&
         date.day == now.day;
-    final nowTop = isToday && now.hour >= _startHour && now.hour < _endHour
+    final nowTop = isToday && now.hour >= startHour && now.hour < _endHour
         ? _topFor(now)
         : null;
 
     return SingleChildScrollView(
+      controller: controller,
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(0, 8, 16, 32),
       child: SizedBox(
@@ -371,9 +409,9 @@ class _DayTimeline extends StatelessWidget {
               height: totalHeight,
               child: Stack(
                 children: [
-                  for (int h = _startHour; h <= _endHour; h++)
+                  for (int h = startHour; h <= _endHour; h++)
                     Positioned(
-                      top: (h - _startHour) * _hourHeight - 8,
+                      top: (h - startHour) * hourHeight - 8,
                       left: 0,
                       right: 0,
                       child: Text(
@@ -398,7 +436,7 @@ class _DayTimeline extends StatelessWidget {
                   // Hour grid lines
                   for (int h = 0; h <= totalHours; h++)
                     Positioned(
-                      top: h * _hourHeight,
+                      top: h * hourHeight,
                       left: 0,
                       right: 0,
                       child: Divider(
@@ -412,7 +450,7 @@ class _DayTimeline extends StatelessWidget {
                   // Half-hour dashed lines
                   for (int h = 0; h < totalHours; h++)
                     Positioned(
-                      top: h * _hourHeight + _hourHeight / 2,
+                      top: h * hourHeight + hourHeight / 2,
                       left: 0,
                       right: 0,
                       child: Divider(
