@@ -7,6 +7,7 @@ import 'package:client/features/profile/view/screens/user_profile_screen.dart';
 import 'package:client/features/student/model/class_session.dart';
 import 'package:client/features/student/view/screens/class_detail_screen.dart';
 import 'package:client/features/student/view/screens/student_nav_shell.dart';
+import 'package:client/features/tutor/view/screens/create_class_screen.dart';
 import 'package:client/features/tutor/view/screens/tutor_home_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -24,6 +25,7 @@ abstract class AppRoutes {
   static const teacherHome = '/teacher';
   static const teacherMyProfile = '/teacher/profile';
   static const teacherEditMyProfile = '/teacher/profile/edit';
+  static const teacherCreateClass = '/teacher/create-class';
 }
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -31,20 +33,32 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
   return GoRouter(
     debugLogDiagnostics: false,
-    initialLocation: AppRoutes.studentHome,
+    initialLocation: currentUser?.role == 'teacher'
+        ? AppRoutes.teacherHome
+        : AppRoutes.studentHome,
     redirect: (context, state) {
       final loggedIn = currentUser != null;
-      final onAuth = state.uri.path == AppRoutes.login ||
-          state.uri.path == AppRoutes.signup;
+      final path = state.uri.path;
+      final onAuth = path == AppRoutes.login || path == AppRoutes.signup;
 
-      if (!loggedIn && !onAuth) {
-        return AppRoutes.login;
-      }
+      if (!loggedIn && !onAuth) return AppRoutes.login;
 
-      if (loggedIn && onAuth) {
-        return currentUser.role == 'teacher'
-            ? AppRoutes.teacherHome
-            : AppRoutes.studentHome;
+      if (loggedIn) {
+        final isTeacher = currentUser.role == 'teacher';
+
+        if (onAuth) {
+          return isTeacher ? AppRoutes.teacherHome : AppRoutes.studentHome;
+        }
+
+        // teacher bị vào route student → redirect về teacher home
+        if (isTeacher && path.startsWith('/student')) {
+          return AppRoutes.teacherHome;
+        }
+
+        // student bị vào route teacher → redirect về student home
+        if (!isTeacher && path.startsWith('/teacher')) {
+          return AppRoutes.studentHome;
+        }
       }
 
       return null;
@@ -92,6 +106,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.teacherHome,
         builder: (context, state) => const TutorNavShell(),
         routes: [
+          GoRoute(
+            path: 'create-class',
+            builder: (context, state) => const CreateClassScreen(),
+          ),
           GoRoute(
             path: 'profile',
             builder: (context, state) => const MyProfileScreen(),

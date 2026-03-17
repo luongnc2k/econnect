@@ -1,6 +1,5 @@
-import 'package:client/core/providers/current_user_notifier.dart';
-import 'package:client/core/providers/theme_notifier.dart';
 import 'package:client/features/auth/viewmodel/auth_viewmodel.dart';
+import 'package:client/features/tutor/view/screens/tutor_home_tab.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -14,11 +13,14 @@ class TutorNavShell extends StatefulWidget {
 class _TutorNavShellState extends State<TutorNavShell> {
   int _currentIndex = 0;
 
-  static const _screens = [
-    _TutorHomeTab(),
-    _PlaceholderTab(label: 'Lịch dạy'),
-    _PlaceholderTab(label: 'Học viên'),
-    _ProfileTab(),
+  late final List<Widget> _screens = [
+    TutorHomeTab(
+      onProfileTap: () => setState(() => _currentIndex = 3),
+      onScheduleTap: () => setState(() => _currentIndex = 1),
+    ),
+    const _PlaceholderTab(label: 'Lịch dạy'),
+    const _PlaceholderTab(label: 'Học viên'),
+    const _ProfileTab(),
   ];
 
   @override
@@ -49,38 +51,6 @@ class _TutorNavShellState extends State<TutorNavShell> {
             icon: Icon(Icons.person_outline_rounded),
             selectedIcon: Icon(Icons.person_rounded),
             label: 'Hồ sơ',
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TutorHomeTab extends ConsumerWidget {
-  const _TutorHomeTab();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final user = ref.watch(currentUserProvider);
-    final isDark = ref.watch(themeModeProvider) == ThemeMode.dark;
-
-    return SafeArea(
-      child: Column(
-        children: [
-          AppBar(
-            title: const Text('Trang chủ gia sư'),
-            actions: [
-              IconButton(
-                onPressed: () =>
-                    ref.read(themeModeProvider.notifier).toggle(),
-                icon: Icon(
-                  isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-                ),
-              ),
-            ],
-          ),
-          Expanded(
-            child: Center(child: Text('Xin chào, ${user?.fullName ?? ''}!')),
           ),
         ],
       ),
