@@ -2,9 +2,8 @@ import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/core/router/app_router.dart';
 import 'package:client/core/utils.dart';
 import 'package:client/features/profile/model/teacher_my_profile_model.dart';
-import 'package:client/features/student/model/class_session.dart';
-import 'package:client/features/student/view/widgets/class_card_widget.dart';
 import 'package:client/features/student/view/widgets/home_header_widget.dart';
+import 'package:client/features/tutor/view/widgets/tutor_class_card_widget.dart';
 import 'package:client/features/student/view/widgets/section_header_widget.dart';
 import 'package:client/features/tutor/viewmodel/tutor_home_viewmodel.dart';
 import 'package:flutter/material.dart';
@@ -70,20 +69,38 @@ class TutorHomeTab extends ConsumerWidget {
               ),
             ),
 
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.only(left: hPad),
-                child: state.isLoading
-                    ? const _ClassListSkeleton()
-                    : state.error != null
-                        ? _ErrorBanner(message: state.error!)
-                        : state.upcomingClasses.isEmpty
-                            ? const _EmptyClasses()
-                            : _UpcomingClassList(
-                                classes: state.upcomingClasses,
+            state.isLoading
+                ? SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(hPad, 0, hPad, 0),
+                      child: const _ClassListSkeleton(),
+                    ),
+                  )
+                : state.error != null
+                    ? SliverToBoxAdapter(
+                        child: Padding(
+                          padding: EdgeInsets.fromLTRB(hPad, 0, hPad, 0),
+                          child: _ErrorBanner(message: state.error!),
+                        ),
+                      )
+                    : state.upcomingClasses.isEmpty
+                        ? SliverToBoxAdapter(
+                            child: Padding(
+                              padding: EdgeInsets.fromLTRB(hPad, 0, hPad, 0),
+                              child: const _EmptyClasses(),
+                            ),
+                          )
+                        : SliverList.separated(
+                            itemCount: state.upcomingClasses.length,
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(height: 10),
+                            itemBuilder: (_, i) => Padding(
+                              padding: EdgeInsets.fromLTRB(hPad, 0, hPad, 0),
+                              child: TutorClassCardWidget(
+                                session: state.upcomingClasses[i],
                               ),
-              ),
-            ),
+                            ),
+                          ),
 
             // ── Thao tác nhanh ───────────────────────────────────────
             SliverToBoxAdapter(
@@ -207,61 +224,25 @@ class _StatCard extends StatelessWidget {
   }
 }
 
-// ─── Upcoming classes list ──────────────────────────────────────────────────
-
-class _UpcomingClassList extends StatelessWidget {
-  final List<ClassSession> classes;
-
-  const _UpcomingClassList({required this.classes});
-
-  @override
-  Widget build(BuildContext context) {
-    final h = (MediaQuery.of(context).size.height * 0.42).clamp(320.0, 460.0);
-    return SizedBox(
-      height: h,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.only(right: 16),
-        itemCount: classes.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 12),
-        itemBuilder: (_, i) {
-          final s = classes[i];
-          return ClassCardWidget(
-            classCode: s.classCode,
-            title: s.title,
-            location: s.location,
-            teacherName: s.teacherName,
-            timeText: s.timeText,
-            priceText: s.priceText,
-            imageUrl: s.imageUrl,
-            statusText: s.statusText,
-            countdownText: s.countdownText,
-            tags: s.tags,
-          );
-        },
-      ),
-    );
-  }
-}
+// ─── Skeleton ───────────────────────────────────────────────────────────────
 
 class _ClassListSkeleton extends StatelessWidget {
   const _ClassListSkeleton();
 
   @override
   Widget build(BuildContext context) {
-    final h = (MediaQuery.of(context).size.height * 0.42).clamp(320.0, 460.0);
-    return SizedBox(
-      height: h,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.only(right: 16),
-        itemCount: 3,
-        separatorBuilder: (_, _) => const SizedBox(width: 12),
-        itemBuilder: (_, _) => Container(
-          width: 280,
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(16),
+    final color = Theme.of(context).colorScheme.surfaceContainerHighest;
+    return Column(
+      children: List.generate(
+        2,
+        (_) => Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Container(
+            height: 130,
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(16),
+            ),
           ),
         ),
       ),
