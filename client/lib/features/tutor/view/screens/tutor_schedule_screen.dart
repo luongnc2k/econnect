@@ -15,17 +15,20 @@ class TutorScheduleScreen extends ConsumerStatefulWidget {
 class _TutorScheduleScreenState extends ConsumerState<TutorScheduleScreen> {
   late DateTime _selectedDate;
   late final ScrollController _stripController;
+  bool _showPast = false;
 
-  // Show 60 days starting from today
   static const _dayCount = 60;
-  late final List<DateTime> _days;
+  late final List<DateTime> _futureDays;
+  late final List<DateTime> _pastDays;
 
   @override
   void initState() {
     super.initState();
     final today = _dateOnly(DateTime.now());
     _selectedDate = today;
-    _days = List.generate(_dayCount, (i) => today.add(Duration(days: i)));
+    _futureDays = List.generate(_dayCount, (i) => today.add(Duration(days: i)));
+    // past: 60 days back, most recent first
+    _pastDays = List.generate(_dayCount, (i) => today.subtract(Duration(days: i)));
     _stripController = ScrollController();
   }
 
@@ -80,8 +83,11 @@ class _TutorScheduleScreenState extends ConsumerState<TutorScheduleScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(tutorHomeViewModelProvider);
     final cs = Theme.of(context).colorScheme;
-    final activeDates = _datesWithClasses(state.upcomingClasses);
-    final todayClasses = _classesForDate(state.upcomingClasses, _selectedDate);
+    final sourceClasses = _showPast ? state.pastClasses : state.upcomingClasses;
+    final isLoading = _showPast ? state.isLoadingPast : state.isLoading;
+    final activeDates = _datesWithClasses(sourceClasses);
+    final todayClasses = _classesForDate(sourceClasses, _selectedDate);
+    final stripDays = _showPast ? _pastDays : _futureDays;
 
     return SafeArea(
       child: Column(
@@ -98,9 +104,42 @@ class _TutorScheduleScreenState extends ConsumerState<TutorScheduleScreen> {
             ),
           ),
 
+          // ── Toggle sắp dạy / đã dạy ───────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: SegmentedButton<bool>(
+              segments: const [
+                ButtonSegment(
+                  value: false,
+                  label: Text('Sắp dạy'),
+                  icon: Icon(Icons.upcoming_outlined),
+                ),
+                ButtonSegment(
+                  value: true,
+                  label: Text('Đã dạy'),
+                  icon: Icon(Icons.history_rounded),
+                ),
+              ],
+              selected: {_showPast},
+              onSelectionChanged: (val) {
+                final today = _dateOnly(DateTime.now());
+                setState(() {
+                  _showPast = val.first;
+                  _selectedDate = today;
+                });
+                // reset scroll to start
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (_stripController.hasClients) {
+                    _stripController.jumpTo(0);
+                  }
+                });
+              },
+            ),
+          ),
+
           // ── Month label ────────────────────────────────────────
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
             child: Text(
               _formatMonthYear(_selectedDate),
               style: TextStyle(
@@ -118,9 +157,9 @@ class _TutorScheduleScreenState extends ConsumerState<TutorScheduleScreen> {
               controller: _stripController,
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 12),
-              itemCount: _days.length,
+              itemCount: stripDays.length,
               itemBuilder: (context, i) {
-                final day = _days[i];
+                final day = stripDays[i];
                 final isSelected = day == _selectedDate;
                 final hasClass = activeDates.contains(day);
                 final isToday = day == _dateOnly(DateTime.now());
@@ -175,7 +214,7 @@ class _TutorScheduleScreenState extends ConsumerState<TutorScheduleScreen> {
 
           // ── Class list ─────────────────────────────────────────
           Expanded(
-            child: state.isLoading
+            child: isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : RefreshIndicator(
                     onRefresh: () =>

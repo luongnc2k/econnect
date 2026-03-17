@@ -62,6 +62,39 @@ def _to_class_response(
     )
 
 
+@router.get("/my", response_model=list[ClassResponse])
+def get_my_classes(
+    past: bool = Query(default=False, description="True = lớp đã dạy, False = lớp sắp dạy"),
+    db: Session = Depends(get_db),
+    user_dict: dict = Depends(auth_middleware),
+):
+    teacher = db.query(User).filter(User.id == user_dict['uid']).first()
+    if not teacher or teacher.role != 'teacher':
+        raise HTTPException(status_code=403, detail="Chỉ giáo viên mới có thể xem lớp của mình")
+
+    teacher_profile = db.query(TeacherProfile).filter(TeacherProfile.user_id == teacher.id).first()
+    now = datetime.now(timezone.utc)
+
+    query = (
+        db.query(Class, Topic)
+        .join(Topic, Class.topic_id == Topic.id)
+        .filter(Class.teacher_id == teacher.id)
+    )
+
+    if past:
+        query = query.filter(Class.start_time <= now)
+        query = query.order_by(Class.start_time.desc())
+    else:
+        query = query.filter(Class.start_time > now, Class.status == 'scheduled')
+        query = query.order_by(Class.start_time.asc())
+
+    rows = query.all()
+    return [
+        _to_class_response(cls, tp, teacher, teacher_profile)
+        for cls, tp in rows
+    ]
+
+
 @router.get("/upcoming", response_model=list[ClassResponse])
 def get_upcoming_classes(
     topic: Optional[str] = Query(default=None, description="Filter by topic slug"),

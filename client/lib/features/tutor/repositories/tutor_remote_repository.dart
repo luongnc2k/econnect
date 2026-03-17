@@ -4,6 +4,8 @@ import 'dart:typed_data';
 import 'package:client/core/constants/server_constant.dart';
 import 'package:client/core/failure/failure.dart';
 import 'package:client/core/network/dio_provider.dart';
+import 'package:client/features/student/model/class_session.dart';
+import 'package:client/features/student/model/class_session_mapper.dart';
 import 'package:client/features/tutor/model/topic_model.dart';
 import 'package:dio/dio.dart';
 import 'package:fpdart/fpdart.dart';
@@ -19,6 +21,30 @@ class TutorRemoteRepository {
   final Dio _dio;
 
   TutorRemoteRepository(this._dio);
+
+  Future<Either<AppFailure, List<ClassSession>>> getMyClasses(
+    String token, {
+    bool past = false,
+  }) async {
+    try {
+      final uri = Uri.parse('${ServerConstant.serverURL}/classes/my')
+          .replace(queryParameters: {'past': past.toString()});
+      final response = await http.get(uri, headers: {'x-auth-token': token});
+
+      if (response.statusCode != 200) {
+        final body = jsonDecode(response.body) as Map<String, dynamic>;
+        return Left(AppFailure(body['detail'] ?? 'Lỗi tải dữ liệu', response.statusCode));
+      }
+
+      final list = jsonDecode(response.body) as List<dynamic>;
+      final classes = list
+          .map((e) => ClassSessionMapper.fromMap(e as Map<String, dynamic>))
+          .toList();
+      return Right(classes);
+    } catch (e) {
+      return Left(AppFailure(e.toString()));
+    }
+  }
 
   Future<Either<AppFailure, List<TopicModel>>> getTopics() async {
     try {
