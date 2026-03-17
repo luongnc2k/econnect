@@ -16,13 +16,18 @@ class TutorHomeViewModel extends Notifier<TutorHomeState> {
     if (user != null) {
       Future.microtask(() => _loadAll(user.token));
     }
-    return const TutorHomeState(isLoading: true, isLoadingPast: true);
+    return const TutorHomeState(
+      isLoading: true,
+      isLoadingPast: true,
+      isLoadingIncome: true,
+    );
   }
 
   Future<void> _loadAll(String token) async {
     await Future.wait([
       _loadUpcoming(token),
       _loadPast(token),
+      _loadIncome(token),
     ]);
   }
 
@@ -47,6 +52,18 @@ class TutorHomeViewModel extends Notifier<TutorHomeState> {
         state = state.copyWith(isLoadingPast: false);
       case Right(value: final classes):
         state = state.copyWith(isLoadingPast: false, pastClasses: classes);
+    }
+  }
+
+  Future<void> _loadIncome(String token) async {
+    state = state.copyWith(isLoadingIncome: true);
+    final repo = ref.read(tutorRemoteRepositoryProvider);
+    final result = await repo.getIncomeStats(token);
+    switch (result) {
+      case Left():
+        state = state.copyWith(isLoadingIncome: false);
+      case Right(value: final income):
+        state = state.copyWith(isLoadingIncome: false, income: income);
     }
   }
 

@@ -3,6 +3,7 @@ import 'package:client/core/router/app_router.dart';
 import 'package:client/core/utils.dart';
 import 'package:client/features/profile/model/teacher_my_profile_model.dart';
 import 'package:client/features/student/view/widgets/home_header_widget.dart';
+import 'package:client/features/tutor/view/widgets/income_dashboard_widget.dart';
 import 'package:client/features/tutor/view/widgets/tutor_class_card_widget.dart';
 import 'package:client/features/student/view/widgets/section_header_widget.dart';
 import 'package:client/features/tutor/viewmodel/tutor_home_viewmodel.dart';
@@ -54,6 +55,17 @@ class TutorHomeTab extends ConsumerWidget {
               child: Padding(
                 padding: EdgeInsets.fromLTRB(hPad, 20, hPad, 0),
                 child: _StatsRow(teacher: teacher),
+              ),
+            ),
+
+            // ── Income dashboard ─────────────────────────────────────
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(hPad, 16, hPad, 0),
+                child: IncomeDashboardWidget(
+                  income: state.income,
+                  isLoading: state.isLoadingIncome,
+                ),
               ),
             ),
 

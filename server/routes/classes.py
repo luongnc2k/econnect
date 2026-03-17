@@ -1,3 +1,4 @@
+from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Optional
 import uuid
@@ -11,6 +12,7 @@ from models.class_ import Class
 from models.topic import Topic
 from models.user import User
 from models.teacher_profile import TeacherProfile
+from models.booking import Booking
 from pydantic_schemas.class_create import ClassCreate
 from pydantic_schemas.class_response import ClassResponse, TeacherBrief, TopicBrief
 
@@ -60,6 +62,76 @@ def _to_class_response(
             total_sessions=teacher_profile.total_sessions if teacher_profile else None,
         ),
     )
+
+
+@router.get("/income")
+def get_income_stats(
+    db: Session = Depends(get_db),
+    user_dict: dict = Depends(auth_middleware),
+):
+    teacher = db.query(User).filter(User.id == user_dict['uid']).first()
+    if not teacher or teacher.role != 'teacher':
+        raise HTTPException(status_code=403, detail="Chỉ giáo viên mới có thể xem thu nhập")
+
+    now = datetime.now(timezone.utc)
+    this_month = now.month
+    this_year = now.year
+    last_month = this_month - 1 if this_month > 1 else 12
+    last_month_year = this_year if this_month > 1 else this_year - 1
+
+    # All confirmed/completed bookings for this teacher's classes
+    rows = (
+        db.query(Booking, Class)
+        .join(Class, Booking.class_id == Class.id)
+        .filter(
+            Class.teacher_id == teacher.id,
+            Booking.status.in_(['confirmed', 'completed']),
+        )
+        .all()
+    )
+
+    total_income = 0.0
+    this_month_income = 0.0
+    last_month_income = 0.0
+    monthly: dict = defaultdict(float)
+
+    for booking, cls in rows:
+        price = float(cls.price)
+        total_income += price
+
+        booked_at = booking.booked_at
+        key = f"{booked_at.year}-{str(booked_at.month).zfill(2)}"
+        monthly[key] += price
+
+        if booked_at.year == this_year and booked_at.month == this_month:
+            this_month_income += price
+        if booked_at.year == last_month_year and booked_at.month == last_month:
+            last_month_income += price
+
+    # Build last 6 months breakdown (oldest → newest)
+    breakdown = []
+    for i in range(5, -1, -1):
+        m = now.month - i
+        y = now.year
+        while m <= 0:
+            m += 12
+            y -= 1
+        key = f"{y}-{str(m).zfill(2)}"
+        breakdown.append({"month": key, "income": monthly.get(key, 0.0)})
+
+    completed_classes = (
+        db.query(Class)
+        .filter(Class.teacher_id == teacher.id, Class.start_time <= now)
+        .count()
+    )
+
+    return {
+        "total_income": total_income,
+        "this_month_income": this_month_income,
+        "last_month_income": last_month_income,
+        "completed_classes": completed_classes,
+        "monthly_breakdown": breakdown,
+    }
 
 
 @router.get("/my", response_model=list[ClassResponse])
