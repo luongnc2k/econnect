@@ -1,6 +1,7 @@
 import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/core/router/app_router.dart';
 import 'package:client/core/utils.dart';
+import 'package:client/features/student/model/class_session.dart';
 import 'package:client/features/student/view/widgets/home_header_widget.dart';
 import 'package:client/features/student/view/widgets/section_header_widget.dart';
 import 'package:client/features/tutor/view/widgets/income_dashboard_widget.dart';
@@ -23,11 +24,31 @@ class TutorHomeTab extends ConsumerWidget {
     return 'Chào buổi tối,';
   }
 
+  static const _maxHomeClasses = 3;
+
+  List<ClassSession> _todayClasses(List<ClassSession> all) {
+    final today = DateTime.now();
+    return all.where((c) {
+      final dt = c.startDateTime;
+      if (dt == null) return false;
+      return dt.year == today.year &&
+          dt.month == today.month &&
+          dt.day == today.day;
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
     final state = ref.watch(tutorHomeViewModelProvider);
     final hPad = responsiveHPad(context);
+
+    final todayClasses = _todayClasses(state.upcomingClasses);
+    final previewClasses = state.upcomingClasses
+        .where((c) => !todayClasses.contains(c))
+        .take(_maxHomeClasses)
+        .toList();
+    final hasMore = state.upcomingClasses.length - todayClasses.length > _maxHomeClasses;
 
     return SafeArea(
       child: RefreshIndicator(
@@ -48,10 +69,22 @@ class TutorHomeTab extends ConsumerWidget {
               ),
             ),
 
+            // ── Lớp dạy hôm nay ─────────────────────────────────────
+            if (!state.isLoading && todayClasses.isNotEmpty)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(hPad, 16, hPad, 0),
+                  child: _TodayBanner(
+                    classes: todayClasses,
+                    onTap: onScheduleTap,
+                  ),
+                ),
+              ),
+
             // ── Income dashboard ─────────────────────────────────────
             SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.fromLTRB(hPad, 20, hPad, 0),
+                padding: EdgeInsets.fromLTRB(hPad, 16, hPad, 0),
                 child: IncomeDashboardWidget(
                   income: state.income,
                   isLoading: state.isLoadingIncome,
@@ -65,47 +98,59 @@ class TutorHomeTab extends ConsumerWidget {
                 padding: EdgeInsets.fromLTRB(hPad, 4, hPad, 0),
                 child: SectionHeaderWidget(
                   title: 'Lớp học sắp dạy',
-                  actionText: 'Tất cả',
+                  actionText: hasMore ? 'Xem tất cả' : null,
                   onActionTap: onScheduleTap,
                 ),
               ),
             ),
 
-            state.isLoading
-                ? SliverToBoxAdapter(
-                    child: Padding(
-                      padding: EdgeInsets.fromLTRB(hPad, 0, hPad, 0),
-                      child: const _ClassListSkeleton(),
-                    ),
-                  )
-                : state.error != null
-                    ? SliverToBoxAdapter(
-                        child: Padding(
-                          padding: EdgeInsets.fromLTRB(hPad, 0, hPad, 0),
-                          child: _ErrorBanner(message: state.error!),
-                        ),
-                      )
-                    : state.upcomingClasses.isEmpty
-                        ? SliverToBoxAdapter(
-                            child: Padding(
-                              padding: EdgeInsets.fromLTRB(hPad, 0, hPad, 0),
-                              child: _EmptyClasses(
-                                onCreateClass: () =>
-                                    context.push(AppRoutes.teacherCreateClass),
-                              ),
-                            ),
-                          )
-                        : SliverList.separated(
-                            itemCount: state.upcomingClasses.length,
-                            separatorBuilder: (_, _) =>
-                                const SizedBox(height: 10),
-                            itemBuilder: (_, i) => Padding(
-                              padding: EdgeInsets.fromLTRB(hPad, 0, hPad, 0),
-                              child: TutorClassCardWidget(
-                                session: state.upcomingClasses[i],
-                              ),
-                            ),
-                          ),
+            if (state.isLoading)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(hPad, 0, hPad, 0),
+                  child: const _ClassListSkeleton(),
+                ),
+              )
+            else if (state.error != null)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(hPad, 0, hPad, 0),
+                  child: _ErrorBanner(message: state.error!),
+                ),
+              )
+            else if (previewClasses.isEmpty && todayClasses.isEmpty)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(hPad, 0, hPad, 0),
+                  child: _EmptyClasses(
+                    onCreateClass: () =>
+                        context.push(AppRoutes.teacherCreateClass),
+                  ),
+                ),
+              )
+            else
+              SliverList.separated(
+                itemCount: previewClasses.length,
+                separatorBuilder: (_, _) => const SizedBox(height: 10),
+                itemBuilder: (_, i) => Padding(
+                  padding: EdgeInsets.fromLTRB(hPad, 0, hPad, 0),
+                  child: TutorClassCardWidget(session: previewClasses[i]),
+                ),
+              ),
+
+            // "Xem thêm X lớp" link
+            if (hasMore)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(hPad, 10, hPad, 0),
+                  child: _SeeMoreButton(
+                    count: state.upcomingClasses.length -
+                        todayClasses.length -
+                        _maxHomeClasses,
+                    onTap: onScheduleTap,
+                  ),
+                ),
+              ),
 
             const SliverToBoxAdapter(child: SizedBox(height: 100)),
           ],
@@ -173,6 +218,109 @@ class _EmptyClasses extends StatelessWidget {
             child: const Text('Tạo lớp học ngay'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ─── Today banner ────────────────────────────────────────────────────────────
+
+class _TodayBanner extends StatelessWidget {
+  final List<ClassSession> classes;
+  final VoidCallback? onTap;
+
+  const _TodayBanner({required this.classes, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final first = classes.first;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: cs.tertiaryContainer,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: cs.tertiary.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.today_rounded, size: 20, color: cs.tertiary),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    classes.length == 1
+                        ? 'Hôm nay bạn có 1 lớp học'
+                        : 'Hôm nay bạn có ${classes.length} lớp học',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: cs.onTertiaryContainer,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${first.timeText} · ${first.title}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: cs.onTertiaryContainer.withValues(alpha: 0.75),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded,
+                size: 18, color: cs.onTertiaryContainer),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── See more button ──────────────────────────────────────────────────────────
+
+class _SeeMoreButton extends StatelessWidget {
+  final int count;
+  final VoidCallback? onTap;
+
+  const _SeeMoreButton({required this.count, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          border: Border.all(color: cs.outlineVariant),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Text(
+          'Xem thêm $count lớp khác',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: cs.primary,
+          ),
+        ),
       ),
     );
   }
