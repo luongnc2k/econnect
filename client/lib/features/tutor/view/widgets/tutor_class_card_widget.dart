@@ -62,16 +62,9 @@ class TutorClassCardWidget extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Topic + Level
-                    Wrap(
-                      spacing: 6,
-                      children: [
-                        if (session.tags.isNotEmpty)
-                          AppTagChip(label: session.tags.first),
-                        if (session.levelText != null)
-                          _LevelChip(label: session.levelText!),
-                      ],
-                    ),
+                    // Topic
+                    if (session.tags.isNotEmpty)
+                      AppTagChip(label: session.tags.first),
                     const SizedBox(height: 6),
 
                     // Title
@@ -151,30 +144,6 @@ class _PlaceholderThumb extends StatelessWidget {
   }
 }
 
-class _LevelChip extends StatelessWidget {
-  final String label;
-  const _LevelChip({required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: cs.secondaryContainer,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.w600,
-          color: cs.onSecondaryContainer,
-        ),
-      ),
-    );
-  }
-}
 
 class _IconRow extends StatelessWidget {
   final IconData icon;
