@@ -32,6 +32,8 @@ class _TutorScheduleScreenState extends ConsumerState<TutorScheduleScreen> {
     _pastDays = List.generate(_dayCount, (i) => today.subtract(Duration(days: i)));
     _stripController = ScrollController();
     _timelineController = ScrollController();
+    // Scroll to current time on first frame (today, no classes needed)
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollTimelineTo([]));
   }
 
   @override
@@ -42,33 +44,30 @@ class _TutorScheduleScreenState extends ConsumerState<TutorScheduleScreen> {
   }
 
   void _scrollTimelineTo(List<ClassSession> classes) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_timelineController.hasClients) return;
+    if (!_timelineController.hasClients) return;
 
-      final now = DateTime.now();
-      final isToday = _selectedDate.year == now.year &&
-          _selectedDate.month == now.month &&
-          _selectedDate.day == now.day;
+    final now = DateTime.now();
+    final isToday = _selectedDate.year == now.year &&
+        _selectedDate.month == now.month &&
+        _selectedDate.day == now.day;
 
-      double focusHour;
-      if (isToday) {
-        focusHour = now.hour.toDouble() - 1;
-      } else if (classes.isNotEmpty && classes.first.startDateTime != null) {
-        focusHour = classes.first.startDateTime!.hour.toDouble() - 0.5;
-      } else {
-        return;
-      }
+    double focusHour;
+    if (isToday) {
+      focusHour = now.hour.toDouble() - 1;
+    } else if (classes.isNotEmpty && classes.first.startDateTime != null) {
+      focusHour = classes.first.startDateTime!.hour.toDouble() - 0.5;
+    } else {
+      return;
+    }
 
-      final offset = ((focusHour - _DayTimeline.startHour) *
-              _DayTimeline.hourHeight)
-          .clamp(0.0, _timelineController.position.maxScrollExtent);
+    final offset = ((focusHour - _DayTimeline.startHour) * _DayTimeline.hourHeight)
+        .clamp(0.0, double.infinity);
 
-      _timelineController.animateTo(
-        offset,
-        duration: const Duration(milliseconds: 350),
-        curve: Curves.easeOut,
-      );
-    });
+    _timelineController.animateTo(
+      offset,
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeOut,
+    );
   }
 
   DateTime _dateOnly(DateTime dt) => DateTime(dt.year, dt.month, dt.day);
@@ -122,7 +121,15 @@ class _TutorScheduleScreenState extends ConsumerState<TutorScheduleScreen> {
     final todayClasses = _classesForDate(sourceClasses, _selectedDate);
     final stripDays = _showPast ? _pastDays : _futureDays;
 
-    if (!isLoading) _scrollTimelineTo(todayClasses);
+    // Scroll when data finishes loading
+    ref.listen(tutorHomeViewModelProvider, (prev, next) {
+      final wasLoading = _showPast ? (prev?.isLoadingPast ?? true) : (prev?.isLoading ?? true);
+      final nowLoading = _showPast ? next.isLoadingPast : next.isLoading;
+      if (wasLoading && !nowLoading) {
+        final src = _showPast ? next.pastClasses : next.upcomingClasses;
+        _scrollTimelineTo(_classesForDate(src, _selectedDate));
+      }
+    });
 
     return SafeArea(
       child: Column(
@@ -203,7 +210,13 @@ class _TutorScheduleScreenState extends ConsumerState<TutorScheduleScreen> {
                   isSelected: isSelected,
                   hasClass: hasClass,
                   isToday: isToday,
-                  onTap: () => setState(() => _selectedDate = day),
+                  onTap: () {
+                    setState(() => _selectedDate = day);
+                    final src = _showPast
+                        ? state.pastClasses
+                        : state.upcomingClasses;
+                    _scrollTimelineTo(_classesForDate(src, day));
+                  },
                 );
               },
             ),
