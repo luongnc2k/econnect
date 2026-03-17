@@ -1,11 +1,10 @@
 import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/core/router/app_router.dart';
 import 'package:client/core/utils.dart';
-import 'package:client/features/profile/model/teacher_my_profile_model.dart';
 import 'package:client/features/student/view/widgets/home_header_widget.dart';
+import 'package:client/features/student/view/widgets/section_header_widget.dart';
 import 'package:client/features/tutor/view/widgets/income_dashboard_widget.dart';
 import 'package:client/features/tutor/view/widgets/tutor_class_card_widget.dart';
-import 'package:client/features/student/view/widgets/section_header_widget.dart';
 import 'package:client/features/tutor/viewmodel/tutor_home_viewmodel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -28,7 +27,6 @@ class TutorHomeTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
     final state = ref.watch(tutorHomeViewModelProvider);
-    final teacher = user is TeacherMyProfileModel ? user : null;
     final hPad = responsiveHPad(context);
 
     return SafeArea(
@@ -50,18 +48,10 @@ class TutorHomeTab extends ConsumerWidget {
               ),
             ),
 
-            // ── Stats row ────────────────────────────────────────────
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(hPad, 20, hPad, 0),
-                child: _StatsRow(teacher: teacher),
-              ),
-            ),
-
             // ── Income dashboard ─────────────────────────────────────
             SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.fromLTRB(hPad, 16, hPad, 0),
+                padding: EdgeInsets.fromLTRB(hPad, 20, hPad, 0),
                 child: IncomeDashboardWidget(
                   income: state.income,
                   isLoading: state.isLoadingIncome,
@@ -99,7 +89,10 @@ class TutorHomeTab extends ConsumerWidget {
                         ? SliverToBoxAdapter(
                             child: Padding(
                               padding: EdgeInsets.fromLTRB(hPad, 0, hPad, 0),
-                              child: const _EmptyClasses(),
+                              child: _EmptyClasses(
+                                onCreateClass: () =>
+                                    context.push(AppRoutes.teacherCreateClass),
+                              ),
                             ),
                           )
                         : SliverList.separated(
@@ -114,17 +107,7 @@ class TutorHomeTab extends ConsumerWidget {
                             ),
                           ),
 
-            // ── Thao tác nhanh ───────────────────────────────────────
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(hPad, 20, hPad, 32),
-                child: _QuickActions(
-                  onCreateClass: () =>
-                      context.push(AppRoutes.teacherCreateClass),
-                  onSchedule: onScheduleTap,
-                ),
-              ),
-            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 100)),
           ],
         ),
       ),
@@ -132,111 +115,7 @@ class TutorHomeTab extends ConsumerWidget {
   }
 }
 
-// ─── Stats row ─────────────────────────────────────────────────────────────
-
-class _StatsRow extends StatelessWidget {
-  final TeacherMyProfileModel? teacher;
-
-  const _StatsRow({this.teacher});
-
-  @override
-  Widget build(BuildContext context) {
-    final totalSessions = teacher?.totalStudents ?? 0; // reuse as proxy
-    final rating = teacher?.rating ?? 0.0;
-    final years = teacher?.yearsOfExperience ?? 0;
-
-    return Row(
-      children: [
-        Expanded(
-          child: _StatCard(
-            icon: Icons.menu_book_rounded,
-            value: teacher != null ? '$totalSessions' : '--',
-            label: 'Học viên',
-            color: Colors.blue,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _StatCard(
-            icon: Icons.star_rounded,
-            value: teacher != null
-                ? rating > 0
-                    ? rating.toStringAsFixed(1)
-                    : '--'
-                : '--',
-            label: 'Đánh giá',
-            color: Colors.amber,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _StatCard(
-            icon: Icons.workspace_premium_rounded,
-            value: teacher != null ? '${years}y' : '--',
-            label: 'Kinh nghiệm',
-            color: Colors.green,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _StatCard extends StatelessWidget {
-  final IconData icon;
-  final String value;
-  final String label;
-  final Color color;
-
-  const _StatCard({
-    required this.icon,
-    required this.value,
-    required this.label,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainer,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: cs.outlineVariant),
-      ),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, size: 20, color: color),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-              color: cs.onSurface,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── Skeleton ───────────────────────────────────────────────────────────────
+// ─── Skeleton ────────────────────────────────────────────────────────────────
 
 class _ClassListSkeleton extends StatelessWidget {
   const _ClassListSkeleton();
@@ -262,156 +141,56 @@ class _ClassListSkeleton extends StatelessWidget {
   }
 }
 
+// ─── Empty state ──────────────────────────────────────────────────────────────
+
 class _EmptyClasses extends StatelessWidget {
-  const _EmptyClasses();
+  final VoidCallback onCreateClass;
+
+  const _EmptyClasses({required this.onCreateClass});
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Container(
-      height: 160,
-      margin: const EdgeInsets.only(right: 16),
+      padding: const EdgeInsets.symmetric(vertical: 32),
       decoration: BoxDecoration(
         color: cs.surfaceContainer,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: cs.outlineVariant,
-          strokeAlign: BorderSide.strokeAlignInside,
-        ),
+        border: Border.all(color: cs.outlineVariant),
       ),
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.event_busy_outlined, size: 36, color: cs.onSurfaceVariant),
-            const SizedBox(height: 8),
-            Text(
-              'Chưa có lớp học nào sắp dạy',
-              style: TextStyle(color: cs.onSurfaceVariant),
-            ),
-          ],
-        ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.event_busy_outlined, size: 40, color: cs.onSurfaceVariant),
+          const SizedBox(height: 10),
+          Text(
+            'Chưa có lớp học nào sắp dạy',
+            style: TextStyle(color: cs.onSurfaceVariant),
+          ),
+          const SizedBox(height: 16),
+          FilledButton.tonal(
+            onPressed: onCreateClass,
+            child: const Text('Tạo lớp học ngay'),
+          ),
+        ],
       ),
     );
   }
 }
 
+// ─── Error ───────────────────────────────────────────────────────────────────
+
 class _ErrorBanner extends StatelessWidget {
   final String message;
-
   const _ErrorBanner({required this.message});
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(right: 16, top: 8),
+      padding: const EdgeInsets.only(top: 8),
       child: Text(
         'Không thể tải dữ liệu: $message',
         style: TextStyle(color: Theme.of(context).colorScheme.error),
-      ),
-    );
-  }
-}
-
-// ─── Quick actions ──────────────────────────────────────────────────────────
-
-class _QuickActions extends StatelessWidget {
-  final VoidCallback onCreateClass;
-  final VoidCallback? onSchedule;
-
-  const _QuickActions({required this.onCreateClass, this.onSchedule});
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Thao tác nhanh',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            color: cs.onSurface,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _ActionButton(
-                icon: Icons.add_circle_rounded,
-                label: 'Tạo lớp học',
-                color: cs.primary,
-                onTap: onCreateClass,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _ActionButton(
-                icon: Icons.calendar_month_rounded,
-                label: 'Lịch dạy',
-                color: Colors.indigo,
-                onTap: onSchedule ?? () {},
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _ActionButton(
-                icon: Icons.people_rounded,
-                label: 'Học viên',
-                color: Colors.teal,
-                onTap: () {},
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-class _ActionButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _ActionButton({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: color.withValues(alpha: 0.25)),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, size: 28, color: color),
-            const SizedBox(height: 6),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: cs.onSurface,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
       ),
     );
   }

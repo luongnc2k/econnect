@@ -1,8 +1,10 @@
+import 'package:client/core/router/app_router.dart';
 import 'package:client/features/auth/viewmodel/auth_viewmodel.dart';
 import 'package:client/features/tutor/view/screens/tutor_home_tab.dart';
 import 'package:client/features/tutor/view/screens/tutor_schedule_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 class TutorNavShell extends StatefulWidget {
   const TutorNavShell({super.key});
@@ -28,6 +30,11 @@ class _TutorNavShellState extends State<TutorNavShell> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: IndexedStack(index: _currentIndex, children: _screens),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => context.push(AppRoutes.teacherCreateClass),
+        icon: const Icon(Icons.add_rounded),
+        label: const Text('Tạo lớp học'),
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
         onDestinationSelected: (index) =>
