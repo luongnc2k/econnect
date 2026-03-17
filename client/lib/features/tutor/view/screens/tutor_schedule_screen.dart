@@ -16,7 +16,6 @@ class TutorScheduleScreen extends ConsumerStatefulWidget {
 class _TutorScheduleScreenState extends ConsumerState<TutorScheduleScreen> {
   late DateTime _selectedDate;
   late final ScrollController _stripController;
-  late final ScrollController _timelineController;
   bool _showPast = false;
 
   static const _dayCount = 60;
@@ -31,43 +30,12 @@ class _TutorScheduleScreenState extends ConsumerState<TutorScheduleScreen> {
     _futureDays = List.generate(_dayCount, (i) => today.add(Duration(days: i)));
     _pastDays = List.generate(_dayCount, (i) => today.subtract(Duration(days: i)));
     _stripController = ScrollController();
-    _timelineController = ScrollController();
-    // Scroll to current time on first frame (today, no classes needed)
-    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollTimelineTo([]));
   }
 
   @override
   void dispose() {
     _stripController.dispose();
-    _timelineController.dispose();
     super.dispose();
-  }
-
-  void _scrollTimelineTo(List<ClassSession> classes) {
-    if (!_timelineController.hasClients) return;
-
-    final now = DateTime.now();
-    final isToday = _selectedDate.year == now.year &&
-        _selectedDate.month == now.month &&
-        _selectedDate.day == now.day;
-
-    double focusHour;
-    if (isToday) {
-      focusHour = now.hour.toDouble() - 1;
-    } else if (classes.isNotEmpty && classes.first.startDateTime != null) {
-      focusHour = classes.first.startDateTime!.hour.toDouble() - 0.5;
-    } else {
-      return;
-    }
-
-    final offset = ((focusHour - _DayTimeline.startHour) * _DayTimeline.hourHeight)
-        .clamp(0.0, double.infinity);
-
-    _timelineController.animateTo(
-      offset,
-      duration: const Duration(milliseconds: 350),
-      curve: Curves.easeOut,
-    );
   }
 
   DateTime _dateOnly(DateTime dt) => DateTime(dt.year, dt.month, dt.day);
@@ -120,16 +88,6 @@ class _TutorScheduleScreenState extends ConsumerState<TutorScheduleScreen> {
     final activeDates = _datesWithClasses(sourceClasses);
     final todayClasses = _classesForDate(sourceClasses, _selectedDate);
     final stripDays = _showPast ? _pastDays : _futureDays;
-
-    // Scroll when data finishes loading
-    ref.listen(tutorHomeViewModelProvider, (prev, next) {
-      final wasLoading = _showPast ? (prev?.isLoadingPast ?? true) : (prev?.isLoading ?? true);
-      final nowLoading = _showPast ? next.isLoadingPast : next.isLoading;
-      if (wasLoading && !nowLoading) {
-        final src = _showPast ? next.pastClasses : next.upcomingClasses;
-        _scrollTimelineTo(_classesForDate(src, _selectedDate));
-      }
-    });
 
     return SafeArea(
       child: Column(
@@ -210,13 +168,7 @@ class _TutorScheduleScreenState extends ConsumerState<TutorScheduleScreen> {
                   isSelected: isSelected,
                   hasClass: hasClass,
                   isToday: isToday,
-                  onTap: () {
-                    setState(() => _selectedDate = day);
-                    final src = _showPast
-                        ? state.pastClasses
-                        : state.upcomingClasses;
-                    _scrollTimelineTo(_classesForDate(src, day));
-                  },
+                  onTap: () => setState(() => _selectedDate = day),
                 );
               },
             ),
@@ -270,7 +222,6 @@ class _TutorScheduleScreenState extends ConsumerState<TutorScheduleScreen> {
                     child: _DayTimeline(
                       date: _selectedDate,
                       classes: todayClasses,
-                      controller: _timelineController,
                       onTapClass: (s) => context.push(
                         AppRoutes.teacherClassDetail,
                         extra: s,
@@ -365,50 +316,106 @@ class _DayCell extends StatelessWidget {
 
 // ─── Day Timeline ─────────────────────────────────────────────────────────────
 
-class _DayTimeline extends StatelessWidget {
+class _DayTimeline extends StatefulWidget {
   final DateTime date;
   final List<ClassSession> classes;
-  final ScrollController controller;
   final void Function(ClassSession) onTapClass;
 
-  // Timeline covers 06:00 – 22:00 (public so parent can compute scroll offset)
   static const startHour = 6;
   static const _endHour = 22;
-  static const hourHeight = 64.0; // px per hour
+  static const hourHeight = 64.0;
   static const _labelWidth = 44.0;
 
   const _DayTimeline({
     required this.date,
     required this.classes,
-    required this.controller,
     required this.onTapClass,
   });
 
-  double _topFor(DateTime dt) =>
-      ((dt.hour - startHour) + dt.minute / 60) * hourHeight;
+  @override
+  State<_DayTimeline> createState() => _DayTimelineState();
+}
 
-  double _heightFor(DateTime start, DateTime end) {
+class _DayTimelineState extends State<_DayTimeline> {
+  final ScrollController _controller = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToFocus());
+  }
+
+  @override
+  void didUpdateWidget(_DayTimeline old) {
+    super.didUpdateWidget(old);
+    // Scroll when date changes or when classes are loaded for the first time
+    if (old.date != widget.date ||
+        (old.classes.isEmpty && widget.classes.isNotEmpty)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToFocus());
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _scrollToFocus() {
+    if (!_controller.hasClients) return;
+
+    final now = DateTime.now();
+    final isToday = widget.date.year == now.year &&
+        widget.date.month == now.month &&
+        widget.date.day == now.day;
+
+    double focusHour;
+    if (isToday) {
+      focusHour = now.hour.toDouble() - 1;
+    } else if (widget.classes.isNotEmpty &&
+        widget.classes.first.startDateTime != null) {
+      focusHour = widget.classes.first.startDateTime!.hour.toDouble() - 0.5;
+    } else {
+      return;
+    }
+
+    final offset =
+        ((focusHour - _DayTimeline.startHour) * _DayTimeline.hourHeight)
+            .clamp(0.0, _controller.position.maxScrollExtent);
+
+    _controller.animateTo(
+      offset,
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeOut,
+    );
+  }
+
+  static double _topFor(DateTime dt) =>
+      ((dt.hour - _DayTimeline.startHour) + dt.minute / 60) *
+      _DayTimeline.hourHeight;
+
+  static double _heightFor(DateTime start, DateTime end) {
     final mins = end.difference(start).inMinutes;
-    return (mins / 60) * hourHeight;
+    return (mins / 60) * _DayTimeline.hourHeight;
   }
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final totalHours = _endHour - startHour;
-    final totalHeight = totalHours * hourHeight;
+    final totalHours = _DayTimeline._endHour - _DayTimeline.startHour;
+    final totalHeight = totalHours * _DayTimeline.hourHeight;
 
-    // Current time indicator
     final now = DateTime.now();
-    final isToday = date.year == now.year &&
-        date.month == now.month &&
-        date.day == now.day;
-    final nowTop = isToday && now.hour >= startHour && now.hour < _endHour
-        ? _topFor(now)
-        : null;
+    final isToday = widget.date.year == now.year &&
+        widget.date.month == now.month &&
+        widget.date.day == now.day;
+    final nowTop =
+        isToday && now.hour >= _DayTimeline.startHour && now.hour < _DayTimeline._endHour
+            ? _topFor(now)
+            : null;
 
     return SingleChildScrollView(
-      controller: controller,
+      controller: _controller,
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(0, 8, 16, 32),
       child: SizedBox(
@@ -418,13 +425,13 @@ class _DayTimeline extends StatelessWidget {
           children: [
             // ── Hour labels ──────────────────────────────────────
             SizedBox(
-              width: _labelWidth,
+              width: _DayTimeline._labelWidth,
               height: totalHeight,
               child: Stack(
                 children: [
-                  for (int h = startHour; h <= _endHour; h++)
+                  for (int h = _DayTimeline.startHour; h <= _DayTimeline._endHour; h++)
                     Positioned(
-                      top: (h - startHour) * hourHeight - 8,
+                      top: (h - _DayTimeline.startHour) * _DayTimeline.hourHeight - 8,
                       left: 0,
                       right: 0,
                       child: Text(
@@ -449,7 +456,7 @@ class _DayTimeline extends StatelessWidget {
                   // Hour grid lines
                   for (int h = 0; h <= totalHours; h++)
                     Positioned(
-                      top: h * hourHeight,
+                      top: h * _DayTimeline.hourHeight,
                       left: 0,
                       right: 0,
                       child: Divider(
@@ -463,7 +470,7 @@ class _DayTimeline extends StatelessWidget {
                   // Half-hour dashed lines
                   for (int h = 0; h < totalHours; h++)
                     Positioned(
-                      top: h * hourHeight + hourHeight / 2,
+                      top: h * _DayTimeline.hourHeight + _DayTimeline.hourHeight / 2,
                       left: 0,
                       right: 0,
                       child: Divider(
@@ -498,7 +505,7 @@ class _DayTimeline extends StatelessWidget {
                   ],
 
                   // Class blocks
-                  for (final s in classes)
+                  for (final s in widget.classes)
                     if (s.startDateTime != null && s.endDateTime != null)
                       Positioned(
                         top: _topFor(s.startDateTime!),
@@ -511,7 +518,7 @@ class _DayTimeline extends StatelessWidget {
                         child: _ClassBlock(
                           session: s,
                           cs: cs,
-                          onTap: () => onTapClass(s),
+                          onTap: () => widget.onTapClass(s),
                         ),
                       ),
                 ],
