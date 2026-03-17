@@ -1,8 +1,10 @@
+import 'package:client/core/router/app_router.dart';
 import 'package:client/features/student/model/class_session.dart';
 import 'package:client/features/tutor/view/widgets/tutor_class_card_widget.dart';
 import 'package:client/features/tutor/viewmodel/tutor_home_viewmodel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 class TutorScheduleScreen extends ConsumerStatefulWidget {
   const TutorScheduleScreen({super.key});
@@ -228,6 +230,10 @@ class _TutorScheduleScreenState extends ConsumerState<TutorScheduleScreen> {
                                 const SizedBox(height: 10),
                             itemBuilder: (_, i) => TutorClassCardWidget(
                               session: todayClasses[i],
+                              onTap: () => context.push(
+                                AppRoutes.teacherClassDetail,
+                                extra: todayClasses[i],
+                              ),
                             ),
                           ),
                   ),

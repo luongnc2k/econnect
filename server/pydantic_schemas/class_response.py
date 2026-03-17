@@ -46,3 +46,18 @@ class ClassResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class EnrolledStudentBrief(BaseModel):
+    id: str
+    full_name: str
+    avatar_url: Optional[str] = None
+    status: str
+    booked_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ClassDetailResponse(ClassResponse):
+    enrolled_students: list[EnrolledStudentBrief] = []

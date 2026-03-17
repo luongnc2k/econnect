@@ -14,7 +14,7 @@ from models.user import User
 from models.teacher_profile import TeacherProfile
 from models.booking import Booking
 from pydantic_schemas.class_create import ClassCreate
-from pydantic_schemas.class_response import ClassResponse, TeacherBrief, TopicBrief
+from pydantic_schemas.class_response import ClassDetailResponse, ClassResponse, EnrolledStudentBrief, TeacherBrief, TopicBrief
 
 router = APIRouter()
 
@@ -229,6 +229,46 @@ def get_class_by_code(
             return _to_class_response(cls, tp, teacher_user, teacher_profile)
 
     raise HTTPException(status_code=404, detail="Khong tim thay lop hoc voi ma nay")
+
+
+@router.get("/{class_id}", response_model=ClassDetailResponse)
+def get_class_detail(
+    class_id: str,
+    db: Session = Depends(get_db),
+    user_dict: dict = Depends(auth_middleware),
+):
+    teacher = db.query(User).filter(User.id == user_dict['uid']).first()
+    if not teacher or teacher.role != 'teacher':
+        raise HTTPException(status_code=403, detail="Chỉ giáo viên mới có thể xem chi tiết lớp")
+
+    cls = db.query(Class).filter(Class.id == class_id, Class.teacher_id == teacher.id).first()
+    if not cls:
+        raise HTTPException(status_code=404, detail="Không tìm thấy lớp học")
+
+    tp = db.query(Topic).filter(Topic.id == cls.topic_id).first()
+    teacher_profile = db.query(TeacherProfile).filter(TeacherProfile.user_id == teacher.id).first()
+
+    bookings = (
+        db.query(Booking, User)
+        .join(User, Booking.student_id == User.id)
+        .filter(Booking.class_id == class_id, Booking.status != 'cancelled')
+        .order_by(Booking.booked_at.asc())
+        .all()
+    )
+
+    enrolled = [
+        EnrolledStudentBrief(
+            id=student.id,
+            full_name=student.full_name,
+            avatar_url=student.avatar_url,
+            status=booking.status,
+            booked_at=booking.booked_at,
+        )
+        for booking, student in bookings
+    ]
+
+    base = _to_class_response(cls, tp, teacher, teacher_profile)
+    return ClassDetailResponse(**base.model_dump(), enrolled_students=enrolled)
 
 
 @router.post("", response_model=ClassResponse, status_code=201)

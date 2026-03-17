@@ -134,7 +134,13 @@ class TutorHomeTab extends ConsumerWidget {
                 separatorBuilder: (_, _) => const SizedBox(height: 10),
                 itemBuilder: (_, i) => Padding(
                   padding: EdgeInsets.fromLTRB(hPad, 0, hPad, 0),
-                  child: TutorClassCardWidget(session: previewClasses[i]),
+                  child: TutorClassCardWidget(
+                    session: previewClasses[i],
+                    onTap: () => context.push(
+                      AppRoutes.teacherClassDetail,
+                      extra: previewClasses[i],
+                    ),
+                  ),
                 ),
               ),
 

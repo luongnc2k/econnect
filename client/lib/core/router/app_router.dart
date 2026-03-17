@@ -8,6 +8,7 @@ import 'package:client/features/student/model/class_session.dart';
 import 'package:client/features/student/view/screens/class_detail_screen.dart';
 import 'package:client/features/student/view/screens/student_nav_shell.dart';
 import 'package:client/features/tutor/view/screens/create_class_screen.dart';
+import 'package:client/features/tutor/view/screens/tutor_class_detail_screen.dart';
 import 'package:client/features/tutor/view/screens/tutor_home_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -26,6 +27,7 @@ abstract class AppRoutes {
   static const teacherMyProfile = '/teacher/profile';
   static const teacherEditMyProfile = '/teacher/profile/edit';
   static const teacherCreateClass = '/teacher/create-class';
+  static const teacherClassDetail = '/teacher/class';
 }
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -109,6 +111,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: 'create-class',
             builder: (context, state) => const CreateClassScreen(),
+          ),
+          GoRoute(
+            path: 'class',
+            builder: (context, state) {
+              final session = state.extra as ClassSession;
+              return TutorClassDetailScreen(session: session);
+            },
           ),
           GoRoute(
             path: 'profile',
