@@ -44,11 +44,8 @@ class TutorHomeTab extends ConsumerWidget {
     final hPad = responsiveHPad(context);
 
     final todayClasses = _todayClasses(state.upcomingClasses);
-    final previewClasses = state.upcomingClasses
-        .where((c) => !todayClasses.contains(c))
-        .take(_maxHomeClasses)
-        .toList();
-    final hasMore = state.upcomingClasses.length - todayClasses.length > _maxHomeClasses;
+    final previewClasses = state.upcomingClasses.take(_maxHomeClasses).toList();
+    final hasMore = state.upcomingClasses.length > _maxHomeClasses;
 
     return SafeArea(
       child: RefreshIndicator(
@@ -118,7 +115,7 @@ class TutorHomeTab extends ConsumerWidget {
                   child: _ErrorBanner(message: state.error!),
                 ),
               )
-            else if (previewClasses.isEmpty && todayClasses.isEmpty)
+            else if (previewClasses.isEmpty)
               SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.fromLTRB(hPad, 0, hPad, 0),
