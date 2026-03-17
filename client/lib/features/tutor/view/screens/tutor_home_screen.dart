@@ -30,11 +30,13 @@ class _TutorNavShellState extends State<TutorNavShell> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: IndexedStack(index: _currentIndex, children: _screens),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push(AppRoutes.teacherCreateClass),
-        icon: const Icon(Icons.add_rounded),
-        label: const Text('Tạo lớp học'),
-      ),
+      floatingActionButton: _currentIndex == 0
+          ? FloatingActionButton.extended(
+              onPressed: () => context.push(AppRoutes.teacherCreateClass),
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Tạo lớp học'),
+            )
+          : null,
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
         onDestinationSelected: (index) =>
