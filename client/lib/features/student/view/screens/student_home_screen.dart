@@ -51,7 +51,7 @@ class StudentHomeScreen extends ConsumerWidget {
                 userName: user?.fullName ?? 'Bạn',
                 avatarUrl: user?.avatarUrl,
                 onAvatarTap: onAvatarTap,
-                onNotificationTap: () {},
+                onNotificationTap: () => context.push(AppRoutes.notifications),
               ),
             ),
           ),

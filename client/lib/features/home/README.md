@@ -1,33 +1,33 @@
-# Home Feature
+# Tính Năng Home
 
-## Muc tieu
+## Mục tiêu
 
-Lam diem vao sau khi da dang nhap va dieu huong user den shell dung theo role.
+Làm điểm vào sau khi đã đăng nhập và điều hướng người dùng đến shell đúng theo role.
 
-## Pham vi
+## Phạm vi
 
 - `view/pages/home_page.dart`
 
-## Luong chinh
+## Luồng chính
 
 `HomePage`
--> doc `currentUserProvider`
--> neu role la `tutor` thi render `TutorNavShell`
--> nguoc lai render `StudentNavShell`.
+-> đọc `currentUserProvider`
+-> nếu role là `tutor` thì render `TutorNavShell`
+-> ngược lại render `StudentNavShell`.
 
-## Thiet ke
+## Thiết kế
 
-- Feature nay co y nghia la role gateway, khong chua business logic rieng.
-- Quy tac fallback hien tai: role khong phai `tutor` se vao student shell.
-- Routing o tang cao hon chi can day user vao `HomePage`, con phan nhanh role xu ly tai day.
+- Feature này có ý nghĩa là role gateway, không chứa business logic riêng.
+- Quy tắc fallback hiện tại: role không phải `tutor` sẽ vào student shell.
+- Routing ở tầng cao hơn chỉ cần đẩy user vào `HomePage`, còn phần rẽ nhánh role xử lý tại đây.
 
-## Phu thuoc
+## Phụ thuộc
 
 - `core/providers/current_user_notifier.dart`
 - `features/student`
 - `features/tutor`
 
-## Mo rong
+## Mở rộng
 
-- Neu sau nay co role moi nhu `admin`, file nay la diem dau tien can cap nhat.
-- Co the doi tu `if` don gian sang role-to-shell mapper khi so role tang len.
+- Nếu sau này có role mới như `admin`, file này là điểm đầu tiên cần cập nhật.
+- Có thể đổi từ `if` đơn giản sang role-to-shell mapper khi số role tăng lên.

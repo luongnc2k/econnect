@@ -4,6 +4,9 @@ class PaymentSummary {
   final String creationPaymentStatus;
   final int creationFeeAmount;
   final int currentParticipants;
+  final bool minimumParticipantsReached;
+  final String tutorConfirmationStatus;
+  final DateTime? tutorConfirmedAt;
   final String tutorPayoutStatus;
   final int tutorPayoutAmount;
   final int totalEscrowHeld;
@@ -15,6 +18,9 @@ class PaymentSummary {
     required this.creationPaymentStatus,
     required this.creationFeeAmount,
     required this.currentParticipants,
+    required this.minimumParticipantsReached,
+    required this.tutorConfirmationStatus,
+    this.tutorConfirmedAt,
     required this.tutorPayoutStatus,
     required this.tutorPayoutAmount,
     required this.totalEscrowHeld,
@@ -28,6 +34,11 @@ class PaymentSummary {
       creationPaymentStatus: map['creation_payment_status'] as String? ?? '',
       creationFeeAmount: _toInt(map['creation_fee_amount']),
       currentParticipants: (map['current_participants'] as num?)?.toInt() ?? 0,
+      minimumParticipantsReached: map['minimum_participants_reached'] as bool? ?? false,
+      tutorConfirmationStatus: map['tutor_confirmation_status'] as String? ?? '',
+      tutorConfirmedAt: map['tutor_confirmed_at'] != null
+          ? DateTime.tryParse(map['tutor_confirmed_at'].toString())
+          : null,
       tutorPayoutStatus: map['tutor_payout_status'] as String? ?? '',
       tutorPayoutAmount: _toInt(map['tutor_payout_amount']),
       totalEscrowHeld: _toInt(map['total_escrow_held']),

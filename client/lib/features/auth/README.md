@@ -1,10 +1,10 @@
-# Auth Feature
+# Tính Năng Auth
 
-## Muc tieu
+## Mục tiêu
 
-Quan ly dang ky, dang nhap, khoi phuc phien dang nhap va dong bo user hien tai vao app state.
+Quản lý đăng ký, đăng nhập, khôi phục phiên đăng nhập và đồng bộ người dùng hiện tại vào app state.
 
-## Pham vi
+## Phạm vi
 
 - `view/screens/login_screen.dart`
 - `view/screens/signup_screen.dart`
@@ -13,58 +13,58 @@ Quan ly dang ky, dang nhap, khoi phuc phien dang nhap va dong bo user hien tai v
 - `repositories/auth_local_repository.dart`
 - `model/user_model.dart`
 
-## Luong chinh
+## Luồng chính
 
-### 1. Dang ky
+### 1. Đăng ký
 
 `SignupScreen`
--> goi `AuthViewModel.signUpUser`
+-> gọi `AuthViewModel.signUpUser`
 -> `AuthRemoteRepository.signup`
--> server tra ve `UserModel`
+-> server trả về `UserModel`
 -> state `AsyncValue.data`
--> UI quyet dinh chuyen man hinh tiep theo.
+-> UI quyết định chuyển màn hình tiếp theo.
 
-### 2. Dang nhap
+### 2. Đăng nhập
 
 `LoginScreen`
--> goi `AuthViewModel.loginUser`
+-> gọi `AuthViewModel.loginUser`
 -> `AuthRemoteRepository.login`
 -> `_loginSuccess`
--> luu token + user vao `AuthLocalRepository`
--> cap nhat `currentUserProvider`
--> UI rebuild theo trang thai da dang nhap.
+-> lưu token + user vào `AuthLocalRepository`
+-> cập nhật `currentUserProvider`
+-> UI rebuild theo trạng thái đã đăng nhập.
 
-### 3. Khoi phuc session khi mo app
+### 3. Khôi phục session khi mở app
 
 App bootstrap
 -> `AuthViewModel.initSharedPreferences`
 -> `AuthViewModel.getData`
--> doc token/user cache tu local
--> cap nhat `currentUserProvider` ngay lap tuc
--> goi API `getCurrentUserData` de validate token
--> neu token invalid thi clear session, neu hop le thi ghi de cache.
+-> đọc token/user cache từ local
+-> cập nhật `currentUserProvider` ngay lập tức
+-> gọi API `getCurrentUserData` để validate token
+-> nếu token invalid thì clear session, nếu hợp lệ thì ghi đè cache.
 
-### 4. Dang xuat
+### 4. Đăng xuất
 
-Bat ky UI nao goi `AuthViewModel.logout`
--> xoa token + user cache
+Bất kỳ UI nào gọi `AuthViewModel.logout`
+-> xóa token + user cache
 -> reset `currentUserProvider`
--> app quay ve trang thai chua dang nhap.
+-> app quay về trạng thái chưa đăng nhập.
 
-## Thiet ke
+## Thiết kế
 
-- Dung `AuthViewModel` lam orchestration layer cho UI.
-- Tach remote/local repository de tranh tron logic API va persistence.
-- `currentUserProvider` la nguon state dung chung cho routing va feature khac.
-- Uu tien restore cache truoc khi validate server de tranh flash logout khi app khoi dong cham.
+- Dùng `AuthViewModel` làm orchestration layer cho UI.
+- Tách remote/local repository để tránh trộn logic API và persistence.
+- `currentUserProvider` là nguồn state dùng chung cho routing và các feature khác.
+- Ưu tiên restore cache trước khi validate server để tránh flash logout khi app khởi động chậm.
 
-## Phu thuoc
+## Phụ thuộc
 
 - `core/providers/current_user_notifier.dart`
 - SharedPreferences qua `AuthLocalRepository`
-- API auth ben backend
+- API auth bên backend
 
-## Luu y
+## Lưu ý
 
-- `AuthViewModel` hien tai tra `AsyncValue<UserModel>?`, co the o `null` khi chua co session.
-- Role tra ve tu auth anh huong truc tiep den `home` feature de chon shell phu hop.
+- `AuthViewModel` hiện tại trả `AsyncValue<UserModel>?`, có thể ở `null` khi chưa có session.
+- Role trả về từ auth ảnh hưởng trực tiếp đến `home` feature để chọn shell phù hợp.

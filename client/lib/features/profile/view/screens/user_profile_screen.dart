@@ -42,6 +42,72 @@ class UserProfileScreen extends ConsumerWidget {
           }
 
           final profile = snapshot.data!;
+          final hasEmail = profile.email.trim().isNotEmpty;
+          final hasPhone = (profile.phone ?? '').trim().isNotEmpty;
+          final showPrivateMetadata =
+              hasEmail || hasPhone || profile.lastLoginAt != null || profile.createdAt != null;
+          final personalItems = <ProfileInfoItem>[
+            ProfileInfoItem(label: 'Ho va ten', value: profile.fullName),
+          ];
+
+          if (hasEmail) {
+            personalItems.add(ProfileInfoItem(label: 'Email', value: profile.email));
+          }
+          if (hasPhone) {
+            personalItems.add(
+              ProfileInfoItem(label: 'So dien thoai', value: profile.phone ?? '--'),
+            );
+          }
+          if (showPrivateMetadata) {
+            personalItems.add(
+              ProfileInfoItem(
+                label: 'Trang thai',
+                value: profile.isActive ? 'Dang hoat dong' : 'Ngung hoat dong',
+              ),
+            );
+          }
+          if (profile.lastLoginAt != null) {
+            personalItems.add(
+              ProfileInfoItem(
+                label: 'Lan dang nhap cuoi',
+                value: _formatDate(profile.lastLoginAt),
+              ),
+            );
+          }
+          if (profile.createdAt != null) {
+            personalItems.add(
+              ProfileInfoItem(
+                label: 'Ngay tao',
+                value: _formatDate(profile.createdAt),
+              ),
+            );
+          }
+
+          final teacherBankItems = profile is TeacherMyProfileModel
+              ? <ProfileInfoItem>[
+                  if ((profile.bankName ?? '').trim().isNotEmpty)
+                    ProfileInfoItem(
+                      label: 'Ngan hang',
+                      value: profile.bankName ?? '--',
+                    ),
+                  if ((profile.bankBin ?? '').trim().isNotEmpty)
+                    ProfileInfoItem(
+                      label: 'Ma BIN',
+                      value: profile.bankBin ?? '--',
+                    ),
+                  if ((profile.bankAccountNumber ?? '').trim().isNotEmpty)
+                    ProfileInfoItem(
+                      label: 'So tai khoan',
+                      value: profile.bankAccountNumber ?? '--',
+                    ),
+                  if ((profile.bankAccountHolder ?? '').trim().isNotEmpty)
+                    ProfileInfoItem(
+                      label: 'Chu tai khoan',
+                      value: profile.bankAccountHolder ?? '--',
+                    ),
+                ]
+              : const <ProfileInfoItem>[];
+
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
@@ -49,23 +115,7 @@ class UserProfileScreen extends ConsumerWidget {
               const SizedBox(height: 16),
               ProfileInfoCard(
                 title: 'Thong tin ca nhan',
-                items: [
-                  ProfileInfoItem(label: 'Ho va ten', value: profile.fullName),
-                  ProfileInfoItem(label: 'Email', value: profile.email),
-                  ProfileInfoItem(label: 'So dien thoai', value: profile.phone ?? '--'),
-                  ProfileInfoItem(
-                    label: 'Trang thai',
-                    value: profile.isActive ? 'Dang hoat dong' : 'Ngung hoat dong',
-                  ),
-                  ProfileInfoItem(
-                    label: 'Lan dang nhap cuoi',
-                    value: _formatDate(profile.lastLoginAt),
-                  ),
-                  ProfileInfoItem(
-                    label: 'Ngay tao',
-                    value: _formatDate(profile.createdAt),
-                  ),
-                ],
+                items: personalItems,
               ),
               const SizedBox(height: 16),
               if (profile is StudentMyProfileModel)
@@ -122,24 +172,11 @@ class UserProfileScreen extends ConsumerWidget {
                     ),
                   ],
                 ),
-              if (profile is TeacherMyProfileModel) ...[
+              if (teacherBankItems.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 ProfileInfoCard(
                   title: 'Tai khoan ngan hang',
-                  items: [
-                    ProfileInfoItem(
-                      label: 'Ngan hang',
-                      value: profile.bankName ?? '--',
-                    ),
-                    ProfileInfoItem(
-                      label: 'So tai khoan',
-                      value: profile.bankAccountNumber ?? '--',
-                    ),
-                    ProfileInfoItem(
-                      label: 'Chu tai khoan',
-                      value: profile.bankAccountHolder ?? '--',
-                    ),
-                  ],
+                  items: teacherBankItems,
                 ),
               ],
             ],

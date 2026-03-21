@@ -8,7 +8,9 @@ import 'package:fpdart/fpdart.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 
-final studentRemoteRepositoryProvider = Provider((_) => StudentRemoteRepository());
+final studentRemoteRepositoryProvider = Provider<StudentRemoteRepository>(
+  (_) => StudentRemoteRepository(),
+);
 
 class StudentRemoteRepository {
   Future<Either<AppFailure, List<ClassSession>>> getUpcomingClasses(

@@ -236,6 +236,10 @@ class _MyProfileViewState extends ConsumerState<MyProfileView> {
                   value: profile.bankName ?? '--',
                 ),
                 ProfileInfoItem(
+                  label: 'Ma BIN',
+                  value: profile.bankBin ?? '--',
+                ),
+                ProfileInfoItem(
                   label: 'S\u1ED1 t\u00E0i kho\u1EA3n',
                   value: profile.bankAccountNumber ?? '--',
                 ),

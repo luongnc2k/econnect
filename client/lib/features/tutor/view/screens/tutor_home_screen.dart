@@ -1,12 +1,16 @@
 import 'package:client/core/failure/failure.dart';
 import 'package:client/core/providers/current_user_notifier.dart';
+import 'package:client/core/router/app_router.dart';
 import 'package:client/core/providers/theme_notifier.dart';
 import 'package:client/features/auth/viewmodel/auth_viewmodel.dart';
+import 'package:client/features/notifications/view/widgets/notification_bell_button.dart';
+import 'package:client/features/notifications/viewmodel/notifications_controller.dart';
 import 'package:client/features/payments/model/payment_summary.dart';
 import 'package:client/features/payments/repositories/payments_remote_repository.dart';
 import 'package:fpdart/fpdart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 class TutorNavShell extends StatefulWidget {
   const TutorNavShell({super.key});
@@ -66,6 +70,7 @@ class _TutorHomeTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
     final isDark = ref.watch(themeModeProvider) == ThemeMode.dark;
+    final unreadCount = ref.watch(unreadNotificationsCountProvider);
     final cs = Theme.of(context).colorScheme;
 
     return SafeArea(
@@ -79,6 +84,11 @@ class _TutorHomeTab extends ConsumerWidget {
                   'Trang chu gia su',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
                 ),
+              ),
+              NotificationBellButton(
+                unreadCount: unreadCount,
+                onPressed: () => context.push(AppRoutes.notifications),
+                icon: Icons.notifications_outlined,
               ),
               IconButton(
                 onPressed: () => ref.read(themeModeProvider.notifier).toggle(),
@@ -250,6 +260,14 @@ class _SummaryCard extends StatelessWidget {
           _SummaryRow(label: 'Creation fee', value: '${summary.creationFeeAmount} VND'),
           _SummaryRow(label: 'Creation payment', value: summary.creationPaymentStatus),
           _SummaryRow(label: 'Hoc vien hien tai', value: summary.currentParticipants.toString()),
+          _SummaryRow(
+            label: 'Da du hoc vien toi thieu',
+            value: summary.minimumParticipantsReached ? 'Co' : 'Chua',
+          ),
+          _SummaryRow(
+            label: 'Tutor xac nhan day',
+            value: summary.tutorConfirmationStatus,
+          ),
           _SummaryRow(label: 'Tong escrow', value: '${summary.totalEscrowHeld} VND'),
           _SummaryRow(label: 'Payout tutor', value: summary.tutorPayoutStatus),
           _SummaryRow(label: 'So tien payout', value: '${summary.tutorPayoutAmount} VND'),

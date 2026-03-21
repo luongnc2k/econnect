@@ -1,5 +1,6 @@
 import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/features/auth/view/screens/login_screen.dart';
+import 'package:client/features/notifications/view/screens/notifications_screen.dart';
 import 'package:client/features/auth/view/screens/signup_screen.dart';
 import 'package:client/features/profile/view/screens/edit_my_profile_screen.dart';
 import 'package:client/features/profile/view/screens/my_profile_screen.dart';
@@ -7,6 +8,7 @@ import 'package:client/features/profile/view/screens/user_profile_screen.dart';
 import 'package:client/features/student/model/class_session.dart';
 import 'package:client/features/student/view/screens/class_detail_screen.dart';
 import 'package:client/features/student/view/screens/student_nav_shell.dart';
+import 'package:client/features/tutor/view/screens/tutor_class_summary_screen.dart';
 import 'package:client/features/tutor/view/screens/tutor_home_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -14,6 +16,7 @@ import 'package:go_router/go_router.dart';
 abstract class AppRoutes {
   static const login = '/login';
   static const signup = '/signup';
+  static const notifications = '/notifications';
 
   static const studentHome = '/student';
   static const classDetail = '/student/class';
@@ -22,6 +25,7 @@ abstract class AppRoutes {
   static const userProfile = '/user/:userId';
 
   static const teacherHome = '/teacher';
+  static const teacherClassSummary = '/teacher/class-summary/:classCode';
   static const teacherMyProfile = '/teacher/profile';
   static const teacherEditMyProfile = '/teacher/profile/edit';
 }
@@ -59,6 +63,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const SignupScreen(),
       ),
       GoRoute(
+        path: AppRoutes.notifications,
+        builder: (context, state) => const NotificationsScreen(),
+      ),
+      GoRoute(
         path: AppRoutes.userProfile,
         builder: (context, state) {
           final userId = state.pathParameters['userId'] ?? '';
@@ -92,6 +100,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.teacherHome,
         builder: (context, state) => const TutorNavShell(),
         routes: [
+          GoRoute(
+            path: 'class-summary/:classCode',
+            builder: (context, state) {
+              final classCode = state.pathParameters['classCode'] ?? '';
+              return TutorClassSummaryScreen(classCode: classCode);
+            },
+          ),
           GoRoute(
             path: 'profile',
             builder: (context, state) => const MyProfileScreen(),

@@ -16,7 +16,6 @@ class PaymentsRemoteRepository {
   Future<Either<AppFailure, PaymentTransactionStatus>> createJoinPayment({
     required String token,
     required String classId,
-    required String provider,
   }) async {
     try {
       final uri = Uri.parse('${ServerConstant.serverURL}/payments/classes/$classId/join/request');
@@ -26,7 +25,7 @@ class PaymentsRemoteRepository {
           'Content-Type': 'application/json',
           'x-auth-token': token,
         },
-        body: jsonEncode({'provider': provider}),
+        body: jsonEncode({}),
       );
       return _decodeTransactionResponse(response);
     } catch (e) {

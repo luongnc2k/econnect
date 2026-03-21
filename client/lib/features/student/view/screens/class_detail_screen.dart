@@ -28,11 +28,15 @@ class ClassDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen> {
-  String _selectedProvider = 'momo';
+  static const int _maxPollAttempts = 60;
+  static const int _maxConsecutivePollErrors = 3;
+
   bool _submitting = false;
   bool _polling = false;
   PaymentTransactionStatus? _transaction;
   Timer? _pollTimer;
+  int _pollAttempts = 0;
+  int _consecutivePollErrors = 0;
 
   @override
   void dispose() {
@@ -41,6 +45,9 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen> {
   }
 
   Future<void> _startPayment() async {
+    if (_submitting || _polling) {
+      return;
+    }
     final user = ref.read(currentUserProvider);
     final classId = widget.session.id;
     if (user == null || classId == null || classId.isEmpty) {
@@ -52,7 +59,6 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen> {
     final result = await ref.read(paymentsRemoteRepositoryProvider).createJoinPayment(
           token: user.token,
           classId: classId,
-          provider: _selectedProvider,
         );
 
     if (!mounted) return;
@@ -81,17 +87,29 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen> {
       mode: LaunchMode.externalApplication,
     );
     if (!launched && mounted) {
+      _stopPolling();
       _showMessage('Khong mo duoc cong thanh toan. Ban co the copy URL tu log backend de test.');
     }
   }
 
   void _beginPolling(String transactionRef) {
     _pollTimer?.cancel();
-    setState(() => _polling = true);
+    setState(() {
+      _polling = true;
+      _pollAttempts = 0;
+      _consecutivePollErrors = 0;
+    });
     _pollTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
       final user = ref.read(currentUserProvider);
       if (user == null) {
         _stopPolling();
+        return;
+      }
+
+      _pollAttempts += 1;
+      if (_pollAttempts > _maxPollAttempts) {
+        _stopPolling();
+        _showMessage('Da het thoi gian doi ket qua thanh toan. Ban hay thu tai lai trang thai sau.');
         return;
       }
 
@@ -103,9 +121,18 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen> {
 
       if (result is Right<AppFailure, PaymentTransactionStatus>) {
         final status = result.value;
-        setState(() => _transaction = status);
+        setState(() {
+          _transaction = status;
+          _consecutivePollErrors = 0;
+        });
         if (status.isTerminal) {
           _stopPolling();
+        }
+      } else if (result is Left<AppFailure, PaymentTransactionStatus>) {
+        _consecutivePollErrors += 1;
+        if (_consecutivePollErrors >= _maxConsecutivePollErrors) {
+          _stopPolling();
+          _showMessage(result.value.message);
         }
       }
     });
@@ -138,8 +165,6 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               _PaymentActionCard(
-                provider: _selectedProvider,
-                onProviderChanged: (value) => setState(() => _selectedProvider = value),
                 onSubmit: _submitting ? null : _startPayment,
                 submitting: _submitting,
                 polling: _polling,
@@ -270,8 +295,6 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen> {
 }
 
 class _PaymentActionCard extends StatelessWidget {
-  final String provider;
-  final ValueChanged<String> onProviderChanged;
   final VoidCallback? onSubmit;
   final bool submitting;
   final bool polling;
@@ -279,8 +302,6 @@ class _PaymentActionCard extends StatelessWidget {
   final String sessionPriceText;
 
   const _PaymentActionCard({
-    required this.provider,
-    required this.onProviderChanged,
     required this.onSubmit,
     required this.submitting,
     required this.polling,
@@ -307,17 +328,30 @@ class _PaymentActionCard extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            'Mo cong thanh toan trong browser, app se tu dong poll trang thai giao dich.',
+            'Thanh toan se duoc mo bang payOS trong browser, app se tu dong poll trang thai giao dich.',
             style: TextStyle(color: cs.onSurfaceVariant, height: 1.4),
           ),
           const SizedBox(height: 12),
-          SegmentedButton<String>(
-            segments: const [
-              ButtonSegment(value: 'momo', label: Text('MoMo')),
-              ButtonSegment(value: 'vnpay', label: Text('VNPAY')),
-            ],
-            selected: {provider},
-            onSelectionChanged: (values) => onProviderChanged(values.first),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: cs.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.account_balance_wallet_rounded, color: cs.primary),
+                const SizedBox(width: 10),
+                Text(
+                  'Cong thanh toan: payOS',
+                  style: TextStyle(
+                    color: cs.onSurface,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 12),
           Row(
@@ -338,7 +372,7 @@ class _PaymentActionCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           FilledButton(
-            onPressed: onSubmit,
+            onPressed: submitting || polling ? null : onSubmit,
             style: FilledButton.styleFrom(
               minimumSize: const Size.fromHeight(52),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

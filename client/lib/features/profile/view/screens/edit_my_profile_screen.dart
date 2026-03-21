@@ -29,6 +29,7 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
 
   final _specializationController = TextEditingController();
   final _bankNameController = TextEditingController();
+  final _bankBinController = TextEditingController();
   final _bankAccountNumberController = TextEditingController();
   final _bankAccountHolderController = TextEditingController();
   final _certificationsController = TextEditingController();
@@ -86,6 +87,7 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
     if (profile is TeacherMyProfileModel) {
       _specializationController.text = profile.specialization ?? '';
       _bankNameController.text = profile.bankName ?? '';
+      _bankBinController.text = profile.bankBin ?? '';
       _bankAccountNumberController.text = profile.bankAccountNumber ?? '';
       _bankAccountHolderController.text = profile.bankAccountHolder ?? '';
       _certificationsController.text = profile.certifications.join(', ');
@@ -105,6 +107,7 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
     _learningGoalController.dispose();
     _specializationController.dispose();
     _bankNameController.dispose();
+    _bankBinController.dispose();
     _bankAccountNumberController.dispose();
     _bankAccountHolderController.dispose();
     _certificationsController.dispose();
@@ -375,6 +378,7 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
         phone: _phoneController.text.trim(),
         specialization: _specializationController.text.trim(),
         bankName: _bankNameController.text.trim(),
+        bankBin: _bankBinController.text.trim(),
         bankAccountNumber: _bankAccountNumberController.text.trim(),
         bankAccountHolder: _bankAccountHolderController.text.trim(),
         certifications: certifications,
@@ -501,6 +505,12 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
                       _buildField(
                         controller: _bankNameController,
                         label: 'Ngan hang',
+                      ),
+                      const SizedBox(height: 12),
+                      _buildField(
+                        controller: _bankBinController,
+                        label: 'Ma ngan hang (BIN)',
+                        keyboardType: TextInputType.number,
                       ),
                       const SizedBox(height: 12),
                       _buildField(

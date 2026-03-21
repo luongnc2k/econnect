@@ -1,60 +1,60 @@
-# Search Feature
+# Tính Năng Search
 
-## Muc tieu
+## Mục tiêu
 
-Tap trung toan bo hanh vi tim kiem thanh mot module rieng: tim user, tim lop hoc va tai su dung search bar.
+Tập trung toàn bộ hành vi tìm kiếm thành một module riêng: tìm người dùng, tìm lớp học và tái sử dụng search bar.
 
-## Pham vi
+## Phạm vi
 
 - `view/screens/user_search_screen.dart`
 - `view/screens/class_search_screen.dart`
 - `view/widgets/search_bar_widget.dart`
 - `repositories/user_search_repository.dart`
 
-## Luong chinh
+## Luồng chính
 
-### 1. Tim user
+### 1. Tìm người dùng
 
 `UserSearchScreen`
--> user nhap keyword
+-> người dùng nhập từ khóa
 -> `_search`
--> neu keyword giong ma lop thi re nhanh sang tim lop
--> nguoc lai goi `UserSearchRepository.searchUsers`
--> render danh sach user
--> tap item de mo `UserProfileScreen`.
+-> nếu từ khóa giống mã lớp thì rẽ nhanh sang tìm lớp
+-> ngược lại gọi `UserSearchRepository.searchUsers`
+-> render danh sách người dùng
+-> chạm vào item để mở `UserProfileScreen`.
 
-### 2. Tim lop hoc
+### 2. Tìm lớp học
 
 `ClassSearchScreen`
--> user nhap ten lop hoac ma lop
+-> người dùng nhập tên lớp hoặc mã lớp
 -> `_loadClasses`
--> neu keyword giong class code thi goi `getClassByCode`
--> nguoc lai goi `getUpcomingClasses`
--> render danh sach lop
--> tap item de mo `ClassDetailScreen`.
+-> nếu từ khóa giống class code thì gọi `getClassByCode`
+-> ngược lại gọi `getUpcomingClasses`
+-> render danh sách lớp
+-> chạm vào item để mở `ClassDetailScreen`.
 
-### 3. Search entry point tu student home
+### 3. Điểm vào tìm kiếm từ trang chủ học viên
 
 `StudentHomeScreen`
--> search bar read-only
+-> search bar ở chế độ read-only
 -> `onSearchTap`
--> `StudentNavShell` chuyen tab sang `UserSearchScreen`.
+-> `StudentNavShell` chuyển tab sang `UserSearchScreen`.
 
-## Thiet ke
+## Thiết kế
 
-- Gom `search` thanh feature rieng de tranh de widget search nam o `student` va logic user search nam o `profile`.
-- `SearchBarWidget` la primitive dung chung, khong chua logic domain.
-- Search user va search class dung chung UX nhap keyword, nhung giu man hinh rieng de don gian hoa state.
-- Manual fallback tu `ManualTestMocks` duoc giu trong flow search de dev/test offline.
+- Gom `search` thành feature riêng để tránh để widget search nằm ở `student` còn logic user search nằm ở `profile`.
+- `SearchBarWidget` là primitive dùng chung, không chứa logic domain.
+- Search user và search class dùng chung UX nhập từ khóa, nhưng giữ màn hình riêng để đơn giản hóa state.
+- Manual fallback từ `ManualTestMocks` được giữ trong flow search để dev/test offline.
 
-## Phu thuoc
+## Phụ thuộc
 
 - `features/student/repositories/student_remote_repository.dart`
 - `features/student/view/widgets/upcoming_classlist_widget.dart`
-- `features/profile` de mo user profile
+- `features/profile` để mở user profile
 - `core/router/app_router.dart`
 
-## Mo rong
+## Mở rộng
 
-- Co the tach them `class_search_repository.dart` neu logic tim lop tang do phuc tap.
-- Co the them debounce va search suggestions ma khong can doi cau truc feature.
+- Có thể tách thêm `class_search_repository.dart` nếu logic tìm lớp tăng độ phức tạp.
+- Có thể thêm debounce và search suggestions mà không cần đổi cấu trúc feature.

@@ -13,6 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fpdart/fpdart.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
+import 'package:url_launcher_platform_interface/link.dart';
 import 'package:url_launcher_platform_interface/url_launcher_platform_interface.dart';
 
 void main() {
@@ -32,7 +33,7 @@ void main() {
       paymentId: 'pay-1',
       transactionRef: 'TUI-123',
       paymentType: 'tuition',
-      provider: 'momo',
+      provider: 'payos',
       status: 'pending',
       amount: 50000,
       redirectUrl: 'http://localhost:8000/payments/mock/checkout/TUI-123',
@@ -48,7 +49,7 @@ void main() {
         paymentId: 'pay-1',
         transactionRef: 'TUI-123',
         paymentType: 'tuition',
-        provider: 'momo',
+        provider: 'payos',
         status: 'paid',
         amount: 50000,
         classId: 'class-1',
@@ -88,6 +89,8 @@ void main() {
       creationPaymentStatus: 'paid',
       creationFeeAmount: 12000,
       currentParticipants: 3,
+      minimumParticipantsReached: true,
+      tutorConfirmationStatus: 'confirmed',
       tutorPayoutStatus: 'pending',
       tutorPayoutAmount: 0,
       totalEscrowHeld: 60000,
@@ -174,7 +177,6 @@ class _FakePaymentsRemoteRepository extends PaymentsRemoteRepository {
   Future<Either<AppFailure, PaymentTransactionStatus>> createJoinPayment({
     required String token,
     required String classId,
-    required String provider,
   }) async {
     createJoinPaymentCalls += 1;
     return Right(createJoinPaymentResult!);

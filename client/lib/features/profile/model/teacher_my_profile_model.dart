@@ -3,6 +3,7 @@ import 'package:client/features/auth/model/user_model.dart';
 class TeacherMyProfileModel extends UserModel {
   final String? specialization;
   final String? bankName;
+  final String? bankBin;
   final String? bankAccountNumber;
   final String? bankAccountHolder;
   final int yearsOfExperience;
@@ -27,6 +28,7 @@ class TeacherMyProfileModel extends UserModel {
     required super.token,
     this.specialization,
     this.bankName,
+    this.bankBin,
     this.bankAccountNumber,
     this.bankAccountHolder,
     this.yearsOfExperience = 0,
@@ -59,6 +61,7 @@ class TeacherMyProfileModel extends UserModel {
       token: map['token'] ?? '',
       specialization: map['specialization'] as String?,
       bankName: map['bank_name'] as String?,
+      bankBin: map['bank_bin'] as String?,
       bankAccountNumber: map['bank_account_number'] as String?,
       bankAccountHolder: map['bank_account_holder'] as String?,
       yearsOfExperience:
@@ -87,6 +90,7 @@ class TeacherMyProfileModel extends UserModel {
     map.addAll({
       'specialization': specialization,
       'bank_name': bankName,
+      'bank_bin': bankBin,
       'bank_account_number': bankAccountNumber,
       'bank_account_holder': bankAccountHolder,
       'years_of_experience': yearsOfExperience,
@@ -115,6 +119,7 @@ class TeacherMyProfileModel extends UserModel {
     String? token,
     String? specialization,
     String? bankName,
+    String? bankBin,
     String? bankAccountNumber,
     String? bankAccountHolder,
     int? yearsOfExperience,
@@ -139,6 +144,7 @@ class TeacherMyProfileModel extends UserModel {
       token: token ?? this.token,
       specialization: specialization ?? this.specialization,
       bankName: bankName ?? this.bankName,
+      bankBin: bankBin ?? this.bankBin,
       bankAccountNumber: bankAccountNumber ?? this.bankAccountNumber,
       bankAccountHolder: bankAccountHolder ?? this.bankAccountHolder,
       yearsOfExperience: yearsOfExperience ?? this.yearsOfExperience,

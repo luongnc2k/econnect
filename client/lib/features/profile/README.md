@@ -1,10 +1,10 @@
-# Profile Feature
+# Tính Năng Profile
 
-## Muc tieu
+## Mục tiêu
 
-Quan ly viec xem, chinh sua va cap nhat ho so cho user hien tai va xem profile cua nguoi khac.
+Quản lý việc xem, chỉnh sửa và cập nhật hồ sơ cho người dùng hiện tại, đồng thời xem profile của người khác.
 
-## Pham vi
+## Phạm vi
 
 - `view/screens/my_profile_screen.dart`
 - `view/screens/edit_my_profile_screen.dart`
@@ -18,54 +18,54 @@ Quan ly viec xem, chinh sua va cap nhat ho so cho user hien tai va xem profile c
 - `model/student_my_profile_model.dart`
 - `model/teacher_my_profile_model.dart`
 
-## Luong chinh
+## Luồng chính
 
-### 1. Xem profile cua chinh minh
+### 1. Xem profile của chính mình
 
 `MyProfileView`
 -> `my_profile_viewmodel.fetchMyProfile`
 -> `MyProfileRepository.getMyProfile`
--> map du lieu theo role
--> render thong tin ca nhan + block role-specific.
+-> map dữ liệu theo role
+-> render thông tin cá nhân + block riêng theo role.
 
-### 2. Chinh sua profile cua chinh minh
+### 2. Chỉnh sửa profile của chính mình
 
 `EditMyProfileScreen`
--> do du lieu hien tai tu `myProfileViewModelProvider`
--> cho phep sua field phu hop theo role
+-> đổ dữ liệu hiện tại từ `myProfileViewModelProvider`
+-> cho phép sửa các field phù hợp theo role
 -> submit qua `MyProfileRepository.updateMyProfile`
--> viewmodel cap nhat state
--> quay lai man hinh profile voi du lieu moi.
+-> viewmodel cập nhật state
+-> quay lại màn hình profile với dữ liệu mới.
 
-### 3. Xem profile nguoi khac
+### 3. Xem profile người khác
 
 `UserProfileScreen`
 -> `UserProfileRepository.getUserProfileById`
 -> map profile theo role
--> render read-only thong tin public.
+-> render read-only thông tin public.
 
-### 4. Upload avatar / tai lieu xac minh
+### 4. Upload avatar / tài liệu xác minh
 
 `EditMyProfileScreen`
--> goi action upload trong `MyProfileViewModel`
--> repository lam viec voi upload endpoint
--> server tra URL moi
--> state profile duoc cap nhat de UI refresh.
+-> gọi action upload trong `MyProfileViewModel`
+-> repository làm việc với upload endpoint
+-> server trả URL mới
+-> state profile được cập nhật để UI refresh.
 
-## Thiet ke
+## Thiết kế
 
-- Phan tach ro 3 use case: `my profile`, `edit my profile`, `user profile`.
-- Model student va teacher tach rieng de UI render dung field theo role.
-- `MyProfileViewModel` giu state cua profile hien tai va cac trang thai nhu loading, saving, uploading.
-- Widget layer duoc tach nho de tai su dung card/header giua cac man hinh profile.
+- Phân tách rõ 3 use case: `my profile`, `edit my profile`, `user profile`.
+- Model student và teacher tách riêng để UI render đúng field theo role.
+- `MyProfileViewModel` giữ state của profile hiện tại và các trạng thái như loading, saving, uploading.
+- Widget layer được tách nhỏ để tái sử dụng card/header giữa các màn hình profile.
 
-## Phu thuoc
+## Phụ thuộc
 
 - `features/auth/model/user_model.dart`
 - `core/router/app_router.dart`
-- API `/profile/*` va upload endpoint
+- API `/profile/*` và upload endpoint
 
-## Luu y
+## Lưu ý
 
-- Student profile hien tai khong con hien thi `average score` tren UI.
-- Teacher profile co them certification, verification docs, rating, hourly rate.
+- Student profile hiện tại không còn hiển thị `average score` trên UI.
+- Teacher profile có thêm certification, verification docs, rating, hourly rate.

@@ -1,17 +1,13 @@
-# client
+# Client EConnect
 
-A new Flutter project.
+Ứng dụng Flutter cho EConnect.
 
-## Getting Started
+## Bắt đầu
 
-This project is a starting point for a Flutter application.
+Đây là mã nguồn client Flutter của EConnect. Nếu bạn mới làm quen với Flutter, có thể bắt đầu từ các tài liệu sau:
 
-A few resources to get you started if this is your first Flutter project:
+- [Học Flutter](https://docs.flutter.dev/get-started/learn-flutter)
+- [Viết ứng dụng Flutter đầu tiên](https://docs.flutter.dev/get-started/codelab)
+- [Tài nguyên học Flutter](https://docs.flutter.dev/reference/learning-resources)
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Nếu cần hướng dẫn chi tiết hơn về phát triển Flutter, hãy xem [tài liệu chính thức](https://docs.flutter.dev/), bao gồm hướng dẫn, ví dụ mẫu, và tài liệu API đầy đủ.
