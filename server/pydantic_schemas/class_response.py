@@ -1,7 +1,8 @@
-from pydantic import BaseModel, ConfigDict
 from datetime import datetime
-from typing import Optional
 from decimal import Decimal
+from typing import Optional
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class TopicBrief(BaseModel):
@@ -46,3 +47,17 @@ class ClassResponse(BaseModel):
     status: str
     topic: TopicBrief
     teacher: TeacherBrief
+
+
+class EnrolledStudentBrief(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    full_name: str
+    avatar_url: Optional[str] = None
+    status: str
+    booked_at: datetime
+
+
+class ClassDetailResponse(ClassResponse):
+    enrolled_students: list[EnrolledStudentBrief] = Field(default_factory=list)

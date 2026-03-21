@@ -1,3 +1,4 @@
+from collections import defaultdict
 from datetime import datetime, timezone
 import os
 from typing import Optional
@@ -8,13 +9,20 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 from middleware.auth_middleware import auth_middleware
+from models.booking import Booking
 from models.class_ import Class
+from models.teacher_profile import TeacherProfile
 from models.topic import Topic
 from models.user import User
 from notification_service import dispatch_due_class_starting_soon_notifications
-from models.teacher_profile import TeacherProfile
 from pydantic_schemas.class_create import ClassCreate
-from pydantic_schemas.class_response import ClassResponse, TeacherBrief, TopicBrief
+from pydantic_schemas.class_response import (
+    ClassDetailResponse,
+    ClassResponse,
+    EnrolledStudentBrief,
+    TeacherBrief,
+    TopicBrief,
+)
 from pydantic_schemas.payment import calculate_creation_fee
 
 router = APIRouter()
@@ -73,6 +81,105 @@ def _to_class_response(
     )
 
 
+@router.get("/income")
+def get_income_stats(
+    db: Session = Depends(get_db),
+    user_dict: dict = Depends(auth_middleware),
+):
+    teacher = db.query(User).filter(User.id == user_dict["uid"]).first()
+    if not teacher or teacher.role != "teacher":
+        raise HTTPException(status_code=403, detail="Chi giao vien moi co the xem thu nhap")
+
+    now = datetime.now(timezone.utc)
+    this_month = now.month
+    this_year = now.year
+    last_month = this_month - 1 if this_month > 1 else 12
+    last_month_year = this_year if this_month > 1 else this_year - 1
+
+    rows = (
+        db.query(Booking, Class)
+        .join(Class, Booking.class_id == Class.id)
+        .filter(
+            Class.teacher_id == teacher.id,
+            Booking.status.in_(["confirmed", "completed"]),
+        )
+        .all()
+    )
+
+    total_income = 0.0
+    this_month_income = 0.0
+    last_month_income = 0.0
+    monthly: dict[str, float] = defaultdict(float)
+
+    for booking, cls in rows:
+        price = float(cls.price)
+        total_income += price
+
+        booked_at = booking.booked_at
+        key = f"{booked_at.year}-{str(booked_at.month).zfill(2)}"
+        monthly[key] += price
+
+        if booked_at.year == this_year and booked_at.month == this_month:
+            this_month_income += price
+        if booked_at.year == last_month_year and booked_at.month == last_month:
+            last_month_income += price
+
+    breakdown = []
+    for i in range(5, -1, -1):
+        month = now.month - i
+        year = now.year
+        while month <= 0:
+            month += 12
+            year -= 1
+        key = f"{year}-{str(month).zfill(2)}"
+        breakdown.append({"month": key, "income": monthly.get(key, 0.0)})
+
+    completed_classes = (
+        db.query(Class)
+        .filter(Class.teacher_id == teacher.id, Class.start_time <= now)
+        .count()
+    )
+
+    return {
+        "total_income": total_income,
+        "this_month_income": this_month_income,
+        "last_month_income": last_month_income,
+        "completed_classes": completed_classes,
+        "monthly_breakdown": breakdown,
+    }
+
+
+@router.get("/my", response_model=list[ClassResponse])
+def get_my_classes(
+    past: bool = Query(default=False, description="True = lop da day, False = lop sap day"),
+    db: Session = Depends(get_db),
+    user_dict: dict = Depends(auth_middleware),
+):
+    teacher = db.query(User).filter(User.id == user_dict["uid"]).first()
+    if not teacher or teacher.role != "teacher":
+        raise HTTPException(status_code=403, detail="Chi giao vien moi co the xem lop cua minh")
+
+    teacher_profile = db.query(TeacherProfile).filter(TeacherProfile.user_id == teacher.id).first()
+    now = datetime.now(timezone.utc)
+
+    query = (
+        db.query(Class, Topic)
+        .join(Topic, Class.topic_id == Topic.id)
+        .filter(Class.teacher_id == teacher.id)
+    )
+
+    if past:
+        query = query.filter(Class.start_time <= now).order_by(Class.start_time.desc())
+    else:
+        query = query.filter(
+            Class.start_time > now,
+            Class.status == "scheduled",
+        ).order_by(Class.start_time.asc())
+
+    rows = query.all()
+    return [_to_class_response(cls, tp, teacher, teacher_profile) for cls, tp in rows]
+
+
 @router.get("/upcoming", response_model=list[ClassResponse])
 def get_upcoming_classes(
     topic: Optional[str] = Query(default=None, description="Filter by topic slug"),
@@ -85,22 +192,20 @@ def get_upcoming_classes(
         db.commit()
     else:
         db.rollback()
-    now = datetime.now(timezone.utc)
 
+    now = datetime.now(timezone.utc)
     query = (
         db.query(Class, Topic, User, TeacherProfile)
         .join(Topic, Class.topic_id == Topic.id)
         .join(User, Class.teacher_id == User.id)
         .outerjoin(TeacherProfile, TeacherProfile.user_id == User.id)
-        .filter(Class.start_time > now)
-        .filter(Class.status == "scheduled")
+        .filter(Class.start_time > now, Class.status == "scheduled")
     )
 
     if topic:
         query = query.filter(Topic.slug == topic)
 
     rows = query.order_by(Class.start_time.asc()).all()
-
     keyword = (q or "").strip().lower()
 
     results = []
@@ -124,6 +229,7 @@ def get_class_by_code(
         db.commit()
     else:
         db.rollback()
+
     normalized_code = class_code.strip().upper()
     if not normalized_code:
         raise HTTPException(status_code=400, detail="Ma lop khong hop le")
@@ -134,8 +240,7 @@ def get_class_by_code(
         .join(Topic, Class.topic_id == Topic.id)
         .join(User, Class.teacher_id == User.id)
         .outerjoin(TeacherProfile, TeacherProfile.user_id == User.id)
-        .filter(Class.start_time > now)
-        .filter(Class.status == "scheduled")
+        .filter(Class.start_time > now, Class.status == "scheduled")
         .order_by(Class.start_time.asc())
         .all()
     )
@@ -145,6 +250,46 @@ def get_class_by_code(
             return _to_class_response(cls, tp, teacher_user, teacher_profile)
 
     raise HTTPException(status_code=404, detail="Khong tim thay lop hoc voi ma nay")
+
+
+@router.get("/{class_id}", response_model=ClassDetailResponse)
+def get_class_detail(
+    class_id: str,
+    db: Session = Depends(get_db),
+    user_dict: dict = Depends(auth_middleware),
+):
+    teacher = db.query(User).filter(User.id == user_dict["uid"]).first()
+    if not teacher or teacher.role != "teacher":
+        raise HTTPException(status_code=403, detail="Chi giao vien moi co the xem chi tiet lop")
+
+    cls = db.query(Class).filter(Class.id == class_id, Class.teacher_id == teacher.id).first()
+    if not cls:
+        raise HTTPException(status_code=404, detail="Khong tim thay lop hoc")
+
+    topic = db.query(Topic).filter(Topic.id == cls.topic_id).first()
+    teacher_profile = db.query(TeacherProfile).filter(TeacherProfile.user_id == teacher.id).first()
+
+    bookings = (
+        db.query(Booking, User)
+        .join(User, Booking.student_id == User.id)
+        .filter(Booking.class_id == class_id, Booking.status != "cancelled")
+        .order_by(Booking.booked_at.asc())
+        .all()
+    )
+
+    enrolled = [
+        EnrolledStudentBrief(
+            id=student.id,
+            full_name=student.full_name,
+            avatar_url=student.avatar_url,
+            status=booking.status,
+            booked_at=booking.booked_at,
+        )
+        for booking, student in bookings
+    ]
+
+    base = _to_class_response(cls, topic, teacher, teacher_profile)
+    return ClassDetailResponse(**base.model_dump(), enrolled_students=enrolled)
 
 
 @router.post("", response_model=ClassResponse, status_code=201)
@@ -159,13 +304,13 @@ def create_class(
             detail="Direct class creation da bi tat. Hay su dung POST /payments/class-creation/request",
         )
 
-    teacher = db.query(User).filter(User.id == user_dict['uid']).first()
-    if not teacher or teacher.role != 'teacher':
-        raise HTTPException(status_code=403, detail="Chỉ giáo viên mới có thể tạo lớp học")
+    teacher = db.query(User).filter(User.id == user_dict["uid"]).first()
+    if not teacher or teacher.role != "teacher":
+        raise HTTPException(status_code=403, detail="Chi giao vien moi co the tao lop hoc")
 
-    topic = db.query(Topic).filter(Topic.id == body.topic_id, Topic.is_active == True).first()
+    topic = db.query(Topic).filter(Topic.id == body.topic_id, Topic.is_active.is_(True)).first()
     if not topic:
-        raise HTTPException(status_code=404, detail="Topic không tồn tại")
+        raise HTTPException(status_code=404, detail="Topic khong ton tai")
 
     creation_fee = calculate_creation_fee(body.price)
 
@@ -201,5 +346,4 @@ def create_class(
     db.refresh(new_class)
 
     teacher_profile = db.query(TeacherProfile).filter(TeacherProfile.user_id == teacher.id).first()
-
     return _to_class_response(new_class, topic, teacher, teacher_profile)

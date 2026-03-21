@@ -15,6 +15,10 @@ class ClassSession {
   final String? countdownText;
   final List<String> tags;
 
+  // Raw datetimes for calendar filtering and timeline
+  final DateTime? startDateTime;
+  final DateTime? endDateTime;
+
   // Detail screen fields
   final String? description;
   final String? dateText;
@@ -40,6 +44,8 @@ class ClassSession {
     this.statusText = 'OPEN',
     this.countdownText,
     this.tags = const [],
+    this.startDateTime,
+    this.endDateTime,
     this.description,
     this.dateText,
     this.slotText,

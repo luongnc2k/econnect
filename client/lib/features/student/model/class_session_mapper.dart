@@ -3,6 +3,7 @@ import 'package:client/features/student/model/class_session.dart';
 class ClassSessionMapper {
   static ClassSession fromMap(Map<String, dynamic> m) {
     final startTime = DateTime.parse(m['start_time']).toLocal();
+    final endTime = DateTime.parse(m['end_time']).toLocal();
     final maxSlots = (m['max_participants'] as num).toInt();
     final current = (m['current_participants'] as num).toInt();
     final remaining = maxSlots - current;
@@ -17,6 +18,8 @@ class ClassSessionMapper {
       teacherId: teacher['id'] as String?,
       teacherName: teacher['full_name'] as String,
       teacherAvatarUrl: teacher['avatar_url'] as String?,
+      startDateTime: startTime,
+      endDateTime: endTime,
       timeText: formatTime(startTime),
       priceText: formatPrice(m['price']),
       imageUrl: m['thumbnail_url'] as String?,
