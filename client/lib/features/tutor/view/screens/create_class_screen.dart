@@ -71,7 +71,13 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
     );
     if (time == null || !mounted) return;
 
-    final picked = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+    final picked = DateTime(
+      date.year,
+      date.month,
+      date.day,
+      time.hour,
+      time.minute,
+    );
     setState(() {
       if (isStart) {
         _startTime = picked;
@@ -87,7 +93,10 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
 
   Future<void> _pickThumbnail() async {
     final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+    );
     if (picked == null) return;
 
     final bytes = await picked.readAsBytes();
@@ -102,9 +111,9 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     if (_selectedTopic == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng chọn chủ đề')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Vui lòng chọn chủ đề')));
       return;
     }
 
@@ -139,7 +148,9 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
       return;
     }
 
-    final success = await ref.read(createClassViewModelProvider.notifier).submitClass(
+    final success = await ref
+        .read(createClassViewModelProvider.notifier)
+        .submitClass(
           topicId: _selectedTopic!.id,
           title: _titleController.text.trim(),
           description: _descriptionController.text.trim().isEmpty
@@ -154,16 +165,17 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
           endTime: _endTime!,
           minParticipants: minP,
           maxParticipants: maxP,
-          price: double.tryParse(_priceController.text.replaceAll(',', '')) ?? 0,
+          price:
+              double.tryParse(_priceController.text.replaceAll(',', '')) ?? 0,
           thumbnailBytes: _thumbnailBytes,
           thumbnailFileName: _thumbnailFileName,
           thumbnailFilePath: _thumbnailFilePath,
         );
 
     if (success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tạo lớp học thành công!')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Tạo lớp học thành công!')));
       context.pop();
     }
   }
@@ -186,10 +198,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
     });
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Tạo lớp học mới'),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: const Text('Tạo lớp học mới'), centerTitle: true),
       body: vmState.isLoadingTopics
           ? const Center(child: CircularProgressIndicator())
           : Form(
@@ -208,7 +217,9 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                     controller: _titleController,
                     label: 'Tiêu đề lớp học *',
                     hint: 'Ví dụ: Luyện giao tiếp tiếng Anh cơ bản',
-                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Không được để trống' : null,
+                    validator: (v) => (v == null || v.trim().isEmpty)
+                        ? 'Không được để trống'
+                        : null,
                   ),
                   const SizedBox(height: 12),
                   _TopicDropdown(
@@ -236,7 +247,9 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                     controller: _locationNameController,
                     label: 'Tên địa điểm *',
                     hint: 'Ví dụ: Quận 1, TP.HCM',
-                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Không được để trống' : null,
+                    validator: (v) => (v == null || v.trim().isEmpty)
+                        ? 'Không được để trống'
+                        : null,
                   ),
                   const SizedBox(height: 12),
                   _FormField(
@@ -276,7 +289,9 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                           controller: _minParticipantsController,
                           label: 'Tối thiểu *',
                           keyboardType: TextInputType.number,
-                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
                           validator: (v) {
                             final n = int.tryParse(v ?? '');
                             if (n == null || n < 1) return 'Tối thiểu 1';
@@ -290,7 +305,9 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                           controller: _maxParticipantsController,
                           label: 'Tối đa *',
                           keyboardType: TextInputType.number,
-                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
                           validator: (v) {
                             final n = int.tryParse(v ?? '');
                             if (n == null || n < 1) return 'Tối thiểu 1';
@@ -325,7 +342,10 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                             height: 22,
                             child: CircularProgressIndicator(strokeWidth: 2.5),
                           )
-                        : const Text('Tạo lớp học', style: TextStyle(fontSize: 16)),
+                        : const Text(
+                            'Tạo lớp học',
+                            style: TextStyle(fontSize: 16),
+                          ),
                   ),
                   const SizedBox(height: 24),
                 ],
@@ -346,9 +366,9 @@ class _SectionLabel extends StatelessWidget {
     return Text(
       text,
       style: Theme.of(context).textTheme.titleSmall?.copyWith(
-            color: Theme.of(context).colorScheme.primary,
-            fontWeight: FontWeight.w600,
-          ),
+        color: Theme.of(context).colorScheme.primary,
+        fontWeight: FontWeight.w600,
+      ),
     );
   }
 }
@@ -403,7 +423,7 @@ class _TopicDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DropdownButtonFormField<TopicModel>(
-      value: selected,
+      initialValue: selected,
       isExpanded: true,
       decoration: const InputDecoration(
         labelText: 'Chủ đề *',
@@ -432,7 +452,7 @@ class _LevelDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DropdownButtonFormField<String>(
-      value: selected,
+      initialValue: selected,
       decoration: const InputDecoration(
         labelText: 'Trình độ *',
         border: OutlineInputBorder(),
@@ -515,11 +535,16 @@ class _ThumbnailPicker extends StatelessWidget {
             ? Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.add_photo_alternate_outlined,
-                      size: 40, color: colorScheme.onSurfaceVariant),
+                  Icon(
+                    Icons.add_photo_alternate_outlined,
+                    size: 40,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
                   const SizedBox(height: 8),
-                  Text('Thêm ảnh bìa (tùy chọn)',
-                      style: TextStyle(color: colorScheme.onSurfaceVariant)),
+                  Text(
+                    'Thêm ảnh bìa (tùy chọn)',
+                    style: TextStyle(color: colorScheme.onSurfaceVariant),
+                  ),
                 ],
               )
             : Align(
@@ -529,7 +554,11 @@ class _ThumbnailPicker extends StatelessWidget {
                   child: CircleAvatar(
                     backgroundColor: colorScheme.surface.withValues(alpha: 0.8),
                     radius: 16,
-                    child: Icon(Icons.edit_outlined, size: 16, color: colorScheme.onSurface),
+                    child: Icon(
+                      Icons.edit_outlined,
+                      size: 16,
+                      color: colorScheme.onSurface,
+                    ),
                   ),
                 ),
               ),

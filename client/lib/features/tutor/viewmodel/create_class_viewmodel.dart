@@ -8,8 +8,8 @@ import 'package:fpdart/fpdart.dart' show Left, Right;
 
 final createClassViewModelProvider =
     NotifierProvider<CreateClassViewModel, CreateClassState>(
-  CreateClassViewModel.new,
-);
+      CreateClassViewModel.new,
+    );
 
 class CreateClassViewModel extends Notifier<CreateClassState> {
   @override
@@ -25,7 +25,11 @@ class CreateClassViewModel extends Notifier<CreateClassState> {
       case Left(value: final failure):
         state = state.copyWith(isLoadingTopics: false, error: failure.message);
       case Right(value: final topics):
-        state = state.copyWith(isLoadingTopics: false, topics: topics, clearError: true);
+        state = state.copyWith(
+          isLoadingTopics: false,
+          topics: topics,
+          clearError: true,
+        );
     }
   }
 
@@ -79,7 +83,8 @@ class CreateClassViewModel extends Notifier<CreateClassState> {
     final body = <String, dynamic>{
       'topic_id': topicId,
       'title': title,
-      if (description != null && description.isNotEmpty) 'description': description,
+      if (description != null && description.isNotEmpty)
+        'description': description,
       'level': level,
       'location_name': locationName,
       if (locationAddress != null && locationAddress.isNotEmpty)
@@ -89,7 +94,10 @@ class CreateClassViewModel extends Notifier<CreateClassState> {
       'min_participants': minParticipants,
       'max_participants': maxParticipants,
       'price': price,
-      if (finalThumbnailUrl != null) 'thumbnail_url': finalThumbnailUrl,
+      ...?switch (finalThumbnailUrl) {
+        final String thumbnailUrl => {'thumbnail_url': thumbnailUrl},
+        _ => null,
+      },
     };
 
     final result = await repo.createClass(token, body);
@@ -98,7 +106,11 @@ class CreateClassViewModel extends Notifier<CreateClassState> {
         state = state.copyWith(isSubmitting: false, error: failure.message);
         return false;
       case Right():
-        state = state.copyWith(isSubmitting: false, success: true, clearError: true);
+        state = state.copyWith(
+          isSubmitting: false,
+          success: true,
+          clearError: true,
+        );
         return true;
     }
   }

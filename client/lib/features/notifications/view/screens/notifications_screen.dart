@@ -1,5 +1,3 @@
-import 'dart:collection';
-
 import 'package:client/core/failure/failure.dart';
 import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/core/router/app_router.dart';
@@ -17,8 +15,16 @@ class NotificationsScreen extends ConsumerWidget {
   const NotificationsScreen({super.key});
 
   static const _filters = [
-    _NotificationOption(NotificationFilterKeys.all, 'Tất cả', Icons.inbox_rounded),
-    _NotificationOption(NotificationFilterKeys.unread, 'Chưa đọc', Icons.markunread_rounded),
+    _NotificationOption(
+      NotificationFilterKeys.all,
+      'Tất cả',
+      Icons.inbox_rounded,
+    ),
+    _NotificationOption(
+      NotificationFilterKeys.unread,
+      'Chưa đọc',
+      Icons.markunread_rounded,
+    ),
     _NotificationOption(
       NotificationFilterKeys.minimumReached,
       'Đủ tối thiểu',
@@ -57,12 +63,25 @@ class NotificationsScreen extends ConsumerWidget {
   ];
 
   static const _groupings = [
-    _NotificationOption(NotificationGroupingModes.byDate, 'Theo ngày', Icons.calendar_today_rounded),
-    _NotificationOption(NotificationGroupingModes.byType, 'Theo loại', Icons.category_rounded),
+    _NotificationOption(
+      NotificationGroupingModes.byDate,
+      'Theo ngày',
+      Icons.calendar_today_rounded,
+    ),
+    _NotificationOption(
+      NotificationGroupingModes.byType,
+      'Theo loại',
+      Icons.category_rounded,
+    ),
   ];
 
-  Future<void> _handleNotificationTap(WidgetRef ref, AppNotification notification) async {
-    await ref.read(notificationsControllerProvider.notifier).markAsRead(notification);
+  Future<void> _handleNotificationTap(
+    WidgetRef ref,
+    AppNotification notification,
+  ) async {
+    await ref
+        .read(notificationsControllerProvider.notifier)
+        .markAsRead(notification);
   }
 
   Future<void> _handleConfirmTeaching(
@@ -70,22 +89,24 @@ class NotificationsScreen extends ConsumerWidget {
     WidgetRef ref,
     AppNotification notification,
   ) async {
-    final result = await ref.read(notificationsControllerProvider.notifier).confirmTeaching(notification);
+    final result = await ref
+        .read(notificationsControllerProvider.notifier)
+        .confirmTeaching(notification);
     if (!context.mounted) {
       return;
     }
 
     if (result is Left<AppFailure, String>) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result.value.message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(result.value.message)));
       return;
     }
 
     if (result is Right<AppFailure, String>) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result.value)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(result.value)));
     }
   }
 
@@ -100,7 +121,9 @@ class NotificationsScreen extends ConsumerWidget {
       return;
     }
 
-    await ref.read(notificationsControllerProvider.notifier).markAsRead(notification);
+    await ref
+        .read(notificationsControllerProvider.notifier)
+        .markAsRead(notification);
 
     if (user.role == 'teacher') {
       if (!context.mounted) {
@@ -114,19 +137,18 @@ class NotificationsScreen extends ConsumerWidget {
       return;
     }
 
-    final result = await ref.read(studentRemoteRepositoryProvider).getClassByCode(
-          user.token,
-          classCode,
-        );
+    final result = await ref
+        .read(studentRemoteRepositoryProvider)
+        .getClassByCode(user.token, classCode);
 
     if (!context.mounted) {
       return;
     }
 
     if (result is Left<AppFailure, ClassSession>) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result.value.message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(result.value.message)));
       return;
     }
 
@@ -203,7 +225,7 @@ class NotificationsScreen extends ConsumerWidget {
     List<AppNotification> notifications,
     String groupingMode,
   ) {
-    final grouped = LinkedHashMap<String, List<AppNotification>>();
+    final grouped = <String, List<AppNotification>>{};
     for (final notification in notifications) {
       final label = groupingMode == NotificationGroupingModes.byType
           ? notification.typeLabel
@@ -232,23 +254,23 @@ class NotificationsScreen extends ConsumerWidget {
             children: [
               Text(
                 'Tùy chỉnh hộp thư',
-                style: Theme.of(sheetContext).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
+                style: Theme.of(
+                  sheetContext,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 6),
               Text(
                 'Chọn bộ lọc và cách nhóm để quét thông báo nhanh hơn.',
-                style: Theme.of(sheetContext).textTheme.bodyMedium?.copyWith(
-                      color: cs.onSurfaceVariant,
-                    ),
+                style: Theme.of(
+                  sheetContext,
+                ).textTheme.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
               ),
               const SizedBox(height: 20),
               Text(
                 'Bộ lọc',
-                style: Theme.of(sheetContext).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+                style: Theme.of(
+                  sheetContext,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 10),
               ..._filters.map(
@@ -265,9 +287,9 @@ class NotificationsScreen extends ConsumerWidget {
               const SizedBox(height: 14),
               Text(
                 'Nhóm danh sách',
-                style: Theme.of(sheetContext).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+                style: Theme.of(
+                  sheetContext,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 10),
               Wrap(
@@ -340,12 +362,17 @@ class NotificationsScreen extends ConsumerWidget {
             children: [
               _InboxSummaryCard(
                 unreadCount: state.unreadCount,
-                activeFilterLabel: _optionLabel(_filters, state.selectedFilterKey),
+                activeFilterLabel: _optionLabel(
+                  _filters,
+                  state.selectedFilterKey,
+                ),
                 groupingLabel: _optionLabel(_groupings, state.groupingMode),
                 hydratedFromCache: state.hydratedFromCache,
                 liveConnected: state.liveConnected,
-                hasActiveFilter: state.selectedFilterKey != NotificationFilterKeys.all,
-                onClearFilter: state.selectedFilterKey == NotificationFilterKeys.all
+                hasActiveFilter:
+                    state.selectedFilterKey != NotificationFilterKeys.all,
+                onClearFilter:
+                    state.selectedFilterKey == NotificationFilterKeys.all
                     ? null
                     : () => controller.setFilter(NotificationFilterKeys.all),
                 onOpenControls: () => _showControlsSheet(context, ref, state),
@@ -361,7 +388,8 @@ class NotificationsScreen extends ConsumerWidget {
               if (state.isLoading && state.notifications.isEmpty) ...[
                 const SizedBox(height: 56),
                 const Center(child: CircularProgressIndicator()),
-              ] else if (state.error != null && state.notifications.isEmpty) ...[
+              ] else if (state.error != null &&
+                  state.notifications.isEmpty) ...[
                 const SizedBox(height: 56),
                 _EmptyState(
                   message: state.error!,
@@ -383,18 +411,25 @@ class NotificationsScreen extends ConsumerWidget {
                       notification: notification,
                       createdAt: _formatRelativeTime(notification.createdAt),
                       classStartAt: _formatDate(notification.classStartTime),
-                      canConfirmTeaching: user?.role == 'teacher' &&
+                      canConfirmTeaching:
+                          user?.role == 'teacher' &&
                           notification.canConfirmTeaching &&
-                          !controller.isClassConfirmedLocally(notification.classId),
-                      canOpenClassDetail: (user?.role == 'student' || user?.role == 'teacher') &&
+                          !controller.isClassConfirmedLocally(
+                            notification.classId,
+                          ),
+                      canOpenClassDetail:
+                          (user?.role == 'student' ||
+                              user?.role == 'teacher') &&
                           (notification.classCode?.isNotEmpty ?? false),
                       openClassLabel: user?.role == 'teacher'
                           ? 'Mở chi tiết lớp'
                           : 'Mở lớp học',
                       isBusy: state.actionNotificationId == notification.id,
                       onTap: () => _handleNotificationTap(ref, notification),
-                      onConfirmTeaching: () => _handleConfirmTeaching(context, ref, notification),
-                      onOpenClassDetail: () => _openLinkedClass(context, ref, notification),
+                      onConfirmTeaching: () =>
+                          _handleConfirmTeaching(context, ref, notification),
+                      onOpenClassDetail: () =>
+                          _openLinkedClass(context, ref, notification),
                     ),
                     const SizedBox(height: 12),
                   ],
@@ -469,10 +504,13 @@ class _InboxSummaryCard extends StatelessWidget {
                 width: 46,
                 height: 46,
                 decoration: BoxDecoration(
-                  color: cs.primary.withOpacity(0.12),
+                  color: cs.primary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: Icon(Icons.notifications_active_rounded, color: cs.primary),
+                child: Icon(
+                  Icons.notifications_active_rounded,
+                  color: cs.primary,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -482,15 +520,15 @@ class _InboxSummaryCard extends StatelessWidget {
                     Text(
                       'Hộp thư của bạn',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w800,
-                          ),
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       '$unreadCount thông báo chưa đọc',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: cs.onSurfaceVariant,
-                          ),
+                        color: cs.onSurfaceVariant,
+                      ),
                     ),
                   ],
                 ),
@@ -549,10 +587,7 @@ class _SummaryTag extends StatelessWidget {
   final String label;
   final IconData icon;
 
-  const _SummaryTag({
-    required this.label,
-    required this.icon,
-  });
+  const _SummaryTag({required this.label, required this.icon});
 
   @override
   Widget build(BuildContext context) {
@@ -572,9 +607,9 @@ class _SummaryTag extends StatelessWidget {
           const SizedBox(width: 6),
           Text(
             label,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
           ),
         ],
       ),
@@ -620,15 +655,12 @@ class _ControlTile extends StatelessWidget {
                   child: Text(
                     label,
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
                 if (selected)
-                  Icon(
-                    Icons.check_circle_rounded,
-                    color: cs.primary,
-                  ),
+                  Icon(Icons.check_circle_rounded, color: cs.primary),
               ],
             ),
           ),
@@ -642,10 +674,7 @@ class _SectionHeader extends StatelessWidget {
   final String label;
   final int count;
 
-  const _SectionHeader({
-    required this.label,
-    required this.count,
-  });
+  const _SectionHeader({required this.label, required this.count});
 
   @override
   Widget build(BuildContext context) {
@@ -656,9 +685,9 @@ class _SectionHeader extends StatelessWidget {
         Expanded(
           child: Text(
             label,
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
           ),
         ),
         Container(
@@ -669,9 +698,9 @@ class _SectionHeader extends StatelessWidget {
           ),
           child: Text(
             '$count',
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w700),
           ),
         ),
       ],
@@ -694,7 +723,9 @@ class _InlineMessage extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final backgroundColor = error ? cs.errorContainer : cs.secondaryContainer;
-    final foregroundColor = error ? cs.onErrorContainer : cs.onSecondaryContainer;
+    final foregroundColor = error
+        ? cs.onErrorContainer
+        : cs.onSecondaryContainer;
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -707,10 +738,7 @@ class _InlineMessage extends StatelessWidget {
           Icon(icon, color: foregroundColor),
           const SizedBox(width: 10),
           Expanded(
-            child: Text(
-              message,
-              style: TextStyle(color: foregroundColor),
-            ),
+            child: Text(message, style: TextStyle(color: foregroundColor)),
           ),
         ],
       ),
@@ -723,11 +751,7 @@ class _EmptyState extends StatelessWidget {
   final String? actionLabel;
   final Future<void> Function()? onPressed;
 
-  const _EmptyState({
-    required this.message,
-    this.actionLabel,
-    this.onPressed,
-  });
+  const _EmptyState({required this.message, this.actionLabel, this.onPressed});
 
   @override
   Widget build(BuildContext context) {
@@ -803,19 +827,37 @@ class _NotificationCard extends StatelessWidget {
       case NotificationFilterKeys.minimumReached:
         return _NotificationVisualStyle(Icons.groups_rounded, cs.primary);
       case NotificationFilterKeys.tutorConfirmed:
-        return _NotificationVisualStyle(Icons.verified_rounded, Colors.green.shade700);
+        return _NotificationVisualStyle(
+          Icons.verified_rounded,
+          Colors.green.shade700,
+        );
       case NotificationFilterKeys.classStartingSoon:
-        return _NotificationVisualStyle(Icons.schedule_rounded, Colors.orange.shade700);
+        return _NotificationVisualStyle(
+          Icons.schedule_rounded,
+          Colors.orange.shade700,
+        );
       case NotificationFilterKeys.classCancelled:
         return _NotificationVisualStyle(Icons.event_busy_rounded, cs.error);
       case NotificationFilterKeys.refundIssued:
-        return _NotificationVisualStyle(Icons.replay_rounded, Colors.teal.shade700);
+        return _NotificationVisualStyle(
+          Icons.replay_rounded,
+          Colors.teal.shade700,
+        );
       case NotificationFilterKeys.payoutUpdated:
-        return _NotificationVisualStyle(Icons.payments_rounded, Colors.indigo.shade700);
+        return _NotificationVisualStyle(
+          Icons.payments_rounded,
+          Colors.indigo.shade700,
+        );
       case NotificationFilterKeys.disputeResolved:
-        return _NotificationVisualStyle(Icons.gavel_rounded, Colors.deepPurple.shade700);
+        return _NotificationVisualStyle(
+          Icons.gavel_rounded,
+          Colors.deepPurple.shade700,
+        );
       default:
-        return _NotificationVisualStyle(Icons.notifications_rounded, cs.primary);
+        return _NotificationVisualStyle(
+          Icons.notifications_rounded,
+          cs.primary,
+        );
     }
   }
 
@@ -833,10 +875,12 @@ class _NotificationCard extends StatelessWidget {
         child: Ink(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: isUnread ? visual.color.withOpacity(0.09) : cs.surface,
+            color: isUnread ? visual.color.withValues(alpha: 0.09) : cs.surface,
             borderRadius: BorderRadius.circular(24),
             border: Border.all(
-              color: isUnread ? visual.color.withOpacity(0.22) : cs.outlineVariant,
+              color: isUnread
+                  ? visual.color.withValues(alpha: 0.22)
+                  : cs.outlineVariant,
             ),
           ),
           child: Row(
@@ -846,7 +890,7 @@ class _NotificationCard extends StatelessWidget {
                 width: 46,
                 height: 46,
                 decoration: BoxDecoration(
-                  color: visual.color.withOpacity(0.14),
+                  color: visual.color.withValues(alpha: 0.14),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Icon(visual.icon, color: visual.color),
@@ -862,7 +906,8 @@ class _NotificationCard extends StatelessWidget {
                         Expanded(
                           child: Text(
                             notification.title,
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(
                                   fontWeight: FontWeight.w800,
                                   height: 1.2,
                                 ),
@@ -888,11 +933,15 @@ class _NotificationCard extends StatelessWidget {
                       runSpacing: 8,
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
-                        _TypePill(label: notification.typeLabel, color: visual.color),
+                        _TypePill(
+                          label: notification.typeLabel,
+                          color: visual.color,
+                        ),
                         if (createdAt.isNotEmpty)
                           Text(
                             createdAt,
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
                                   color: cs.onSurfaceVariant,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -903,11 +952,12 @@ class _NotificationCard extends StatelessWidget {
                     Text(
                       notification.body,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: cs.onSurfaceVariant,
-                            height: 1.45,
-                          ),
+                        color: cs.onSurfaceVariant,
+                        height: 1.45,
+                      ),
                     ),
-                    if ((notification.classCode?.isNotEmpty ?? false) || classStartAt.isNotEmpty) ...[
+                    if ((notification.classCode?.isNotEmpty ?? false) ||
+                        classStartAt.isNotEmpty) ...[
                       const SizedBox(height: 12),
                       Column(
                         children: [
@@ -934,9 +984,13 @@ class _NotificationCard extends StatelessWidget {
                             FilledButton.icon(
                               onPressed: isBusy ? null : onConfirmTeaching,
                               icon: Icon(
-                                isBusy ? Icons.hourglass_top_rounded : Icons.check_circle_rounded,
+                                isBusy
+                                    ? Icons.hourglass_top_rounded
+                                    : Icons.check_circle_rounded,
                               ),
-                              label: Text(isBusy ? 'Đang xử lý' : 'Xác nhận dạy'),
+                              label: Text(
+                                isBusy ? 'Đang xử lý' : 'Xác nhận dạy',
+                              ),
                             ),
                           if (canOpenClassDetail)
                             OutlinedButton.icon(
@@ -962,25 +1016,22 @@ class _TypePill extends StatelessWidget {
   final String label;
   final Color color;
 
-  const _TypePill({
-    required this.label,
-    required this.color,
-  });
+  const _TypePill({required this.label, required this.color});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
         label,
         style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              color: color,
-              fontWeight: FontWeight.w700,
-            ),
+          color: color,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
@@ -990,10 +1041,7 @@ class _MetaLine extends StatelessWidget {
   final IconData icon;
   final String text;
 
-  const _MetaLine({
-    required this.icon,
-    required this.text,
-  });
+  const _MetaLine({required this.icon, required this.text});
 
   @override
   Widget build(BuildContext context) {
@@ -1008,9 +1056,9 @@ class _MetaLine extends StatelessWidget {
           Expanded(
             child: Text(
               text,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: cs.onSurfaceVariant,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
             ),
           ),
         ],

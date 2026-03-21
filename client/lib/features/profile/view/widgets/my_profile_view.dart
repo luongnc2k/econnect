@@ -80,7 +80,7 @@ class _MyProfileViewState extends ConsumerState<MyProfileView> {
                   child: Image.network(
                     normalized,
                     fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => const Padding(
+                    errorBuilder: (_, error, stackTrace) => const Padding(
                       padding: EdgeInsets.all(24),
                       child: Text('Khong tai duoc anh chung chi'),
                     ),
@@ -225,8 +225,7 @@ class _MyProfileViewState extends ConsumerState<MyProfileView> {
                 ),
               ],
             ),
-          if (profile is TeacherMyProfileModel)
-            const SizedBox(height: 16),
+          if (profile is TeacherMyProfileModel) const SizedBox(height: 16),
           if (profile is TeacherMyProfileModel)
             ProfileInfoCard(
               title: 'T\u00E0i kho\u1EA3n ng\u00E2n h\u00E0ng',

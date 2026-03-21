@@ -3,7 +3,6 @@ import 'package:client/features/search/view/screens/user_search_screen.dart';
 import 'package:client/features/profile/view/widgets/my_profile_view.dart';
 import 'package:client/features/student/view/screens/student_home_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class StudentNavShell extends StatefulWidget {
   const StudentNavShell({super.key});
@@ -29,10 +28,7 @@ class _StudentNavShellState extends State<StudentNavShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _screens,
-      ),
+      body: IndexedStack(index: _currentIndex, children: _screens),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
         onDestinationSelected: (index) {
@@ -70,8 +66,6 @@ class MyProfileTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const SafeArea(
-      child: MyProfileView(),
-    );
+    return const SafeArea(child: MyProfileView());
   }
 }

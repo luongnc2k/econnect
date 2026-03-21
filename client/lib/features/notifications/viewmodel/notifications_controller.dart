@@ -35,6 +35,7 @@ class NotificationsController extends Notifier<NotificationsState>
   bool _observerRegistered = false;
   bool _isAppActive = true;
   bool _connectingLiveUpdates = false;
+  bool _stateReady = false;
 
   @override
   NotificationsState build() {
@@ -43,14 +44,16 @@ class NotificationsController extends Notifier<NotificationsState>
 
     final user = ref.watch(currentUserProvider);
     if (user == null) {
-      _dispose();
+      _disposePolling();
+      unawaited(_disposeLiveUpdates(updateState: false));
       _activeUserId = null;
+      _stateReady = true;
       return const NotificationsState();
     }
 
     if (_activeUserId != user.id) {
       _disposePolling();
-      unawaited(_disposeLiveUpdates());
+      unawaited(_disposeLiveUpdates(updateState: false));
       _activeUserId = user.id;
       Future.microtask(() async {
         await _hydrateFromCache(user.id);
@@ -63,6 +66,7 @@ class NotificationsController extends Notifier<NotificationsState>
       _startLiveUpdates();
     }
 
+    _stateReady = true;
     return const NotificationsState(isLoading: true);
   }
 
@@ -409,11 +413,11 @@ class NotificationsController extends Notifier<NotificationsState>
     });
   }
 
-  Future<void> _disposeLiveUpdates() async {
+  Future<void> _disposeLiveUpdates({bool updateState = true}) async {
     _liveReconnectTimer?.cancel();
     _liveReconnectTimer = null;
 
-    if (state.liveConnected) {
+    if (updateState && _stateReady && state.liveConnected) {
       state = state.copyWith(liveConnected: false);
     }
 
@@ -466,7 +470,7 @@ class NotificationsController extends Notifier<NotificationsState>
 
   void _dispose() {
     _disposePolling();
-    unawaited(_disposeLiveUpdates());
+    unawaited(_disposeLiveUpdates(updateState: false));
     _unregisterLifecycleObserver();
   }
 }

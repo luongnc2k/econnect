@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_web_libraries_in_flutter, deprecated_member_use
+
 import 'dart:async';
 import 'dart:html' as html;
 
@@ -12,8 +14,8 @@ class _WebNotificationSocketTransport implements NotificationSocketTransport {
   Future<NotificationSocketConnection> connect(Uri uri) async {
     final socket = html.WebSocket(uri.toString());
     final ready = Completer<void>();
-    StreamSubscription<html.Event>? openSubscription;
-    StreamSubscription<html.Event>? errorSubscription;
+    late final StreamSubscription<html.Event> openSubscription;
+    late final StreamSubscription<html.Event> errorSubscription;
 
     openSubscription = socket.onOpen.listen((_) {
       if (!ready.isCompleted) {
@@ -22,15 +24,17 @@ class _WebNotificationSocketTransport implements NotificationSocketTransport {
     });
     errorSubscription = socket.onError.listen((_) {
       if (!ready.isCompleted) {
-        ready.completeError(StateError('Không thể kết nối kênh thông báo trực tiếp.'));
+        ready.completeError(
+          StateError('Không thể kết nối kênh thông báo trực tiếp.'),
+        );
       }
     });
 
     try {
       await ready.future;
     } finally {
-      await openSubscription?.cancel();
-      await errorSubscription?.cancel();
+      await openSubscription.cancel();
+      await errorSubscription.cancel();
     }
 
     return _WebNotificationSocketConnection(socket);
@@ -44,7 +48,7 @@ class _WebNotificationSocketConnection implements NotificationSocketConnection {
 
   @override
   Stream<String> get messages =>
-      _socket.onMessage.map((event) => event.data?.toString() ?? '');
+      _socket.onMessage.map((event) => event.data.toString());
 
   @override
   Future<void> close() async {

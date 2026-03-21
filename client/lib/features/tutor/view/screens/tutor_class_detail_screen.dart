@@ -25,8 +25,8 @@ class TutorClassDetailScreen extends ConsumerWidget {
             pinned: true,
             backgroundColor: cs.surface,
             flexibleSpace: FlexibleSpaceBar(
-              background: session.imageUrl != null &&
-                      session.imageUrl!.isNotEmpty
+              background:
+                  session.imageUrl != null && session.imageUrl!.isNotEmpty
                   ? Image.network(
                       session.imageUrl!,
                       fit: BoxFit.cover,
@@ -65,8 +65,8 @@ class TutorClassDetailScreen extends ConsumerWidget {
                   Text(
                     session.title,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                   const SizedBox(height: 20),
 
@@ -214,11 +214,7 @@ class _SectionTitle extends StatelessWidget {
   final Widget? trailing;
   final ColorScheme cs;
 
-  const _SectionTitle({
-    required this.title,
-    this.trailing,
-    required this.cs,
-  });
+  const _SectionTitle({required this.title, this.trailing, required this.cs});
 
   @override
   Widget build(BuildContext context) {
@@ -233,7 +229,7 @@ class _SectionTitle extends StatelessWidget {
           ),
         ),
         const Spacer(),
-        if (trailing != null) trailing!,
+        ?trailing,
       ],
     );
   }
@@ -385,11 +381,15 @@ class _ClassCodeCard extends StatelessWidget {
             onPressed: () async {
               await Clipboard.setData(ClipboardData(text: code!));
               if (!context.mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Đã copy mã lớp $code')),
-              );
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(SnackBar(content: Text('Đã copy mã lớp $code')));
             },
-            icon: Icon(Icons.copy_rounded, size: 20, color: cs.onPrimaryContainer),
+            icon: Icon(
+              Icons.copy_rounded,
+              size: 20,
+              color: cs.onPrimaryContainer,
+            ),
             tooltip: 'Sao chép mã lớp',
           ),
         ],
@@ -487,8 +487,11 @@ class _EmptyStudents extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Icon(Icons.people_outline_rounded,
-              size: 36, color: cs.onSurfaceVariant),
+          Icon(
+            Icons.people_outline_rounded,
+            size: 36,
+            color: cs.onSurfaceVariant,
+          ),
           const SizedBox(height: 8),
           Text(
             'Chưa có học viên đăng ký',

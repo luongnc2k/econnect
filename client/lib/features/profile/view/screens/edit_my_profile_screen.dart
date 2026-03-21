@@ -157,7 +157,9 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Ch\u1EE9c n\u0103ng ch\u1EE5p \u1EA3nh ch\u01B0a h\u1ED7 tr\u1EE3 tr\u00EAn desktop'),
+          content: Text(
+            'Ch\u1EE9c n\u0103ng ch\u1EE5p \u1EA3nh ch\u01B0a h\u1ED7 tr\u1EE3 tr\u00EAn desktop',
+          ),
         ),
       );
       return;
@@ -173,7 +175,11 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Kh\u00F4ng th\u1EC3 m\u1EDF tr\u00ECnh ch\u1ECDn \u1EA3nh')),
+        const SnackBar(
+          content: Text(
+            'Kh\u00F4ng th\u1EC3 m\u1EDF tr\u00ECnh ch\u1ECDn \u1EA3nh',
+          ),
+        ),
       );
       return;
     }
@@ -232,7 +238,11 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Kh\u00F4ng th\u1EC3 m\u1EDF tr\u00ECnh ch\u1ECDn \u1EA3nh ch\u1EE9ng ch\u1EC9')),
+        const SnackBar(
+          content: Text(
+            'Kh\u00F4ng th\u1EC3 m\u1EDF tr\u00ECnh ch\u1ECDn \u1EA3nh ch\u1EE9ng ch\u1EC9',
+          ),
+        ),
       );
       return;
     }
@@ -294,7 +304,7 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
                 child: Image.network(
                   normalized,
                   fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => const Padding(
+                  errorBuilder: (_, error, stackTrace) => const Padding(
                     padding: EdgeInsets.all(24),
                     child: Text('Khong tai duoc anh chung chi'),
                   ),
@@ -355,7 +365,8 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
   Future<void> _submit(UserModel profile) async {
     if (!_formKey.currentState!.validate()) return;
 
-    final latestProfile = ref.read(myProfileViewModelProvider).profile ?? profile;
+    final latestProfile =
+        ref.read(myProfileViewModelProvider).profile ?? profile;
 
     late UserModel updatedProfile;
 
@@ -402,13 +413,21 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
 
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('C\u1EADp nh\u1EADt h\u1ED3 s\u01A1 th\u00E0nh c\u00F4ng')),
+        const SnackBar(
+          content: Text(
+            'C\u1EADp nh\u1EADt h\u1ED3 s\u01A1 th\u00E0nh c\u00F4ng',
+          ),
+        ),
       );
       Navigator.pop(context);
     } else {
       final error = ref.read(myProfileViewModelProvider).errorMessage;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error ?? 'C\u1EADp nh\u1EADt h\u1ED3 s\u01A1 th\u1EA5t b\u1EA1i')),
+        SnackBar(
+          content: Text(
+            error ?? 'C\u1EADp nh\u1EADt h\u1ED3 s\u01A1 th\u1EA5t b\u1EA1i',
+          ),
+        ),
       );
     }
   }
@@ -420,12 +439,18 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
 
     if (profile == null) {
       return const Scaffold(
-        body: Center(child: Text('Kh\u00F4ng c\u00F3 d\u1EEF li\u1EC7u h\u1ED3 s\u01A1')),
+        body: Center(
+          child: Text('Kh\u00F4ng c\u00F3 d\u1EEF li\u1EC7u h\u1ED3 s\u01A1'),
+        ),
       );
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Ch\u1EC9nh s\u1EEDa h\u1ED3 s\u01A1 c\u1EE7a t\u00F4i')),
+      appBar: AppBar(
+        title: const Text(
+          'Ch\u1EC9nh s\u1EEDa h\u1ED3 s\u01A1 c\u1EE7a t\u00F4i',
+        ),
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Form(
@@ -445,7 +470,10 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
                 },
               ),
               const SizedBox(height: 12),
-              _buildField(controller: _phoneController, label: 'S\u1ED1 \u0111i\u1EC7n tho\u1EA1i'),
+              _buildField(
+                controller: _phoneController,
+                label: 'S\u1ED1 \u0111i\u1EC7n tho\u1EA1i',
+              ),
               const SizedBox(height: 12),
               if (profile is StudentMyProfileModel) ...[
                 _buildField(
@@ -530,10 +558,13 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
                 Align(
                   alignment: Alignment.centerLeft,
                   child: OutlinedButton.icon(
-                    onPressed:
-                        state.isUploadingAvatar ? null : _uploadTutorDocument,
+                    onPressed: state.isUploadingAvatar
+                        ? null
+                        : _uploadTutorDocument,
                     icon: const Icon(Icons.file_upload_outlined),
-                    label: const Text('T\u1EA3i \u1EA3nh ch\u1EE9ng ch\u1EC9 / b\u1EB1ng c\u1EA5p'),
+                    label: const Text(
+                      'T\u1EA3i \u1EA3nh ch\u1EE9ng ch\u1EC9 / b\u1EB1ng c\u1EA5p',
+                    ),
                   ),
                 ),
                 if (profile.verificationDocs.isNotEmpty) ...[
@@ -549,7 +580,9 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
                           const SizedBox(height: 8),
-                          ...profile.verificationDocs.asMap().entries.map((entry) {
+                          ...profile.verificationDocs.asMap().entries.map((
+                            entry,
+                          ) {
                             final isDeleting = _deletingDocUrl == entry.value;
                             return Row(
                               children: [
@@ -570,9 +603,9 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
                                   onPressed: isDeleting
                                       ? null
                                       : () => _deleteTutorDocument(
-                                            entry.value,
-                                            entry.key,
-                                          ),
+                                          entry.value,
+                                          entry.key,
+                                        ),
                                   tooltip: 'Xoa chung chi',
                                   icon: isDeleting
                                       ? const SizedBox(
@@ -656,7 +689,9 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
           onPressed: isUploading ? null : _showAvatarSourcePicker,
           icon: const Icon(Icons.photo_camera_outlined),
           label: Text(
-            isUploading ? '\u0110ang t\u1EA3i \u1EA3nh...' : 'Thay \u0111\u1ED5i avatar',
+            isUploading
+                ? '\u0110ang t\u1EA3i \u1EA3nh...'
+                : 'Thay \u0111\u1ED5i avatar',
           ),
         ),
       ],
