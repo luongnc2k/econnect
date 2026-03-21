@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import os
 from typing import Optional
 import uuid
 
@@ -10,12 +11,18 @@ from middleware.auth_middleware import auth_middleware
 from models.class_ import Class
 from models.topic import Topic
 from models.user import User
+from notification_service import dispatch_due_class_starting_soon_notifications
 from models.teacher_profile import TeacherProfile
 from pydantic_schemas.class_create import ClassCreate
 from pydantic_schemas.class_response import ClassResponse, TeacherBrief, TopicBrief
 from pydantic_schemas.payment import calculate_creation_fee
 
 router = APIRouter()
+
+
+def _allow_direct_class_creation() -> bool:
+    raw_value = os.getenv("ALLOW_DIRECT_CLASS_CREATION", "")
+    return raw_value.strip().lower() in {"1", "true", "yes", "on"}
 
 
 def _build_class_code(cls: Class) -> str:
@@ -44,6 +51,9 @@ def _to_class_response(
         min_participants=cls.min_participants,
         max_participants=cls.max_participants,
         current_participants=cls.current_participants,
+        minimum_participants_reached=cls.minimum_participants_reached,
+        tutor_confirmation_status=cls.tutor_confirmation_status,
+        tutor_confirmed_at=cls.tutor_confirmed_at,
         price=cls.price,
         thumbnail_url=cls.thumbnail_url,
         status=cls.status,
@@ -68,8 +78,13 @@ def get_upcoming_classes(
     topic: Optional[str] = Query(default=None, description="Filter by topic slug"),
     q: Optional[str] = Query(default=None, description="Search by class title or class code"),
     db: Session = Depends(get_db),
-    _: dict = Depends(auth_middleware),
+    user_dict: dict = Depends(auth_middleware),
 ):
+    notified = dispatch_due_class_starting_soon_notifications(db, target_user_id=user_dict["uid"])
+    if notified:
+        db.commit()
+    else:
+        db.rollback()
     now = datetime.now(timezone.utc)
 
     query = (
@@ -102,8 +117,13 @@ def get_upcoming_classes(
 def get_class_by_code(
     class_code: str,
     db: Session = Depends(get_db),
-    _: dict = Depends(auth_middleware),
+    user_dict: dict = Depends(auth_middleware),
 ):
+    notified = dispatch_due_class_starting_soon_notifications(db, target_user_id=user_dict["uid"])
+    if notified:
+        db.commit()
+    else:
+        db.rollback()
     normalized_code = class_code.strip().upper()
     if not normalized_code:
         raise HTTPException(status_code=400, detail="Ma lop khong hop le")
@@ -133,6 +153,12 @@ def create_class(
     db: Session = Depends(get_db),
     user_dict: dict = Depends(auth_middleware),
 ):
+    if not _allow_direct_class_creation():
+        raise HTTPException(
+            status_code=410,
+            detail="Direct class creation da bi tat. Hay su dung POST /payments/class-creation/request",
+        )
+
     teacher = db.query(User).filter(User.id == user_dict['uid']).first()
     if not teacher or teacher.role != 'teacher':
         raise HTTPException(status_code=403, detail="Chỉ giáo viên mới có thể tạo lớp học")
@@ -166,6 +192,8 @@ def create_class(
         status="scheduled",
         tutor_payout_status="pending",
         tutor_payout_amount=0,
+        minimum_participants_reached=False,
+        tutor_confirmation_status="waiting_minimum",
     )
 
     db.add(new_class)

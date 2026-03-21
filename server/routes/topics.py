@@ -1,7 +1,7 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 from typing import Optional
 
@@ -21,15 +21,14 @@ class TopicCreate(BaseModel):
 
 
 class TopicResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: str
     name: str
     slug: str
     description: Optional[str] = None
     icon: Optional[str] = None
     is_active: bool
-
-    class Config:
-        from_attributes = True
 
 
 @router.get("", response_model=list[TopicResponse])

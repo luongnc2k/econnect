@@ -13,11 +13,11 @@ class Payment(Base):
     payer_user_id = Column(TEXT, ForeignKey("users.id"), nullable=False)
     payee_user_id = Column(TEXT, ForeignKey("users.id"), nullable=True)
     payment_type = Column(TEXT, nullable=False)  # class_creation | tuition | refund | payout
-    provider = Column(TEXT, nullable=False)  # momo | vnpay
+    provider = Column(TEXT, nullable=False)  # payos | system
     method = Column(TEXT, nullable=True)
     amount = Column(Numeric(10, 0), nullable=False)
     currency = Column(TEXT, default="VND", nullable=False)
-    status = Column(TEXT, default="pending", nullable=False)  # pending | paid | refunded | failed | released | disputed | cancelled
+    status = Column(TEXT, default="pending", nullable=False)  # pending | processing | paid | refunded | failed | released | disputed | cancelled
     transaction_ref = Column(TEXT, unique=True, nullable=False)
     provider_order_id = Column(TEXT, nullable=True)
     provider_payload = Column(TEXT, nullable=True)

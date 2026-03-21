@@ -1,12 +1,12 @@
-# ERD — EConnect Database Schema
+# Sơ Đồ ERD — Cấu Trúc Cơ Sở Dữ Liệu EConnect
 
-> Version: v1 (MVP)
-> Classes: offline only
-> Conversations/Messages: excluded — planned for v2
+> Phiên bản: v1 (MVP)
+> Lớp học: chỉ offline
+> Hội thoại/Tin nhắn: chưa bao gồm, dự kiến ở v2
 
 ---
 
-## Diagram
+## Sơ đồ
 
 ```mermaid
 erDiagram
@@ -144,10 +144,10 @@ erDiagram
 
 ---
 
-## Tables
+## Các bảng
 
 ### users
-| Column | Type | Notes |
+| Cột | Kiểu | Ghi chú |
 |---|---|---|
 | id | UUID | PK |
 | email | VARCHAR(255) | UNIQUE |
@@ -164,28 +164,28 @@ erDiagram
 ---
 
 ### teacher_profiles
-| Column | Type | Notes |
+| Cột | Kiểu | Ghi chú |
 |---|---|---|
 | user_id | UUID | PK, FK → users.id |
 | bio | TEXT | |
 | nationality | VARCHAR(50) | |
 | native_language | VARCHAR(50) | |
-| certifications | TEXT[] | URLs to cert documents |
+| certifications | TEXT[] | URL tài liệu chứng chỉ |
 | years_experience | SMALLINT | |
-| rating_avg | DECIMAL(2,1) | denormalized — sync với reviews |
+| rating_avg | DECIMAL(2,1) | denormalized — đồng bộ với reviews |
 | total_sessions | INT | denormalized |
 | total_reviews | INT | denormalized |
 | is_verified | BOOLEAN | |
-| verification_docs | TEXT[] | URLs to uploaded documents |
+| verification_docs | TEXT[] | URL tài liệu đã upload |
 | created_at | TIMESTAMP | |
 | updated_at | TIMESTAMP | |
 
-> `user_id` là PK (quan hệ 1-1 với users, không cần surrogate id riêng)
+> `user_id` là PK, tương ứng quan hệ 1-1 với `users`, nên không cần surrogate id riêng.
 
 ---
 
 ### student_profiles
-| Column | Type | Notes |
+| Cột | Kiểu | Ghi chú |
 |---|---|---|
 | user_id | UUID | PK, FK → users.id |
 | english_level | ENUM('beginner','intermediate','advanced') | |
@@ -195,34 +195,34 @@ erDiagram
 | created_at | TIMESTAMP | |
 | updated_at | TIMESTAMP | |
 
-> `user_id` là PK (quan hệ 1-1 với users, không cần surrogate id riêng)
+> `user_id` là PK, tương ứng quan hệ 1-1 với `users`, nên không cần surrogate id riêng.
 
 ---
 
 ### topics
-| Column | Type | Notes |
+| Cột | Kiểu | Ghi chú |
 |---|---|---|
 | id | UUID | PK |
 | name | VARCHAR(100) | |
 | slug | VARCHAR(100) | UNIQUE |
 | description | TEXT | |
-| icon | VARCHAR(10) | emoji hoặc icon name |
+| icon | VARCHAR(10) | emoji hoặc tên icon |
 | is_active | BOOLEAN | |
 
 ---
 
 ### teacher_specialties
-| Column | Type | Notes |
+| Cột | Kiểu | Ghi chú |
 |---|---|---|
 | teacher_id | UUID | PK, FK → users.id |
 | topic_id | UUID | PK, FK → topics.id |
 
-> Composite PK (teacher_id, topic_id). Junction table — không cần surrogate key.
+> Composite PK (`teacher_id`, `topic_id`). Đây là junction table, không cần surrogate key.
 
 ---
 
 ### classes
-| Column | Type | Notes |
+| Cột | Kiểu | Ghi chú |
 |---|---|---|
 | id | UUID | PK |
 | teacher_id | UUID | FK → users.id |
@@ -238,19 +238,19 @@ erDiagram
 | end_time | TIMESTAMP | |
 | min_participants | SMALLINT | số học viên tối thiểu để lớp diễn ra |
 | max_participants | SMALLINT | |
-| current_participants | SMALLINT | denormalized — sync với bookings |
+| current_participants | SMALLINT | denormalized — đồng bộ với bookings |
 | price | DECIMAL(10,0) | VND |
-| thumbnail_url | TEXT | nullable — MinIO URL |
+| thumbnail_url | TEXT | có thể để trống — MinIO URL |
 | status | ENUM('scheduled','ongoing','completed','cancelled') | |
 | created_at | TIMESTAMP | |
 | updated_at | TIMESTAMP | |
 
-> `current_participants` là denormalized. Phải cập nhật transactional cùng với insert/cancel booking.
+> `current_participants` là trường denormalized. Cần cập nhật transactional cùng với insert/cancel booking.
 
 ---
 
 ### bookings
-| Column | Type | Notes |
+| Cột | Kiểu | Ghi chú |
 |---|---|---|
 | id | UUID | PK |
 | class_id | UUID | FK → classes.id |
@@ -258,38 +258,38 @@ erDiagram
 | status | ENUM('pending','confirmed','completed','cancelled','no_show') | |
 | booked_at | TIMESTAMP | |
 | updated_at | TIMESTAMP | |
-| cancelled_at | TIMESTAMP | nullable |
-| cancel_reason | TEXT | nullable |
+| cancelled_at | TIMESTAMP | có thể để trống |
+| cancel_reason | TEXT | có thể để trống |
 
-**Booking flow:**
+**Luồng booking:**
 ```
 pending → (payment success) → confirmed → (class ends) → completed
         → (student cancel)  → cancelled
         → (student no-show) → no_show
 ```
 
-**Constraints:**
-- UNIQUE (class_id, student_id) — tránh đặt trùng
+**Ràng buộc:**
+- UNIQUE (`class_id`, `student_id`) để tránh đặt trùng
 
 ---
 
 ### payments
-| Column | Type | Notes |
+| Cột | Kiểu | Ghi chú |
 |---|---|---|
 | id | UUID | PK |
 | booking_id | UUID | FK → bookings.id |
 | amount | DECIMAL(10,0) | VND |
 | method | ENUM('zalopay','bank_transfer','cash') | |
 | status | ENUM('pending','completed','refunded','failed') | |
-| transaction_ref | VARCHAR(100) | nullable — ref từ payment gateway |
-| paid_at | TIMESTAMP | nullable |
+| transaction_ref | VARCHAR(100) | có thể để trống — ref từ payment gateway |
+| paid_at | TIMESTAMP | có thể để trống |
 | updated_at | TIMESTAMP | |
 | created_at | TIMESTAMP | |
 
 ---
 
 ### reviews
-| Column | Type | Notes |
+| Cột | Kiểu | Ghi chú |
 |---|---|---|
 | id | UUID | PK |
 | booking_id | UUID | FK → bookings.id |
@@ -297,30 +297,30 @@ pending → (payment success) → confirmed → (class ends) → completed
 | comment | TEXT | |
 | created_at | TIMESTAMP | |
 
-> `student_id`, `teacher_id`, `class_id` được bỏ — đều suy ra từ `booking_id` để tránh inconsistency.
+> `student_id`, `teacher_id`, `class_id` được bỏ vì đều có thể suy ra từ `booking_id`, giúp tránh inconsistency.
 
-**Constraints:**
-- UNIQUE (booking_id) — mỗi booking chỉ được 1 review
+**Ràng buộc:**
+- UNIQUE (`booking_id`) để mỗi booking chỉ có một review
 
 ---
 
 ### notifications
-| Column | Type | Notes |
+| Cột | Kiểu | Ghi chú |
 |---|---|---|
 | id | UUID | PK |
 | user_id | UUID | FK → users.id |
 | type | ENUM('booking','reminder','review','system') | |
 | title | VARCHAR(200) | |
 | body | TEXT | |
-| data | JSONB | flexible payload tùy type |
+| data | JSONB | payload linh hoạt theo từng type |
 | is_read | BOOLEAN | |
 | created_at | TIMESTAMP | |
 
-> `'message'` đã bỏ khỏi ENUM — sẽ thêm lại ở v2 cùng với conversations.
+> `'message'` đã được bỏ khỏi ENUM, sẽ thêm lại ở v2 cùng với conversations.
 
 ---
 
-## Relationships
+## Quan hệ
 
 ```
 users 1──1 teacher_profiles
@@ -340,22 +340,22 @@ users 1──< notifications
 
 ---
 
-## Deferred (v2+)
+## Tạm hoãn cho v2+
 
-| Feature | Tables |
+| Tính năng | Bảng |
 |---|---|
 | Chat | conversations, messages |
 
 ---
 
-## Denormalized Fields
+## Các trường denormalized
 
-Phải sync bằng application logic hoặc DB trigger:
+Cần đồng bộ bằng application logic hoặc DB trigger:
 
-| Table | Field | Source of truth |
+| Bảng | Trường | Nguồn dữ liệu gốc |
 |---|---|---|
 | teacher_profiles | rating_avg | AVG(reviews.rating) |
-| teacher_profiles | total_sessions | COUNT(bookings) status = completed |
+| teacher_profiles | total_sessions | COUNT(bookings) với status = completed |
 | teacher_profiles | total_reviews | COUNT(reviews) |
-| student_profiles | total_classes_attended | COUNT(bookings) status = completed |
-| classes | current_participants | COUNT(bookings) status != cancelled |
+| student_profiles | total_classes_attended | COUNT(bookings) với status = completed |
+| classes | current_participants | COUNT(bookings) với status != cancelled |

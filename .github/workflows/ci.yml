@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: econnect_test
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d econnect_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql+psycopg2://postgres:postgres@localhost:5432/econnect_test
+      ECONNECT_TEST_DATABASE_URL: postgresql+psycopg2://postgres:postgres@localhost:5432/econnect_test
+      JWT_SECRET: test_jwt_secret_change_me_please_32bytes
+      ADMIN_CREATE_SECRET: test-admin-secret
+      JOB_SECRET: test-job-secret
+      APP_ENV: development
+      STRICT_STARTUP_VALIDATION: false
+      REQUIRE_TEST_DATABASE: true
+      PAYMENT_PUBLIC_BASE_URL: http://127.0.0.1:8000
+      PAYMENT_GATEWAY_MODE: mock
+      PAYOS_MOCK_MODE: true
+      PAYOS_PAYOUT_MOCK_MODE: true
+      AUTO_INIT_SCHEMA: false
+      ALLOW_DIRECT_CLASS_CREATION: false
+      ALLOW_LEGACY_JWT_SECRET: false
+      LOCAL_UPLOAD_ROOT: server/.test_uploads
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r server/requirements.txt
+
+      - name: Compile backend
+        run: python -m compileall -q server
+
+      - name: Import backend modules
+        run: python scripts/check_backend_imports.py
+
+      - name: Run backend integration tests
+        run: pytest server/tests -q
+
+  flutter:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: client
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install Flutter dependencies
+        run: flutter pub get
+
+      - name: Analyze Flutter code
+        run: dart analyze
+
+      - name: Run Flutter tests
+        run: flutter test

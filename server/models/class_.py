@@ -30,10 +30,15 @@ class Class(Base):
     status = Column(TEXT, default="draft", nullable=False)  # draft | scheduled | ongoing | completed | cancelled
     cancellation_reason = Column(TEXT, nullable=True)
     cancelled_at = Column(DateTime(timezone=True), nullable=True)
-    tutor_payout_status = Column(TEXT, default="pending", nullable=False)  # pending | on_hold | paid | withheld
+    tutor_payout_status = Column(TEXT, default="pending", nullable=False)  # pending | processing | on_hold | paid | withheld | failed
     tutor_payout_amount = Column(Numeric(10, 0), default=0, nullable=False)
     tutor_paid_at = Column(DateTime(timezone=True), nullable=True)
     complaint_deadline = Column(DateTime(timezone=True), nullable=True)
     has_active_dispute = Column(Boolean, default=False, nullable=False)
+    minimum_participants_reached = Column(Boolean, default=False, nullable=False)
+    minimum_participants_reached_at = Column(DateTime(timezone=True), nullable=True)
+    tutor_confirmation_status = Column(TEXT, default="waiting_minimum", nullable=False)  # waiting_minimum | pending | confirmed
+    tutor_confirmed_at = Column(DateTime(timezone=True), nullable=True)
+    starting_soon_notified_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)

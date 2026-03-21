@@ -1,0 +1,115 @@
+from typing import Literal, Optional
+
+from pydantic import BaseModel, ConfigDict, field_validator
+
+
+def _normalize_optional_string(value: object) -> Optional[str]:
+    if value is None:
+        return None
+    normalized = str(value).strip()
+    return normalized or None
+
+
+def _normalize_string_list(value: object) -> Optional[list[str]]:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        items = value.split(",")
+    elif isinstance(value, list):
+        items = value
+    else:
+        raise ValueError("Gia tri danh sach khong hop le")
+
+    normalized_items = [str(item).strip() for item in items if str(item).strip()]
+    return normalized_items
+
+
+class ProfileUpdateRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    full_name: Optional[str] = None
+    phone: Optional[str] = None
+    avatar_url: Optional[str] = None
+
+    english_level: Optional[Literal["beginner", "intermediate", "advanced"]] = None
+    learning_goal: Optional[str] = None
+
+    bio: Optional[str] = None
+    years_of_experience: Optional[int] = None
+    specialization: Optional[str] = None
+    bank_name: Optional[str] = None
+    bank_bin: Optional[str] = None
+    bank_account_number: Optional[str] = None
+    bank_account_holder: Optional[str] = None
+    certifications: Optional[list[str]] = None
+    verification_docs: Optional[list[str]] = None
+
+    @field_validator("full_name")
+    @classmethod
+    def validate_full_name(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("full_name khong duoc de trong")
+        if len(normalized) < 2:
+            raise ValueError("full_name phai co it nhat 2 ky tu")
+        return normalized
+
+    @field_validator(
+        "phone",
+        "avatar_url",
+        "learning_goal",
+        "bio",
+        "specialization",
+        "bank_name",
+        "bank_bin",
+        "bank_account_number",
+        "bank_account_holder",
+        mode="before",
+    )
+    @classmethod
+    def normalize_optional_strings(cls, value: object) -> Optional[str]:
+        return _normalize_optional_string(value)
+
+    @field_validator("english_level", mode="before")
+    @classmethod
+    def normalize_english_level(cls, value: object) -> Optional[str]:
+        return _normalize_optional_string(value)
+
+    @field_validator("years_of_experience", mode="before")
+    @classmethod
+    def normalize_years_of_experience(cls, value: object) -> Optional[int]:
+        if value is None:
+            return None
+        if isinstance(value, str):
+            normalized = value.strip()
+            if not normalized:
+                return None
+            value = normalized
+
+        try:
+            years = int(value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("years_of_experience khong hop le") from exc
+
+        if years < 0 or years > 80:
+            raise ValueError("years_of_experience phai nam trong khoang 0-80")
+
+        return years
+
+    @field_validator("bank_bin")
+    @classmethod
+    def validate_bank_bin(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        if not value.isdigit():
+            raise ValueError("bank_bin chi duoc chua chu so")
+        if len(value) < 3 or len(value) > 20:
+            raise ValueError("bank_bin phai dai tu 3 den 20 chu so")
+        return value
+
+    @field_validator("certifications", "verification_docs", mode="before")
+    @classmethod
+    def normalize_string_lists(cls, value: object) -> Optional[list[str]]:
+        return _normalize_string_list(value)

@@ -4,9 +4,16 @@ import uuid
 from pathlib import Path
 from urllib.parse import urlparse
 
-import urllib3
-from minio import Minio
-from minio.error import S3Error
+try:
+    import urllib3
+    from minio import Minio
+    from minio.error import S3Error
+except ImportError:  # pragma: no cover - local file fallback remains available
+    urllib3 = None
+    Minio = None
+
+    class S3Error(Exception):
+        pass
 
 MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "localhost:9000")
 MINIO_PUBLIC_URL = os.getenv("MINIO_PUBLIC_URL", "http://localhost:9000")
@@ -20,25 +27,30 @@ BUCKET_THUMBNAILS = "class-thumbnails"
 BUCKET_AVATARS = "user-avatars"
 BUCKET_TEACHER_DOCS = "teacher-docs"
 
-client = Minio(
-    MINIO_ENDPOINT,
-    access_key=MINIO_ACCESS_KEY,
-    secret_key=MINIO_SECRET_KEY,
-    secure=False,
-    http_client=urllib3.PoolManager(
-        timeout=urllib3.Timeout(connect=2.0, read=5.0),
-        retries=urllib3.Retry(
-            total=0,
-            connect=0,
-            read=0,
-            redirect=0,
-            status=0,
+if Minio is not None and urllib3 is not None:
+    client = Minio(
+        MINIO_ENDPOINT,
+        access_key=MINIO_ACCESS_KEY,
+        secret_key=MINIO_SECRET_KEY,
+        secure=False,
+        http_client=urllib3.PoolManager(
+            timeout=urllib3.Timeout(connect=2.0, read=5.0),
+            retries=urllib3.Retry(
+                total=0,
+                connect=0,
+                read=0,
+                redirect=0,
+                status=0,
+            ),
         ),
-    ),
-)
+    )
+else:
+    client = None
 
 
 def _ensure_bucket(bucket: str) -> None:
+    if client is None:
+        raise RuntimeError("MinIO client is not available")
     if not client.bucket_exists(bucket):
         client.make_bucket(bucket)
         policy = f"""{{
@@ -54,6 +66,8 @@ def _ensure_bucket(bucket: str) -> None:
 
 
 def _upload(bucket: str, file_data: bytes, content_type: str) -> str:
+    if client is None:
+        raise RuntimeError("MinIO client is not available")
     _ensure_bucket(bucket)
     ext = content_type.split("/")[-1]
     object_name = f"{uuid.uuid4()}.{ext}"
@@ -78,6 +92,8 @@ def _local_upload(folder: str, file_data: bytes, content_type: str) -> str:
 
 
 def _delete(bucket: str, url: str) -> None:
+    if client is None:
+        return
     try:
         object_name = url.split(f"/{bucket}/")[-1]
         client.remove_object(bucket, object_name)

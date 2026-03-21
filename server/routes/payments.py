@@ -1,30 +1,55 @@
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
+import os
 import uuid
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from fastapi.responses import HTMLResponse
-from sqlalchemy import func
+from sqlalchemy import and_, func
 from sqlalchemy.orm import Session
 
 from database import get_db
-from middleware.auth_middleware import auth_middleware
+from middleware.auth_middleware import auth_middleware, optional_auth_middleware
 from models.booking import Booking
 from models.class_ import Class
 from models.payment import Payment
+from models.teacher_profile import TeacherProfile
 from models.topic import Topic
 from models.user import User
+from notification_service import (
+    dispatch_due_class_starting_soon_notifications,
+    notify_class_cancelled,
+    notify_dispute_resolved,
+    notify_refund_issued,
+    notify_student_tutor_already_confirmed,
+    notify_students_tutor_confirmed,
+    notify_tutor_payout_updated,
+    notify_tutor_minimum_reached,
+)
 from payment_gateways import (
+    PAYOS_PROVIDER,
     PaymentGatewayError,
+    ProviderPayoutResult,
+    confirm_provider_webhook,
     create_provider_payment_url,
+    create_provider_payout,
+    default_provider_webhook_url,
+    fetch_provider_payout_balance,
+    fetch_provider_payout_status,
+    fetch_provider_payment_status,
+    is_payment_mock_mode_enabled,
     verify_provider_callback,
 )
+from pydantic_schemas.notification import TutorTeachingConfirmationResponse
 from pydantic_schemas.payment import (
     CancelClassRequest,
     ComplaintRequest,
+    ConfirmPayOSWebhookRequest,
+    ConfirmPayOSWebhookResponse,
     CreateClassPaymentRequest,
     JoinClassPaymentRequest,
+    PayOSPayoutBalanceResponse,
     PaymentCallbackRequest,
     PaymentResponse,
     PaymentSummaryResponse,
@@ -35,6 +60,7 @@ from pydantic_schemas.payment import (
 )
 
 router = APIRouter()
+JOB_SECRET = (os.getenv("JOB_SECRET", "") or "").strip()
 
 
 def _now() -> datetime:
@@ -51,10 +77,11 @@ def _build_class_code(cls: Class) -> str:
 def _generate_transaction_ref(prefix: str) -> str:
     return f"{prefix}-{uuid.uuid4().hex[:16].upper()}"
 
+
 def _get_user_or_404(db: Session, user_id: str) -> User:
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
-        raise HTTPException(status_code=404, detail="Khong tim thay nguoi dung")
+        raise HTTPException(status_code=404, detail="Không tìm thấy người dùng")
     return user
 
 
@@ -66,6 +93,25 @@ def _get_class_or_404(db: Session, class_id: str, for_update: bool = False) -> C
     if not cls:
         raise HTTPException(status_code=404, detail="Khong tim thay lop hoc")
     return cls
+
+
+def _get_payment_by_reference_or_order_id(db: Session, reference: str) -> Optional[Payment]:
+    payment = db.query(Payment).filter(Payment.transaction_ref == reference).first()
+    if payment:
+        return payment
+    return db.query(Payment).filter(Payment.provider_order_id == reference).first()
+
+
+def _get_teacher_profile_or_404(db: Session, teacher_id: str) -> TeacherProfile:
+    teacher_profile = db.query(TeacherProfile).filter(TeacherProfile.user_id == teacher_id).first()
+    if not teacher_profile:
+        raise HTTPException(status_code=404, detail="Tutor chua co ho so giao vien")
+    return teacher_profile
+
+
+def _require_mock_payment_routes_enabled() -> None:
+    if not is_payment_mock_mode_enabled():
+        raise HTTPException(status_code=404, detail="Mock payment routes da bi tat trong moi truong nay")
 
 
 def _serialize_payment(
@@ -95,6 +141,7 @@ def _serialize_payment(
 def _payment_status_message(payment: Payment) -> str:
     status_messages = {
         "pending": "Dang cho ket qua thanh toan",
+        "processing": "Giao dich dang duoc xu ly",
         "paid": "Thanh toan thanh cong",
         "released": "Tien escrow da duoc chuyen cho tutor",
         "refunded": "Giao dich da duoc hoan tien",
@@ -127,6 +174,108 @@ def _serialize_transaction_status(
     )
 
 
+def _render_payment_status_page(
+    *,
+    title: str,
+    message: str,
+    transaction_ref: str,
+    status: str,
+    provider_order_id: Optional[str] = None,
+) -> str:
+    provider_order_html = (
+        f"<p><strong>Provider order:</strong> {provider_order_id}</p>" if provider_order_id else ""
+    )
+    return f"""
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{title}</title>
+</head>
+<body style="font-family: Arial, sans-serif; padding: 24px; background: #f5f7fb;">
+  <div style="max-width: 560px; margin: 40px auto; background: white; border-radius: 16px; padding: 24px; box-shadow: 0 10px 40px rgba(19, 35, 72, 0.12);">
+    <h1 style="margin-top: 0;">{title}</h1>
+    <p>{message}</p>
+    <p><strong>Transaction:</strong> {transaction_ref}</p>
+    {provider_order_html}
+    <p><strong>Status:</strong> {status}</p>
+  </div>
+</body>
+</html>
+"""
+
+
+def _resolve_teacher_bank_bin(teacher_profile: TeacherProfile) -> Optional[str]:
+    if teacher_profile.bank_bin and teacher_profile.bank_bin.strip():
+        return teacher_profile.bank_bin.strip()
+    bank_name = (teacher_profile.bank_name or "").strip()
+    if bank_name.isdigit():
+        return bank_name
+    return None
+
+
+def _require_teacher_payout_destination(teacher_profile: TeacherProfile) -> tuple[str, str]:
+    bank_bin = _resolve_teacher_bank_bin(teacher_profile)
+    account_number = (teacher_profile.bank_account_number or "").strip()
+
+    missing_fields = []
+    if not bank_bin:
+        missing_fields.append("bank_bin")
+    if not account_number:
+        missing_fields.append("bank_account_number")
+
+    if missing_fields:
+        raise PaymentGatewayError(
+            "Tutor chua cap nhat day du thong tin payout payOS: "
+            + ", ".join(missing_fields)
+        )
+
+    return bank_bin, account_number
+
+
+def _build_payout_description(cls: Class) -> str:
+    return f"Payout {_build_class_code(cls)}"[:25]
+
+
+def _ensure_class_ready_for_payout(cls: Class, *, now: datetime) -> None:
+    if cls.status not in {"scheduled", "completed"}:
+        raise HTTPException(status_code=400, detail="Lop hoc chua o trang thai co the payout")
+    if cls.end_time > now - timedelta(hours=2):
+        raise HTTPException(status_code=400, detail="Chua qua 2 gio sau khi lop ket thuc")
+    if cls.has_active_dispute:
+        raise HTTPException(status_code=400, detail="Lop hoc dang co khieu nai, chua the payout")
+
+
+def _mark_bookings_released(
+    booking_rows: list[tuple[Booking, Payment]],
+    *,
+    released_at: datetime,
+) -> Decimal:
+    released_amount = Decimal("0")
+    for booking, payment in booking_rows:
+        booking.status = "completed"
+        booking.escrow_status = "released"
+        payment.status = "released"
+        payment.released_at = released_at
+        released_amount += Decimal(payment.amount)
+    return released_amount
+
+
+def _serialize_payout_balance_response(
+    account_number: str,
+    account_name: str,
+    currency: str,
+    balance: Decimal,
+) -> PayOSPayoutBalanceResponse:
+    return PayOSPayoutBalanceResponse(
+        account_number=account_number,
+        account_name=account_name,
+        currency=currency,
+        balance=balance,
+    )
+
+
 def _sync_class_participants(db: Session, class_id: str) -> int:
     active_count = (
         db.query(func.count(Booking.id))
@@ -144,6 +293,31 @@ def _count_open_disputes(db: Session, class_id: str) -> int:
         .filter(Booking.class_id == class_id, Booking.complaint_status == "open")
         .scalar()
     ) or 0
+
+
+def _active_student_ids_for_class(db: Session, class_id: str) -> list[str]:
+    rows = (
+        db.query(Booking.student_id)
+        .filter(
+            Booking.class_id == class_id,
+            Booking.status.in_(["confirmed", "completed"]),
+            Booking.payment_status == "paid",
+        )
+        .all()
+    )
+    return [student_id for student_id, in rows]
+
+
+def _mark_minimum_participants_reached(db: Session, cls: Class) -> None:
+    if cls.minimum_participants_reached or cls.current_participants < cls.min_participants:
+        return
+
+    cls.minimum_participants_reached = True
+    cls.minimum_participants_reached_at = _now()
+    if cls.tutor_confirmation_status == "waiting_minimum":
+        cls.tutor_confirmation_status = "pending"
+
+    notify_tutor_minimum_reached(db, cls=cls)
 
 
 def _create_refund_payment(
@@ -175,7 +349,14 @@ def _create_refund_payment(
     return refund
 
 
-def _refund_booking(db: Session, booking: Booking, payment: Payment, reason: str) -> None:
+def _refund_booking(
+    db: Session,
+    booking: Booking,
+    payment: Payment,
+    reason: str,
+    *,
+    cls: Optional[Class] = None,
+) -> None:
     booking.status = "refunded"
     booking.payment_status = "refunded"
     booking.escrow_status = "refunded"
@@ -197,10 +378,55 @@ def _refund_booking(db: Session, booking: Booking, payment: Payment, reason: str
         reason=reason,
     )
 
+    target_class = cls or _get_class_or_404(db, booking.class_id)
+    notify_refund_issued(
+        db,
+        cls=target_class,
+        student_user_id=booking.student_id,
+        amount=Decimal(payment.amount),
+        reason=reason,
+        booking_id=booking.id,
+    )
+
 
 def _require_role(user: User, allowed_roles: set[str]) -> None:
     if user.role not in allowed_roles:
         raise HTTPException(status_code=403, detail="Ban khong co quyen thuc hien thao tac nay")
+
+
+def _require_payment_access(user: User, payment: Payment) -> None:
+    if user.role == "admin":
+        return
+    if user.id in {payment.payer_user_id, payment.payee_user_id}:
+        return
+    raise HTTPException(status_code=403, detail="Ban khong co quyen xem giao dich nay")
+
+
+def _require_class_summary_access(db: Session, user: User, cls: Class) -> None:
+    if user.role == "admin":
+        return
+    if user.role == "teacher" and cls.teacher_id == user.id:
+        return
+    raise HTTPException(status_code=403, detail="Ban khong co quyen xem tong quan thanh toan cua lop nay")
+
+
+def _require_admin_or_job_secret(
+    db: Session,
+    *,
+    user_dict: Optional[dict],
+    x_job_secret: Optional[str],
+) -> None:
+    if user_dict is not None:
+        user = _get_user_or_404(db, user_dict["uid"])
+        _require_role(user, {"admin"})
+        return
+
+    if JOB_SECRET and x_job_secret == JOB_SECRET:
+        return
+
+    if JOB_SECRET:
+        raise HTTPException(status_code=401, detail="Can x-job-secret hop le hoac token admin")
+    raise HTTPException(status_code=401, detail="Can token admin de goi job endpoint")
 
 
 def _process_payment_result(
@@ -212,7 +438,7 @@ def _process_payment_result(
     message: Optional[str] = None,
     raw_payload: Optional[str] = None,
 ) -> PaymentResponse:
-    payment = db.query(Payment).filter(Payment.transaction_ref == transaction_ref).first()
+    payment = _get_payment_by_reference_or_order_id(db, transaction_ref)
     if not payment:
         raise HTTPException(status_code=404, detail="Khong tim thay giao dich")
 
@@ -240,7 +466,8 @@ def _process_payment_result(
         return _serialize_payment(payment, cls=cls, booking=booking, message="Thanh toan that bai")
 
     payment.status = "paid"
-    payment.provider_order_id = provider_transaction_id
+    if provider_transaction_id and not payment.provider_order_id:
+        payment.provider_order_id = provider_transaction_id
     payment.paid_at = _now()
 
     if payment.payment_type == "class_creation":
@@ -269,17 +496,35 @@ def _process_payment_result(
             return _serialize_payment(payment, cls=locked_class, booking=locked_booking, message="Booking da o trang thai cuoi")
 
         if locked_class.status != "scheduled":
-            _refund_booking(db, locked_booking, payment, "Lop hoc khong con san sang de dang ky")
+            _refund_booking(
+                db,
+                locked_booking,
+                payment,
+                "Lop hoc khong con san sang de dang ky",
+                cls=locked_class,
+            )
             db.commit()
             return _serialize_payment(payment, cls=locked_class, booking=locked_booking, message="Da hoan tien do lop hoc khong kha dung")
 
         if locked_class.creation_payment_status != "paid":
-            _refund_booking(db, locked_booking, payment, "Lop hoc chua hoan tat phi tao nhom")
+            _refund_booking(
+                db,
+                locked_booking,
+                payment,
+                "Lop hoc chua hoan tat phi tao nhom",
+                cls=locked_class,
+            )
             db.commit()
             return _serialize_payment(payment, cls=locked_class, booking=locked_booking, message="Da hoan tien do lop hoc chua kich hoat")
 
         if locked_class.current_participants >= locked_class.max_participants:
-            _refund_booking(db, locked_booking, payment, "Lop da het cho, tu dong hoan tien oversell")
+            _refund_booking(
+                db,
+                locked_booking,
+                payment,
+                "Lop da het cho, tu dong hoan tien oversell",
+                cls=locked_class,
+            )
             db.commit()
             return _serialize_payment(payment, cls=locked_class, booking=locked_booking, message="Oversell: giao dich nay duoc hoan tien tu dong")
 
@@ -288,6 +533,13 @@ def _process_payment_result(
         locked_booking.payment_status = "paid"
         locked_booking.escrow_status = "held"
         locked_booking.escrow_held_at = payment.paid_at
+        _mark_minimum_participants_reached(db, locked_class)
+        if locked_class.tutor_confirmation_status == "confirmed":
+            notify_student_tutor_already_confirmed(
+                db,
+                cls=locked_class,
+                student_user_id=locked_booking.student_id,
+            )
         db.commit()
         db.refresh(locked_class)
         db.refresh(locked_booking)
@@ -335,6 +587,8 @@ def create_class_payment_request(
         status="draft",
         tutor_payout_status="pending",
         tutor_payout_amount=Decimal("0"),
+        minimum_participants_reached=False,
+        tutor_confirmation_status="waiting_minimum",
     )
 
     payment = Payment(
@@ -343,7 +597,7 @@ def create_class_payment_request(
         payer_user_id=teacher.id,
         payee_user_id=None,
         payment_type="class_creation",
-        provider=body.provider,
+        provider=PAYOS_PROVIDER,
         amount=creation_fee,
         status="pending",
         transaction_ref=_generate_transaction_ref("CRF"),
@@ -352,11 +606,17 @@ def create_class_payment_request(
 
     try:
         provider_result = create_provider_payment_url(
-            provider=body.provider,
+            provider=PAYOS_PROVIDER,
             transaction_ref=payment.transaction_ref,
             amount=creation_fee,
             order_info=f"Thanh toan phi tao lop {class_data.title}",
-            extra_data={"class_id": new_class.id, "payment_type": "class_creation"},
+            extra_data={
+                "class_id": new_class.id,
+                "payment_type": "class_creation",
+                "buyer_name": teacher.full_name,
+                "buyer_email": teacher.email,
+                "buyer_phone": teacher.phone,
+            },
         )
     except PaymentGatewayError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -378,7 +638,7 @@ def create_class_payment_request(
 @router.post("/classes/{class_id}/join/request", response_model=PaymentResponse, status_code=201)
 def create_join_payment_request(
     class_id: str,
-    body: JoinClassPaymentRequest,
+    _: JoinClassPaymentRequest,
     db: Session = Depends(get_db),
     user_dict: dict = Depends(auth_middleware),
 ):
@@ -402,7 +662,7 @@ def create_join_payment_request(
         booking = existing_booking
         booking.status = "payment_pending"
         booking.payment_status = "pending"
-        booking.payment_method = body.provider
+        booking.payment_method = PAYOS_PROVIDER
         booking.tuition_amount = tuition
         booking.escrow_status = "pending"
         booking.cancelled_at = None
@@ -414,7 +674,7 @@ def create_join_payment_request(
             student_id=student.id,
             status="payment_pending",
             payment_status="pending",
-            payment_method=body.provider,
+            payment_method=PAYOS_PROVIDER,
             tuition_amount=tuition,
             escrow_status="pending",
         )
@@ -425,7 +685,7 @@ def create_join_payment_request(
         payer_user_id=student.id,
         payee_user_id=cls.teacher_id,
         payment_type="tuition",
-        provider=body.provider,
+        provider=PAYOS_PROVIDER,
         amount=tuition,
         status="pending",
         transaction_ref=_generate_transaction_ref("TUI"),
@@ -433,11 +693,18 @@ def create_join_payment_request(
 
     try:
         provider_result = create_provider_payment_url(
-            provider=body.provider,
+            provider=PAYOS_PROVIDER,
             transaction_ref=payment.transaction_ref,
             amount=tuition,
             order_info=f"Thanh toan hoc phi lop {cls.title}",
-            extra_data={"class_id": cls.id, "booking_id": booking.id, "payment_type": "tuition"},
+            extra_data={
+                "class_id": cls.id,
+                "booking_id": booking.id,
+                "payment_type": "tuition",
+                "buyer_name": student.full_name,
+                "buyer_email": student.email,
+                "buyer_phone": student.phone,
+            },
         )
     except PaymentGatewayError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -461,6 +728,7 @@ def handle_payment_callback(
     body: PaymentCallbackRequest,
     db: Session = Depends(get_db),
 ):
+    _require_mock_payment_routes_enabled()
     return _process_payment_result(
         db=db,
         transaction_ref=body.transaction_ref,
@@ -474,12 +742,14 @@ def handle_payment_callback(
 def get_transaction_status(
     transaction_ref: str,
     db: Session = Depends(get_db),
-    _: dict = Depends(auth_middleware),
+    user_dict: dict = Depends(auth_middleware),
 ):
     payment = db.query(Payment).filter(Payment.transaction_ref == transaction_ref).first()
     if not payment:
         raise HTTPException(status_code=404, detail="Khong tim thay giao dich")
 
+    user = _get_user_or_404(db, user_dict["uid"])
+    _require_payment_access(user, payment)
     cls = _get_class_or_404(db, payment.class_id) if payment.class_id else None
     booking = db.query(Booking).filter(Booking.id == payment.booking_id).first() if payment.booking_id else None
     return _serialize_transaction_status(payment, cls=cls, booking=booking)
@@ -492,6 +762,7 @@ def mock_checkout_page(
     amount: int,
     orderInfo: str,
 ):
+    _require_mock_payment_routes_enabled()
     safe_order_info = orderInfo.replace("<", "&lt;").replace(">", "&gt;")
     return f"""
 <!doctype html>
@@ -538,6 +809,7 @@ def mock_complete_payment(
     status: str,
     db: Session = Depends(get_db),
 ):
+    _require_mock_payment_routes_enabled()
     result = verify_provider_callback(
         "mock",
         {
@@ -555,54 +827,86 @@ def mock_complete_payment(
         message=result.message,
         raw_payload=result.raw_payload,
     )
-    return f"""
-<!doctype html>
-<html lang="vi">
-<head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /></head>
-<body style="font-family: Arial, sans-serif; padding: 24px; background: #f5f7fb;">
-  <div style="max-width: 560px; margin: 40px auto; background: white; border-radius: 16px; padding: 24px; box-shadow: 0 10px 40px rgba(19, 35, 72, 0.12);">
-    <h1 style="margin-top: 0;">{payment_result.message}</h1>
-    <p>Ban co the quay lai app. Ung dung se tu dong poll va cap nhat trang thai.</p>
-    <p><strong>Transaction:</strong> {payment_result.transaction_ref}</p>
-    <p><strong>Status:</strong> {payment_result.status}</p>
-  </div>
-</body>
-</html>
-"""
-
-
-@router.api_route("/providers/momo/return", methods=["GET", "POST"])
-async def momo_return(
-    request: Request,
-    db: Session = Depends(get_db),
-):
-    payload = dict(request.query_params)
-    if request.method == "POST":
-        payload.update(await request.json())
-
-    try:
-        result = verify_provider_callback("momo", payload)
-    except PaymentGatewayError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-    return _process_payment_result(
-        db=db,
-        transaction_ref=result.transaction_ref,
-        is_success=result.is_success,
-        provider_transaction_id=result.provider_transaction_id,
-        message=result.message,
-        raw_payload=result.raw_payload,
+    return _render_payment_status_page(
+        title=payment_result.message or "Ket qua thanh toan",
+        message="Ban co the quay lai app. Ung dung se tu dong poll va cap nhat trang thai.",
+        transaction_ref=payment_result.transaction_ref,
+        status=payment_result.status,
     )
 
 
-@router.post("/providers/momo/ipn")
-async def momo_ipn(
+@router.get("/providers/payos/return", response_class=HTMLResponse)
+async def payos_return(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    payload = await request.json()
+    provider_order_id = request.query_params.get("orderCode") or request.query_params.get("order_code")
+    if not provider_order_id:
+        raise HTTPException(status_code=400, detail="Thieu orderCode tu payOS")
+
+    payment = _get_payment_by_reference_or_order_id(db, provider_order_id)
+    if not payment:
+        raise HTTPException(status_code=404, detail="Khong tim thay giao dich payOS")
+
+    cls = _get_class_or_404(db, payment.class_id) if payment.class_id else None
+    booking = db.query(Booking).filter(Booking.id == payment.booking_id).first() if payment.booking_id else None
+
+    if payment.status in {"paid", "released", "refunded", "failed"}:
+        current_status = _serialize_transaction_status(payment, cls=cls, booking=booking)
+        return _render_payment_status_page(
+            title=current_status.message or "Trang thai giao dich",
+            message="Ban co the quay lai app. Ung dung se tiep tuc poll trang thai giao dich.",
+            transaction_ref=current_status.transaction_ref,
+            status=current_status.status,
+            provider_order_id=payment.provider_order_id,
+        )
+
     try:
-        result = verify_provider_callback("momo", payload)
+        gateway_status = fetch_provider_payment_status("payos", provider_order_id)
+    except PaymentGatewayError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    if gateway_status.provider_status in {"PAID", "CANCELLED", "FAILED", "EXPIRED"}:
+        payment_result = _process_payment_result(
+            db=db,
+            transaction_ref=gateway_status.transaction_ref,
+            is_success=gateway_status.provider_status == "PAID",
+            provider_transaction_id=gateway_status.provider_transaction_id,
+            message=gateway_status.message,
+            raw_payload=gateway_status.raw_payload,
+        )
+        return _render_payment_status_page(
+            title=payment_result.message or "Ket qua thanh toan",
+            message="Ban co the quay lai app. Ung dung se tu dong cap nhat trang thai moi nhat.",
+            transaction_ref=payment_result.transaction_ref,
+            status=payment_result.status,
+            provider_order_id=payment.provider_order_id,
+        )
+
+    return _render_payment_status_page(
+        title="Dang cho payOS xac nhan",
+        message="Ban co the quay lai app. Backend dang cho webhook hoac trang thai cuoi tu payOS.",
+        transaction_ref=payment.transaction_ref,
+        status=payment.status,
+        provider_order_id=payment.provider_order_id,
+    )
+
+
+@router.post("/providers/payos/webhook")
+async def payos_webhook(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    raw_payload = await request.body()
+    try:
+        result = verify_provider_callback("payos", raw_payload)
+    except PaymentGatewayError as exc:
+        return {"code": "01", "desc": str(exc)}
+
+    if not _get_payment_by_reference_or_order_id(db, result.transaction_ref):
+        return {"code": "00", "desc": "Webhook hop le, khong co giao dich noi bo can xu ly"}
+
+    try:
         _process_payment_result(
             db=db,
             transaction_ref=result.transaction_ref,
@@ -612,32 +916,125 @@ async def momo_ipn(
             raw_payload=result.raw_payload,
         )
     except HTTPException as exc:
-        return {"resultCode": exc.status_code, "message": exc.detail}
-    except PaymentGatewayError as exc:
-        return {"resultCode": 400, "message": str(exc)}
+        return {"code": str(exc.status_code), "desc": exc.detail}
 
-    return {"resultCode": 0, "message": "Success"}
+    return {"code": "00", "desc": "Success"}
 
 
-@router.get("/providers/vnpay/return")
-async def vnpay_return(
-    request: Request,
+@router.post("/providers/payos/confirm-webhook", response_model=ConfirmPayOSWebhookResponse)
+def confirm_payos_webhook(
+    body: ConfirmPayOSWebhookRequest,
     db: Session = Depends(get_db),
+    user_dict: dict = Depends(auth_middleware),
 ):
-    payload = dict(request.query_params)
+    admin = _get_user_or_404(db, user_dict["uid"])
+    _require_role(admin, {"admin"})
+
+    webhook_url = body.webhook_url or default_provider_webhook_url("payos")
     try:
-        result = verify_provider_callback("vnpay", payload)
+        confirmation = confirm_provider_webhook("payos", webhook_url)
     except PaymentGatewayError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    return _process_payment_result(
-        db=db,
-        transaction_ref=result.transaction_ref,
-        is_success=result.is_success,
-        provider_transaction_id=result.provider_transaction_id,
-        message=result.message,
-        raw_payload=result.raw_payload,
+    return ConfirmPayOSWebhookResponse(
+        webhook_url=confirmation.webhook_url,
+        account_name=confirmation.account_name,
+        account_number=confirmation.account_number,
+        name=confirmation.name,
+        short_name=confirmation.short_name,
     )
+
+
+@router.get("/providers/payos/payout-account/balance", response_model=PayOSPayoutBalanceResponse)
+def get_payos_payout_balance(
+    db: Session = Depends(get_db),
+    user_dict: dict = Depends(auth_middleware),
+):
+    admin = _get_user_or_404(db, user_dict["uid"])
+    _require_role(admin, {"admin"})
+
+    try:
+        balance = fetch_provider_payout_balance(PAYOS_PROVIDER)
+    except PaymentGatewayError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return _serialize_payout_balance_response(
+        account_number=balance.account_number,
+        account_name=balance.account_name,
+        currency=balance.currency,
+        balance=balance.balance,
+    )
+
+
+@router.post("/classes/{class_id}/retry-payout")
+def retry_class_payout(
+    class_id: str,
+    db: Session = Depends(get_db),
+    user_dict: dict = Depends(auth_middleware),
+):
+    admin = _get_user_or_404(db, user_dict["uid"])
+    _require_role(admin, {"admin"})
+
+    now = _now()
+    cls = _get_class_or_404(db, class_id, for_update=True)
+    _ensure_class_ready_for_payout(cls, now=now)
+
+    booking_rows = _held_booking_rows_for_class(db, cls.id)
+    if not booking_rows:
+        if cls.tutor_payout_status == "paid":
+            return {
+                "class_id": cls.id,
+                "status": cls.tutor_payout_status,
+                "amount": str(cls.tutor_payout_amount),
+                "provider_order_id": None,
+                "message": "Payout đã hoàn tất trước đó",
+            }
+        raise HTTPException(status_code=400, detail="Khong co escrow dang giu de retry payout")
+
+    existing_payout = _active_payout_payment_for_class(db, cls.id)
+    if existing_payout and existing_payout.status == "processing":
+        payout_result = _sync_existing_payout(
+            db=db,
+            cls=cls,
+            payout_payment=existing_payout,
+            processed_at=now,
+        )
+        db.commit()
+        return {
+            "class_id": cls.id,
+            "status": cls.tutor_payout_status,
+            "amount": str(cls.tutor_payout_amount),
+            "provider_order_id": existing_payout.provider_order_id,
+            "provider_status": payout_result.provider_status,
+            "message": "Da dong bo lai trang thai payout dang xu ly",
+        }
+
+    if existing_payout and existing_payout.status == "released":
+        db.commit()
+        return {
+            "class_id": cls.id,
+            "status": cls.tutor_payout_status,
+            "amount": str(cls.tutor_payout_amount),
+            "provider_order_id": existing_payout.provider_order_id,
+            "message": "Payout đã hoàn tất trước đó",
+        }
+
+    cls.tutor_payout_status = "pending"
+    payout_payment = _create_payout_attempt(
+        db=db,
+        cls=cls,
+        booking_rows=booking_rows,
+        processed_at=now,
+    )
+    db.commit()
+
+    return {
+        "class_id": cls.id,
+        "status": cls.tutor_payout_status,
+        "amount": str(cls.tutor_payout_amount),
+        "provider_order_id": payout_payment.provider_order_id,
+        "message": "Da tao lai lenh payout qua payOS",
+    }
 
 
 @router.post("/classes/{class_id}/cancel", response_model=PaymentSummaryResponse)
@@ -666,12 +1063,20 @@ def cancel_class_by_tutor(
         .filter(Booking.class_id == class_id, Payment.payment_type == "tuition", Payment.status == "paid")
         .all()
     )
+    student_user_ids = list({booking.student_id for booking, _ in booking_rows})
     for booking, payment in booking_rows:
-        _refund_booking(db, booking, payment, cls.cancellation_reason)
+        _refund_booking(db, booking, payment, cls.cancellation_reason, cls=cls)
 
     cls.current_participants = 0
     cls.tutor_payout_status = "withheld"
     cls.tutor_payout_amount = Decimal("0")
+    notify_class_cancelled(
+        db,
+        cls=cls,
+        student_user_ids=student_user_ids,
+        reason=cls.cancellation_reason,
+        cancelled_by="teacher",
+    )
     db.commit()
 
     return _build_class_payment_summary(db, class_id)
@@ -738,7 +1143,13 @@ def resolve_complaint(
         booking.complaint_status = "resolved_valid"
         booking.complaint_reason = body.note or booking.complaint_reason
         if payment:
-            _refund_booking(db, booking, payment, body.note or "Admin xac nhan khieu nai hop le")
+            _refund_booking(
+                db,
+                booking,
+                payment,
+                body.note or "Admin xac nhan khieu nai hop le",
+                cls=cls,
+            )
         cls.tutor_payout_status = "withheld"
     else:
         booking.complaint_status = "resolved_rejected"
@@ -754,8 +1165,227 @@ def resolve_complaint(
         cls.tutor_payout_status = "pending"
 
     _sync_class_participants(db, cls.id)
+    resolution_note = body.note or booking.complaint_reason
+    notify_dispute_resolved(
+        db,
+        cls=cls,
+        recipient_user_id=booking.student_id,
+        recipient_role="student",
+        is_valid=body.is_valid,
+        note=resolution_note,
+    )
+    notify_dispute_resolved(
+        db,
+        cls=cls,
+        recipient_user_id=cls.teacher_id,
+        recipient_role="teacher",
+        is_valid=body.is_valid,
+        note=resolution_note,
+    )
     db.commit()
     return _build_class_payment_summary(db, cls.id)
+
+
+def _active_payout_payment_for_class(db: Session, class_id: str) -> Optional[Payment]:
+    return (
+        db.query(Payment)
+        .filter(
+            Payment.class_id == class_id,
+            Payment.payment_type == "payout",
+            Payment.provider == PAYOS_PROVIDER,
+            Payment.status.in_(["pending", "processing", "released"]),
+        )
+        .order_by(Payment.created_at.desc())
+        .first()
+    )
+
+
+def _processing_payout_rows(db: Session) -> list[tuple[Payment, Class]]:
+    return (
+        db.query(Payment, Class)
+        .join(Class, Class.id == Payment.class_id)
+        .filter(
+            Payment.payment_type == "payout",
+            Payment.provider == PAYOS_PROVIDER,
+            Payment.status == "processing",
+        )
+        .all()
+    )
+
+
+def _held_booking_rows_for_class(db: Session, class_id: str) -> list[tuple[Booking, Payment]]:
+    return (
+        db.query(Booking, Payment)
+        .join(
+            Payment,
+            and_(
+                Payment.booking_id == Booking.id,
+                Payment.transaction_ref == Booking.payment_reference,
+            ),
+        )
+        .filter(
+            Booking.class_id == class_id,
+            Booking.status.in_(["confirmed", "completed"]),
+            Booking.payment_status == "paid",
+            Booking.escrow_status == "held",
+            Payment.payment_type == "tuition",
+            Payment.status == "paid",
+        )
+        .all()
+    )
+
+
+def _build_payout_payment(
+    *,
+    cls: Class,
+    transaction_ref: str,
+    amount: Decimal,
+    payout_result: ProviderPayoutResult,
+    processed_at: datetime,
+) -> Payment:
+    payout_payment = Payment(
+        id=str(uuid.uuid4()),
+        class_id=cls.id,
+        payer_user_id="system",
+        payee_user_id=cls.teacher_id,
+        booking_id=None,
+        payment_type="payout",
+        provider=PAYOS_PROVIDER,
+        amount=amount,
+        status=payout_result.local_status,
+        transaction_ref=transaction_ref,
+        provider_order_id=payout_result.provider_order_id,
+        provider_payload=payout_result.raw_payload,
+        failure_reason=payout_result.message if payout_result.local_status == "failed" else None,
+    )
+    if payout_result.local_status == "released":
+        payout_payment.released_at = processed_at
+    return payout_payment
+
+
+def _apply_class_payout_state(
+    *,
+    cls: Class,
+    booking_rows: list[tuple[Booking, Payment]],
+    payout_payment: Payment,
+    payout_result: ProviderPayoutResult,
+    processed_at: datetime,
+) -> None:
+    cls.status = "completed"
+    cls.complaint_deadline = cls.end_time + timedelta(hours=2)
+    cls.tutor_payout_amount = Decimal(payout_payment.amount)
+
+    if payout_result.local_status == "released":
+        released_amount = _mark_bookings_released(booking_rows, released_at=processed_at)
+        cls.tutor_payout_status = "paid"
+        cls.tutor_payout_amount = released_amount
+        cls.tutor_paid_at = processed_at
+        payout_payment.released_at = processed_at
+        payout_payment.failure_reason = None
+    elif payout_result.local_status == "failed":
+        cls.tutor_payout_status = "failed"
+        cls.tutor_paid_at = None
+        payout_payment.failure_reason = payout_result.message
+    else:
+        cls.tutor_payout_status = "processing"
+        cls.tutor_paid_at = None
+        payout_payment.failure_reason = None
+
+
+def _create_payout_attempt(
+    *,
+    db: Session,
+    cls: Class,
+    booking_rows: list[tuple[Booking, Payment]],
+    processed_at: datetime,
+) -> Payment:
+    teacher_profile = _get_teacher_profile_or_404(db, cls.teacher_id)
+    bank_bin, bank_account_number = _require_teacher_payout_destination(teacher_profile)
+    payout_amount = sum((Decimal(payment.amount) for _, payment in booking_rows), Decimal("0"))
+    transaction_ref = _generate_transaction_ref("OUT")
+
+    payout_result = create_provider_payout(
+        provider=PAYOS_PROVIDER,
+        reference_id=transaction_ref,
+        amount=payout_amount,
+        description=_build_payout_description(cls),
+        to_bin=bank_bin,
+        to_account_number=bank_account_number,
+    )
+
+    payout_payment = _build_payout_payment(
+        cls=cls,
+        transaction_ref=transaction_ref,
+        amount=payout_amount,
+        payout_result=payout_result,
+        processed_at=processed_at,
+    )
+    _apply_class_payout_state(
+        cls=cls,
+        booking_rows=booking_rows,
+        payout_payment=payout_payment,
+        payout_result=payout_result,
+        processed_at=processed_at,
+    )
+    db.add(payout_payment)
+    notify_tutor_payout_updated(
+        db,
+        cls=cls,
+        amount=payout_amount,
+        payout_status=cls.tutor_payout_status,
+        transaction_ref=transaction_ref,
+        provider_order_id=payout_result.provider_order_id,
+        message=payout_result.message,
+    )
+    return payout_payment
+
+
+def _sync_existing_payout(
+    *,
+    db: Session,
+    cls: Class,
+    payout_payment: Payment,
+    processed_at: datetime,
+) -> ProviderPayoutResult:
+    if not payout_payment.provider_order_id:
+        raise PaymentGatewayError("Lenh chi payOS khong co provider_order_id de dong bo")
+
+    previous_status = payout_payment.status
+    payout_result = fetch_provider_payout_status(PAYOS_PROVIDER, payout_payment.provider_order_id)
+    payout_payment.provider_payload = payout_result.raw_payload
+    payout_payment.failure_reason = payout_result.message if payout_result.local_status == "failed" else None
+    payout_payment.status = payout_result.local_status
+
+    if payout_result.local_status == "released":
+        booking_rows = _held_booking_rows_for_class(db, cls.id)
+        _apply_class_payout_state(
+            cls=cls,
+            booking_rows=booking_rows,
+            payout_payment=payout_payment,
+            payout_result=payout_result,
+            processed_at=processed_at,
+        )
+    elif payout_result.local_status == "failed":
+        cls.tutor_payout_status = "failed"
+        cls.tutor_payout_amount = Decimal(payout_payment.amount)
+        cls.tutor_paid_at = None
+    else:
+        cls.tutor_payout_status = "processing"
+        cls.tutor_payout_amount = Decimal(payout_payment.amount)
+        cls.tutor_paid_at = None
+
+    if payout_result.local_status != previous_status:
+        notify_tutor_payout_updated(
+            db,
+            cls=cls,
+            amount=Decimal(payout_payment.amount),
+            payout_status=cls.tutor_payout_status,
+            transaction_ref=payout_payment.transaction_ref,
+            provider_order_id=payout_payment.provider_order_id,
+            message=payout_result.message,
+        )
+
+    return payout_result
 
 
 def _build_class_payment_summary(db: Session, class_id: str) -> PaymentSummaryResponse:
@@ -771,6 +1401,9 @@ def _build_class_payment_summary(db: Session, class_id: str) -> PaymentSummaryRe
         creation_payment_status=cls.creation_payment_status,
         creation_fee_amount=cls.creation_fee_amount,
         current_participants=cls.current_participants,
+        minimum_participants_reached=cls.minimum_participants_reached,
+        tutor_confirmation_status=cls.tutor_confirmation_status,
+        tutor_confirmed_at=cls.tutor_confirmed_at,
         tutor_payout_status=cls.tutor_payout_status,
         tutor_payout_amount=cls.tutor_payout_amount,
         total_escrow_held=Decimal(total_escrow_held),
@@ -782,8 +1415,16 @@ def _build_class_payment_summary(db: Session, class_id: str) -> PaymentSummaryRe
 def get_class_payment_summary(
     class_id: str,
     db: Session = Depends(get_db),
-    _: dict = Depends(auth_middleware),
+    user_dict: dict = Depends(auth_middleware),
 ):
+    cls = _get_class_or_404(db, class_id)
+    user = _get_user_or_404(db, user_dict["uid"])
+    _require_class_summary_access(db, user, cls)
+    notified = dispatch_due_class_starting_soon_notifications(db, target_user_id=user.id)
+    if notified:
+        db.commit()
+    else:
+        db.rollback()
     return _build_class_payment_summary(db, class_id)
 
 
@@ -791,24 +1432,88 @@ def get_class_payment_summary(
 def get_class_payment_summary_by_code(
     class_code: str,
     db: Session = Depends(get_db),
-    _: dict = Depends(auth_middleware),
+    user_dict: dict = Depends(auth_middleware),
 ):
     normalized_code = class_code.strip().upper()
     if not normalized_code:
-        raise HTTPException(status_code=400, detail="Ma lop khong hop le")
+        raise HTTPException(status_code=400, detail="Mã lớp không hợp lệ")
 
+    user = _get_user_or_404(db, user_dict["uid"])
     classes = db.query(Class).all()
     for cls in classes:
         if _build_class_code(cls).upper() == normalized_code:
+            _require_class_summary_access(db, user, cls)
+            notified = dispatch_due_class_starting_soon_notifications(db, target_user_id=user.id)
+            if notified:
+                db.commit()
+            else:
+                db.rollback()
             return _build_class_payment_summary(db, cls.id)
 
     raise HTTPException(status_code=404, detail="Khong tim thay lop hoc voi ma nay")
 
 
+@router.post("/classes/{class_id}/confirm-teaching", response_model=TutorTeachingConfirmationResponse)
+def confirm_class_teaching(
+    class_id: str,
+    db: Session = Depends(get_db),
+    user_dict: dict = Depends(auth_middleware),
+):
+    tutor = _get_user_or_404(db, user_dict["uid"])
+    _require_role(tutor, {"teacher"})
+
+    cls = _get_class_or_404(db, class_id, for_update=True)
+    if cls.teacher_id != tutor.id:
+        raise HTTPException(status_code=403, detail="Ban khong so huu lop hoc nay")
+    if cls.status != "scheduled":
+        raise HTTPException(status_code=400, detail="Chi co the xac nhan day voi lop dang scheduled")
+    if not cls.minimum_participants_reached or cls.current_participants < cls.min_participants:
+        raise HTTPException(status_code=400, detail="Lop hoc chua dat nguong hoc vien toi thieu")
+    if cls.tutor_confirmation_status == "confirmed":
+        return TutorTeachingConfirmationResponse(
+            class_id=cls.id,
+            tutor_confirmation_status=cls.tutor_confirmation_status,
+            minimum_participants_reached=cls.minimum_participants_reached,
+            tutor_confirmed_at=cls.tutor_confirmed_at,
+            notified_students=0,
+            message="Tutor đã xác nhận dạy từ trước",
+        )
+
+    cls.tutor_confirmation_status = "confirmed"
+    cls.tutor_confirmed_at = _now()
+    student_user_ids = _active_student_ids_for_class(db, cls.id)
+    notify_students_tutor_confirmed(db, cls=cls, student_user_ids=student_user_ids)
+
+    db.commit()
+    return TutorTeachingConfirmationResponse(
+        class_id=cls.id,
+        tutor_confirmation_status=cls.tutor_confirmation_status,
+        minimum_participants_reached=cls.minimum_participants_reached,
+        tutor_confirmed_at=cls.tutor_confirmed_at,
+        notified_students=len(student_user_ids),
+        message="Đã xác nhận dạy và gửi thông báo cho học viên đã đăng ký",
+    )
+
+
+@router.post("/jobs/notify-classes-starting-soon")
+def notify_classes_starting_soon(
+    db: Session = Depends(get_db),
+    user_dict: Optional[dict] = Depends(optional_auth_middleware),
+    x_job_secret: Optional[str] = Header(default=None),
+):
+    _require_admin_or_job_secret(db, user_dict=user_dict, x_job_secret=x_job_secret)
+    notified = dispatch_due_class_starting_soon_notifications(db, now=_now())
+    db.commit()
+    return {"notified": notified, "count": len(notified)}
+
+
 @router.post("/jobs/cancel-underfilled-classes")
 def cancel_underfilled_classes(
     db: Session = Depends(get_db),
+    user_dict: Optional[dict] = Depends(optional_auth_middleware),
+    x_job_secret: Optional[str] = Header(default=None),
 ):
+    _require_admin_or_job_secret(db, user_dict=user_dict, x_job_secret=x_job_secret)
     now = _now()
     deadline = now + timedelta(hours=4)
     classes = (
@@ -832,8 +1537,9 @@ def cancel_underfilled_classes(
             .filter(Booking.class_id == cls.id, Payment.payment_type == "tuition", Payment.status == "paid")
             .all()
         )
+        student_user_ids = list({booking.student_id for booking, _ in booking_rows})
         for booking, payment in booking_rows:
-            _refund_booking(db, booking, payment, cls.cancellation_reason)
+            _refund_booking(db, booking, payment, cls.cancellation_reason, cls=cls)
 
         if cls.current_participants == 0 and cls.creation_payment_status == "paid":
             cls.creation_payment_status = "refunded"
@@ -850,6 +1556,14 @@ def cancel_underfilled_classes(
 
         cls.current_participants = 0
         cls.tutor_payout_status = "withheld"
+        notify_class_cancelled(
+            db,
+            cls=cls,
+            student_user_ids=student_user_ids,
+            reason=cls.cancellation_reason,
+            cancelled_by="system",
+            notify_teacher=True,
+        )
         cancelled.append(cls.id)
 
     db.commit()
@@ -859,7 +1573,10 @@ def cancel_underfilled_classes(
 @router.post("/jobs/release-eligible-payouts")
 def release_eligible_payouts(
     db: Session = Depends(get_db),
+    user_dict: Optional[dict] = Depends(optional_auth_middleware),
+    x_job_secret: Optional[str] = Header(default=None),
 ):
+    _require_admin_or_job_secret(db, user_dict=user_dict, x_job_secret=x_job_secret)
     now = _now()
     eligible_classes = (
         db.query(Class)
@@ -873,46 +1590,105 @@ def release_eligible_payouts(
 
     released = []
     for cls in eligible_classes:
-        booking_rows = (
-            db.query(Booking, Payment)
-            .join(Payment, Payment.booking_id == Booking.id)
-            .filter(Booking.class_id == cls.id, Booking.escrow_status == "held", Payment.payment_type == "tuition")
-            .all()
-        )
+        if cls.tutor_payout_status not in {"pending", "processing"}:
+            continue
+
+        existing_payout = _active_payout_payment_for_class(db, cls.id)
+        if existing_payout and existing_payout.status == "processing":
+            released.append(
+                {
+                    "class_id": cls.id,
+                    "status": "processing",
+                    "amount": str(existing_payout.amount),
+                }
+            )
+            continue
+
+        booking_rows = _held_booking_rows_for_class(db, cls.id)
         if not booking_rows:
             if cls.status == "scheduled":
                 cls.status = "completed"
             continue
 
-        released_amount = Decimal("0")
-        for booking, payment in booking_rows:
-            booking.status = "completed"
-            booking.escrow_status = "released"
-            payment.status = "released"
-            payment.released_at = now
-            released_amount += Decimal(payment.amount)
+        if existing_payout and existing_payout.status == "released":
+            continue
 
-        payout = Payment(
-            id=str(uuid.uuid4()),
-            class_id=cls.id,
-            payer_user_id="system",
-            payee_user_id=cls.teacher_id,
-            booking_id=None,
-            payment_type="payout",
-            provider="system",
-            amount=released_amount,
-            status="released",
-            transaction_ref=_generate_transaction_ref("OUT"),
-            released_at=now,
-        )
-        db.add(payout)
-
-        cls.status = "completed"
-        cls.complaint_deadline = cls.end_time + timedelta(hours=2)
-        cls.tutor_payout_status = "paid"
-        cls.tutor_payout_amount = released_amount
-        cls.tutor_paid_at = now
-        released.append({"class_id": cls.id, "amount": str(released_amount)})
+        try:
+            payout_payment = _create_payout_attempt(
+                db=db,
+                cls=cls,
+                booking_rows=booking_rows,
+                processed_at=now,
+            )
+            released.append(
+                {
+                    "class_id": cls.id,
+                    "status": cls.tutor_payout_status,
+                    "amount": str(cls.tutor_payout_amount),
+                    "provider_order_id": payout_payment.provider_order_id,
+                }
+            )
+        except (HTTPException, PaymentGatewayError) as exc:
+            payout_amount = sum((Decimal(payment.amount) for _, payment in booking_rows), Decimal("0"))
+            cls.status = "completed"
+            cls.tutor_payout_status = "failed"
+            cls.tutor_payout_amount = payout_amount
+            cls.tutor_paid_at = None
+            notify_tutor_payout_updated(
+                db,
+                cls=cls,
+                amount=payout_amount,
+                payout_status=cls.tutor_payout_status,
+                message=exc.detail if isinstance(exc, HTTPException) else str(exc),
+            )
+            released.append(
+                {
+                    "class_id": cls.id,
+                    "status": "failed",
+                    "amount": str(payout_amount),
+                    "error": exc.detail if isinstance(exc, HTTPException) else str(exc),
+                }
+            )
 
     db.commit()
     return {"released": released, "count": len(released)}
+
+
+@router.post("/jobs/sync-payout-statuses")
+def sync_payout_statuses(
+    db: Session = Depends(get_db),
+    user_dict: Optional[dict] = Depends(optional_auth_middleware),
+    x_job_secret: Optional[str] = Header(default=None),
+):
+    _require_admin_or_job_secret(db, user_dict=user_dict, x_job_secret=x_job_secret)
+    now = _now()
+    synced = []
+
+    for payout_payment, cls in _processing_payout_rows(db):
+        try:
+            payout_result = _sync_existing_payout(
+                db=db,
+                cls=cls,
+                payout_payment=payout_payment,
+                processed_at=now,
+            )
+            synced.append(
+                {
+                    "class_id": cls.id,
+                    "payout_id": payout_payment.id,
+                    "status": cls.tutor_payout_status,
+                    "provider_status": payout_result.provider_status,
+                }
+            )
+        except PaymentGatewayError as exc:
+            synced.append(
+                {
+                    "class_id": cls.id,
+                    "payout_id": payout_payment.id,
+                    "status": "error",
+                    "error": str(exc),
+                }
+            )
+
+    db.commit()
+    return {"synced": synced, "count": len(synced)}

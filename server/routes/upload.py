@@ -50,6 +50,23 @@ def _resolve_content_type(file: UploadFile) -> str | None:
     return EXTENSION_TO_CONTENT_TYPE.get(ext, content_type)
 
 
+def _matches_file_signature(data: bytes, content_type: str) -> bool:
+    if content_type == "image/jpeg":
+        return data.startswith(b"\xff\xd8\xff")
+    if content_type == "image/png":
+        return data.startswith(b"\x89PNG\r\n\x1a\n")
+    if content_type == "image/webp":
+        return len(data) >= 12 and data.startswith(b"RIFF") and data[8:12] == b"WEBP"
+    return False
+
+
+def _validate_image_payload(data: bytes, content_type: str) -> None:
+    if not data:
+        raise HTTPException(status_code=400, detail="File rong")
+    if not _matches_file_signature(data, content_type):
+        raise HTTPException(status_code=400, detail="Noi dung file khong khop dinh dang anh da khai bao")
+
+
 @router.post("/thumbnail")
 async def upload_class_thumbnail(
     file: UploadFile = File(...),
@@ -68,6 +85,7 @@ async def upload_class_thumbnail(
             status_code=400,
             detail=f"File too large: {len(data)} bytes (max {MAX_THUMBNAIL} bytes)",
         )
+    _validate_image_payload(data, content_type)
 
     try:
         url = upload_thumbnail(data, content_type)
@@ -100,6 +118,7 @@ async def upload_user_avatar(
             status_code=400,
             detail=f"File too large: {len(data)} bytes (max {MAX_AVATAR} bytes)",
         )
+    _validate_image_payload(data, content_type)
 
     user = db.query(User).filter(User.id == user_dict["uid"]).first()
     if not user:
@@ -143,6 +162,7 @@ async def upload_teacher_document_image(
             status_code=400,
             detail=f"File too large: {len(data)} bytes (max {MAX_TEACHER_DOC} bytes)",
         )
+    _validate_image_payload(data, content_type)
 
     user = db.query(User).filter(User.id == user_dict["uid"]).first()
     if not user:

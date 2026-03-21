@@ -1,14 +1,13 @@
-import hashlib
-import hmac
 import json
 import os
-from base64 import b64encode
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Any, Optional
 from urllib.parse import urlencode
-from urllib.request import Request, urlopen
+
+
+PAYOS_PROVIDER = "payos"
 
 
 @dataclass
@@ -26,6 +25,36 @@ class ProviderVerificationResult:
     provider_transaction_id: Optional[str] = None
     raw_payload: Optional[str] = None
     message: Optional[str] = None
+    provider_status: Optional[str] = None
+
+
+@dataclass
+class ProviderWebhookConfirmationResult:
+    webhook_url: str
+    account_name: str
+    account_number: str
+    name: str
+    short_name: str
+
+
+@dataclass
+class ProviderPayoutResult:
+    provider: str
+    provider_order_id: Optional[str]
+    provider_transaction_id: Optional[str]
+    local_status: str
+    payout_status: str
+    provider_status: Optional[str] = None
+    raw_payload: Optional[str] = None
+    message: Optional[str] = None
+
+
+@dataclass
+class ProviderPayoutBalanceResult:
+    account_number: str
+    account_name: str
+    currency: str
+    balance: Decimal
 
 
 class PaymentGatewayError(Exception):
@@ -37,10 +66,6 @@ def _env(name: str, default: Optional[str] = None) -> Optional[str]:
     return value.strip() if isinstance(value, str) else value
 
 
-def _hmac_sha256(secret: str, raw: str) -> str:
-    return hmac.new(secret.encode("utf-8"), raw.encode("utf-8"), hashlib.sha256).hexdigest()
-
-
 def _base_url() -> str:
     return _env("PAYMENT_PUBLIC_BASE_URL", "http://localhost:8000") or "http://localhost:8000"
 
@@ -49,12 +74,35 @@ def _json_dumps(value: Any) -> str:
     return json.dumps(value, separators=(",", ":"), ensure_ascii=False)
 
 
-def _is_mock_mode(provider: str) -> bool:
+def _normalize_provider(provider: str) -> str:
+    normalized_provider = provider.lower().strip()
+    if normalized_provider != PAYOS_PROVIDER:
+        raise PaymentGatewayError(f"Provider khong duoc ho tro: {provider}")
+    return normalized_provider
+
+
+def _is_mock_mode() -> bool:
     global_flag = (_env("PAYMENT_GATEWAY_MODE", "mock") or "mock").lower()
-    provider_flag = (_env(f"{provider.upper()}_MOCK_MODE", "") or "").lower()
+    provider_flag = (_env("PAYOS_MOCK_MODE", "") or "").lower()
     if provider_flag in {"1", "true", "yes", "mock"}:
         return True
     return global_flag == "mock"
+
+
+def _is_payout_mock_mode() -> bool:
+    global_flag = (_env("PAYMENT_GATEWAY_MODE", "mock") or "mock").lower()
+    provider_flag = (_env("PAYOS_PAYOUT_MOCK_MODE", "") or "").lower()
+    if provider_flag in {"1", "true", "yes", "mock"}:
+        return True
+    return global_flag == "mock"
+
+
+def is_payment_mock_mode_enabled() -> bool:
+    return _is_mock_mode()
+
+
+def is_payout_mock_mode_enabled() -> bool:
+    return _is_payout_mock_mode()
 
 
 def create_provider_payment_url(
@@ -65,42 +113,97 @@ def create_provider_payment_url(
     order_info: str,
     extra_data: dict[str, Any],
 ) -> ProviderCreateResult:
-    normalized_provider = provider.lower()
-    if _is_mock_mode(normalized_provider):
-        return _create_mock_payment(normalized_provider, transaction_ref, amount, order_info, extra_data)
-    if normalized_provider == "momo":
-        return _create_momo_payment(transaction_ref, amount, order_info, extra_data)
-    if normalized_provider == "vnpay":
-        return _create_vnpay_payment(transaction_ref, amount, order_info)
-    raise PaymentGatewayError(f"Provider khong duoc ho tro: {provider}")
+    _normalize_provider(provider)
+    if _is_mock_mode():
+        return _create_mock_payment(transaction_ref, amount, order_info, extra_data)
+    return _create_payos_payment(transaction_ref, amount, order_info, extra_data)
 
 
-def verify_provider_callback(provider: str, payload: dict[str, Any]) -> ProviderVerificationResult:
-    normalized_provider = provider.lower()
+def verify_provider_callback(provider: str, payload: Any) -> ProviderVerificationResult:
+    normalized_provider = provider.lower().strip()
     if normalized_provider == "mock":
         return _verify_mock_callback(payload)
-    if normalized_provider == "momo":
-        return _verify_momo_callback(payload)
-    if normalized_provider == "vnpay":
-        return _verify_vnpay_callback(payload)
-    raise PaymentGatewayError(f"Provider khong duoc ho tro: {provider}")
+    _normalize_provider(normalized_provider)
+    return _verify_payos_callback(payload)
+
+
+def fetch_provider_payment_status(provider: str, provider_order_id: str) -> ProviderVerificationResult:
+    _normalize_provider(provider)
+    return _fetch_payos_payment_status(provider_order_id)
+
+
+def confirm_provider_webhook(provider: str, webhook_url: str) -> ProviderWebhookConfirmationResult:
+    _normalize_provider(provider)
+    return _confirm_payos_webhook(webhook_url)
+
+
+def default_provider_webhook_url(provider: str) -> str:
+    _normalize_provider(provider)
+    return _payos_webhook_url()
+
+
+def create_provider_payout(
+    *,
+    provider: str,
+    reference_id: str,
+    amount: Decimal,
+    description: str,
+    to_bin: str,
+    to_account_number: str,
+) -> ProviderPayoutResult:
+    _normalize_provider(provider)
+    if _is_payout_mock_mode():
+        return _create_mock_payout(
+            reference_id=reference_id,
+            amount=amount,
+            description=description,
+            to_bin=to_bin,
+            to_account_number=to_account_number,
+        )
+    return _create_payos_payout(
+        reference_id=reference_id,
+        amount=amount,
+        description=description,
+        to_bin=to_bin,
+        to_account_number=to_account_number,
+    )
+
+
+def fetch_provider_payout_status(provider: str, provider_order_id: str) -> ProviderPayoutResult:
+    _normalize_provider(provider)
+    if _is_payout_mock_mode():
+        return _get_mock_payout_status(provider_order_id)
+    return _fetch_payos_payout_status(provider_order_id)
+
+
+def fetch_provider_payout_balance(provider: str) -> ProviderPayoutBalanceResult:
+    _normalize_provider(provider)
+    if _is_payout_mock_mode():
+        return ProviderPayoutBalanceResult(
+            account_number="0000000000",
+            account_name="PAYOS MOCK PAYOUT",
+            currency="VND",
+            balance=Decimal("999999999"),
+        )
+    return _fetch_payos_payout_balance()
 
 
 def _create_mock_payment(
-    provider: str,
     transaction_ref: str,
     amount: Decimal,
     order_info: str,
     extra_data: dict[str, Any],
 ) -> ProviderCreateResult:
-    query = urlencode({
-        "provider": provider,
-        "amount": int(amount),
-        "orderInfo": order_info,
-    })
+    query = urlencode(
+        {
+            "provider": PAYOS_PROVIDER,
+            "amount": int(amount),
+            "orderInfo": order_info,
+        }
+    )
     redirect_url = f"{_base_url().rstrip('/')}/payments/mock/checkout/{transaction_ref}?{query}"
     return ProviderCreateResult(
-        provider=provider,
+        provider=PAYOS_PROVIDER,
         redirect_url=redirect_url,
         provider_order_id=transaction_ref,
         provider_payload=_json_dumps({"mock": True, "extraData": extra_data}),
@@ -114,191 +217,431 @@ def _verify_mock_callback(payload: dict[str, Any]) -> ProviderVerificationResult
         provider_transaction_id=str(payload.get("provider_transaction_id", "")) or None,
         raw_payload=_json_dumps(payload),
         message=str(payload.get("message", "")) or None,
+        provider_status=str(payload.get("status", "")).upper() or None,
     )
 
 
-def _create_momo_payment(
+def _load_payos_sdk():
+    try:
+        from payos import PayOS
+
+        return PayOS
+    except ImportError as exc:
+        raise PaymentGatewayError(
+            "Chua cai dat SDK payos. Hay chay pip install -r server/requirements.txt"
+        ) from exc
+
+
+def _coalesce_env(*names: str) -> Optional[str]:
+    for name in names:
+        value = _env(name)
+        if value:
+            return value
+    return None
+
+
+def _build_payos_client(
+    *,
+    client_id_envs: tuple[str, ...],
+    api_key_envs: tuple[str, ...],
+    checksum_key_envs: tuple[str, ...],
+    partner_code_envs: tuple[str, ...] = (),
+    base_url_envs: tuple[str, ...] = (),
+    timeout_envs: tuple[str, ...] = (),
+    max_retries_envs: tuple[str, ...] = (),
+    error_label: str,
+):
+    PayOS = _load_payos_sdk()
+
+    client_kwargs: dict[str, Any] = {}
+    partner_code = _coalesce_env(*partner_code_envs) if partner_code_envs else None
+    base_url = _coalesce_env(*base_url_envs) if base_url_envs else None
+    timeout = _coalesce_env(*timeout_envs) if timeout_envs else None
+    max_retries = _coalesce_env(*max_retries_envs) if max_retries_envs else None
+
+    if partner_code:
+        client_kwargs["partner_code"] = partner_code
+    if base_url:
+        client_kwargs["base_url"] = base_url
+    if timeout:
+        client_kwargs["timeout"] = float(timeout)
+    if max_retries:
+        client_kwargs["max_retries"] = int(max_retries)
+
+    try:
+        return PayOS(
+            client_id=_coalesce_env(*client_id_envs),
+            api_key=_coalesce_env(*api_key_envs),
+            checksum_key=_coalesce_env(*checksum_key_envs),
+            **client_kwargs,
+        )
+    except Exception as exc:
+        raise PaymentGatewayError(f"Khong the khoi tao payOS {error_label}: {exc}") from exc
+
+
+def _build_payos_payment_client():
+    return _build_payos_client(
+        client_id_envs=("PAYOS_CLIENT_ID",),
+        api_key_envs=("PAYOS_API_KEY",),
+        checksum_key_envs=("PAYOS_CHECKSUM_KEY",),
+        partner_code_envs=("PAYOS_PARTNER_CODE",),
+        base_url_envs=("PAYOS_BASE_URL",),
+        timeout_envs=("PAYOS_TIMEOUT",),
+        max_retries_envs=("PAYOS_MAX_RETRIES",),
+        error_label="payment client",
+    )
+
+
+def _build_payos_payout_client():
+    return _build_payos_client(
+        client_id_envs=("PAYOS_PAYOUT_CLIENT_ID", "PAYOS_CLIENT_ID"),
+        api_key_envs=("PAYOS_PAYOUT_API_KEY", "PAYOS_API_KEY"),
+        checksum_key_envs=("PAYOS_PAYOUT_CHECKSUM_KEY", "PAYOS_CHECKSUM_KEY"),
+        partner_code_envs=("PAYOS_PAYOUT_PARTNER_CODE", "PAYOS_PARTNER_CODE"),
+        base_url_envs=("PAYOS_PAYOUT_BASE_URL", "PAYOS_BASE_URL"),
+        timeout_envs=("PAYOS_PAYOUT_TIMEOUT", "PAYOS_TIMEOUT"),
+        max_retries_envs=("PAYOS_PAYOUT_MAX_RETRIES", "PAYOS_MAX_RETRIES"),
+        error_label="payout client",
+    )
+
+
+def _generate_payos_order_code() -> int:
+    epoch_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+    random_suffix = int.from_bytes(os.urandom(2), "big") % 1000
+    return epoch_ms * 1000 + random_suffix
+
+
+def _payos_return_url() -> str:
+    return f"{_base_url().rstrip('/')}/payments/providers/payos/return"
+
+
+def _payos_webhook_url() -> str:
+    return f"{_base_url().rstrip('/')}/payments/providers/payos/webhook"
+
+
+def _build_payos_description(order_code: int) -> str:
+    return f"EC{str(order_code)[-7:]}"
+
+
+def _normalize_payos_item_name(order_info: str) -> str:
+    normalized = " ".join(order_info.split())
+    return normalized[:80] or "EConnect payment"
+
+
+def _create_payos_payment(
     transaction_ref: str,
     amount: Decimal,
     order_info: str,
     extra_data: dict[str, Any],
 ) -> ProviderCreateResult:
-    partner_code = _env("MOMO_PARTNER_CODE")
-    access_key = _env("MOMO_ACCESS_KEY")
-    secret_key = _env("MOMO_SECRET_KEY")
-    endpoint = _env("MOMO_API_URL", "https://test-payment.momo.vn/v2/gateway/api/create")
-    redirect_base = f"{_base_url().rstrip('/')}/payments/providers/momo/return"
-    ipn_url = f"{_base_url().rstrip('/')}/payments/providers/momo/ipn"
+    try:
+        from payos.types import CreatePaymentLinkRequest, ItemData
+    except ImportError as exc:
+        raise PaymentGatewayError(
+            "Chua cai dat SDK payos. Hay chay pip install -r server/requirements.txt"
+        ) from exc
 
-    if not all([partner_code, access_key, secret_key]):
-        raise PaymentGatewayError("Thieu cau hinh MoMo: MOMO_PARTNER_CODE, MOMO_ACCESS_KEY, MOMO_SECRET_KEY")
+    order_code = _generate_payos_order_code()
+    expires_at = int((datetime.now(timezone.utc) + timedelta(minutes=15)).timestamp())
+    item_name = _normalize_payos_item_name(order_info)
+    buyer_name = str(extra_data.get("buyer_name", "")).strip() or None
+    buyer_email = str(extra_data.get("buyer_email", "")).strip() or None
+    buyer_phone = str(extra_data.get("buyer_phone", "")).strip() or None
 
-    request_id = transaction_ref
-    extra_data_b64 = b64encode(_json_dumps(extra_data).encode("utf-8")).decode("utf-8")
-    raw_signature = (
-        f"accessKey={access_key}&amount={int(amount)}&extraData={extra_data_b64}"
-        f"&ipnUrl={ipn_url}&orderId={transaction_ref}&orderInfo={order_info}"
-        f"&partnerCode={partner_code}&redirectUrl={redirect_base}"
-        f"&requestId={request_id}&requestType=captureWallet"
-    )
-    signature = _hmac_sha256(secret_key, raw_signature)
-    payload = {
-        "partnerCode": partner_code,
-        "partnerName": _env("MOMO_PARTNER_NAME", "EConnect"),
-        "storeId": _env("MOMO_STORE_ID", "EConnectStore"),
-        "requestId": request_id,
-        "amount": int(amount),
-        "orderId": transaction_ref,
-        "orderInfo": order_info,
-        "redirectUrl": redirect_base,
-        "ipnUrl": ipn_url,
-        "lang": "vi",
-        "requestType": "captureWallet",
-        "autoCapture": True,
-        "extraData": extra_data_b64,
-        "signature": signature,
-    }
-
-    req = Request(
-        endpoint,
-        data=_json_dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
-        method="POST",
+    request_body = CreatePaymentLinkRequest(
+        order_code=order_code,
+        amount=int(amount),
+        description=_build_payos_description(order_code),
+        cancel_url=_payos_return_url(),
+        return_url=_payos_return_url(),
+        items=[ItemData(name=item_name, quantity=1, price=int(amount), unit="order")],
+        buyer_name=buyer_name,
+        buyer_email=buyer_email,
+        buyer_phone=buyer_phone,
+        expired_at=expires_at,
     )
 
     try:
-        with urlopen(req, timeout=30) as resp:
-            response_data = json.loads(resp.read().decode("utf-8"))
+        with _build_payos_payment_client() as client:
+            response = client.payment_requests.create(payment_data=request_body)
     except Exception as exc:
-        raise PaymentGatewayError(f"Khong tao duoc payment URL MoMo: {exc}") from exc
+        raise PaymentGatewayError(f"Khong tao duoc payment link payOS: {exc}") from exc
 
-    if int(response_data.get("resultCode", -1)) != 0 or not response_data.get("payUrl"):
-        raise PaymentGatewayError(response_data.get("message") or "MoMo khong tra ve payUrl hop le")
+    payload = response.model_dump_camel_case()
+    payload["transactionRef"] = transaction_ref
+    payload["webhookUrl"] = _payos_webhook_url()
 
     return ProviderCreateResult(
-        provider="momo",
-        redirect_url=response_data["payUrl"],
-        provider_order_id=str(response_data.get("orderId") or transaction_ref),
-        provider_payload=_json_dumps(response_data),
+        provider=PAYOS_PROVIDER,
+        redirect_url=response.checkout_url,
+        provider_order_id=str(response.order_code),
+        provider_payload=_json_dumps(payload),
     )
 
 
-def _verify_momo_callback(payload: dict[str, Any]) -> ProviderVerificationResult:
-    secret_key = _env("MOMO_SECRET_KEY")
-    access_key = _env("MOMO_ACCESS_KEY")
-    partner_code = _env("MOMO_PARTNER_CODE")
-    if not all([secret_key, access_key, partner_code]):
-        raise PaymentGatewayError("Thieu cau hinh MoMo de verify callback")
+def _verify_payos_callback(payload: Any) -> ProviderVerificationResult:
+    try:
+        with _build_payos_payment_client() as client:
+            webhook_data = client.webhooks.verify(payload)
+    except Exception as exc:
+        raise PaymentGatewayError(f"Khong verify duoc webhook payOS: {exc}") from exc
 
-    fields = {
-        "accessKey": access_key,
-        "amount": str(payload.get("amount", "")),
-        "extraData": str(payload.get("extraData", "")),
-        "message": str(payload.get("message", "")),
-        "orderId": str(payload.get("orderId", "")),
-        "orderInfo": str(payload.get("orderInfo", "")),
-        "orderType": str(payload.get("orderType", "")),
-        "partnerCode": partner_code,
-        "payType": str(payload.get("payType", "")),
-        "requestId": str(payload.get("requestId", "")),
-        "responseTime": str(payload.get("responseTime", "")),
-        "resultCode": str(payload.get("resultCode", "")),
-        "transId": str(payload.get("transId", "")),
-    }
-    signature_order = [
-        "accessKey",
-        "amount",
-        "extraData",
-        "message",
-        "orderId",
-        "orderInfo",
-        "orderType",
-        "partnerCode",
-        "payType",
-        "requestId",
-        "responseTime",
-        "resultCode",
-        "transId",
-    ]
-    raw_signature = "&".join(f"{key}={fields[key]}" for key in signature_order)
-    expected_signature = _hmac_sha256(secret_key, raw_signature)
-    actual_signature = str(payload.get("signature", ""))
-    if expected_signature != actual_signature:
-        raise PaymentGatewayError("Chu ky callback MoMo khong hop le")
-
-    result_code = int(payload.get("resultCode", -1))
+    provider_transaction_id = webhook_data.reference or webhook_data.payment_link_id or None
     return ProviderVerificationResult(
-        transaction_ref=str(payload.get("orderId", "")),
-        is_success=result_code == 0,
-        provider_transaction_id=str(payload.get("transId", "")) or None,
-        raw_payload=_json_dumps(payload),
-        message=str(payload.get("message", "")) or None,
+        transaction_ref=str(webhook_data.order_code),
+        is_success=webhook_data.code == "00",
+        provider_transaction_id=provider_transaction_id,
+        raw_payload=_json_dumps(webhook_data.model_dump_camel_case()),
+        message=webhook_data.desc,
+        provider_status="PAID" if webhook_data.code == "00" else "FAILED",
     )
 
 
-def _create_vnpay_payment(
-    transaction_ref: str,
+def _fetch_payos_payment_status(provider_order_id: str) -> ProviderVerificationResult:
+    try:
+        order_code = int(str(provider_order_id).strip())
+    except ValueError as exc:
+        raise PaymentGatewayError("payOS order code khong hop le") from exc
+
+    try:
+        with _build_payos_payment_client() as client:
+            payment_link = client.payment_requests.get(order_code)
+    except Exception as exc:
+        raise PaymentGatewayError(f"Khong lay duoc trang thai payOS: {exc}") from exc
+
+    status_messages = {
+        "PENDING": "Dang cho nguoi dung thanh toan tren payOS",
+        "PROCESSING": "Giao dich dang duoc payOS xu ly",
+        "PAID": "payOS da ghi nhan thanh toan thanh cong",
+        "CANCELLED": "Nguoi dung da huy giao dich tren payOS",
+        "FAILED": "payOS thong bao giao dich that bai",
+        "EXPIRED": "Link thanh toan payOS da het han",
+        "UNDERPAID": "Khoan chuyen khoan vao payOS chua du so tien",
+    }
+    provider_transaction_id = payment_link.transactions[-1].reference if payment_link.transactions else payment_link.id
+
+    return ProviderVerificationResult(
+        transaction_ref=str(payment_link.order_code),
+        is_success=payment_link.status == "PAID",
+        provider_transaction_id=provider_transaction_id,
+        raw_payload=_json_dumps(payment_link.model_dump_camel_case()),
+        message=status_messages.get(payment_link.status, payment_link.status),
+        provider_status=payment_link.status,
+    )
+
+
+def _confirm_payos_webhook(webhook_url: str) -> ProviderWebhookConfirmationResult:
+    try:
+        with _build_payos_payment_client() as client:
+            result = client.webhooks.confirm(webhook_url)
+    except Exception as exc:
+        raise PaymentGatewayError(f"Khong confirm duoc webhook payOS: {exc}") from exc
+
+    return ProviderWebhookConfirmationResult(
+        webhook_url=result.webhook_url,
+        account_name=result.account_name,
+        account_number=result.account_number,
+        name=result.name,
+        short_name=result.short_name,
+    )
+
+
+def _mock_payout_id(reference_id: str) -> str:
+    return f"mock-payout-{reference_id.lower()}"
+
+
+def _build_mock_payout_payload(
+    *,
+    payout_id: str,
+    reference_id: str,
     amount: Decimal,
-    order_info: str,
-) -> ProviderCreateResult:
-    tmn_code = _env("VNPAY_TMN_CODE")
-    hash_secret = _env("VNPAY_HASH_SECRET")
-    endpoint = _env("VNPAY_PAYMENT_URL", "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html")
-    return_url = f"{_base_url().rstrip('/')}/payments/providers/vnpay/return"
-
-    if not all([tmn_code, hash_secret]):
-        raise PaymentGatewayError("Thieu cau hinh VNPAY: VNPAY_TMN_CODE, VNPAY_HASH_SECRET")
-
-    params = {
-        "vnp_Version": _env("VNPAY_VERSION", "2.1.0"),
-        "vnp_Command": "pay",
-        "vnp_TmnCode": tmn_code,
-        "vnp_Amount": str(int(amount) * 100),
-        "vnp_CurrCode": "VND",
-        "vnp_TxnRef": transaction_ref,
-        "vnp_OrderInfo": order_info,
-        "vnp_OrderType": _env("VNPAY_ORDER_TYPE", "other"),
-        "vnp_Locale": "vn",
-        "vnp_ReturnUrl": return_url,
-        "vnp_IpAddr": _env("VNPAY_IP_ADDR", "127.0.0.1"),
-        "vnp_CreateDate": datetime.utcnow().strftime("%Y%m%d%H%M%S"),
+    description: str,
+    to_bin: str,
+    to_account_number: str,
+    approval_state: str,
+    transaction_state: str,
+) -> dict[str, Any]:
+    return {
+        "id": payout_id,
+        "referenceId": reference_id,
+        "approvalState": approval_state,
+        "createdAt": datetime.now(timezone.utc).isoformat(),
+        "transactions": [
+            {
+                "id": f"{payout_id}-tx",
+                "referenceId": reference_id,
+                "amount": int(amount),
+                "description": description,
+                "toBin": to_bin,
+                "toAccountNumber": to_account_number,
+                "toAccountName": None,
+                "reference": f"MOCK-{reference_id}",
+                "transactionDatetime": datetime.now(timezone.utc).isoformat(),
+                "errorMessage": None,
+                "errorCode": None,
+                "state": transaction_state,
+            }
+        ],
     }
-    params = {key: value for key, value in params.items() if value}
-    sorted_params = dict(sorted(params.items()))
-    query_string = urlencode(sorted_params)
-    secure_hash = hmac.new(hash_secret.encode("utf-8"), query_string.encode("utf-8"), hashlib.sha512).hexdigest()
-    redirect_url = f"{endpoint}?{query_string}&vnp_SecureHash={secure_hash}"
 
-    return ProviderCreateResult(
-        provider="vnpay",
-        redirect_url=redirect_url,
-        provider_order_id=transaction_ref,
-        provider_payload=_json_dumps(sorted_params),
+
+def _payout_status_message(approval_state: Optional[str], transaction_state: Optional[str]) -> str:
+    if approval_state == "COMPLETED" or transaction_state == "SUCCEEDED":
+        return "payOS da chuyen tien thanh cong cho tutor"
+    if approval_state in {"FAILED", "REJECTED", "CANCELLED"} or transaction_state in {
+        "FAILED",
+        "CANCELLED",
+        "REVERSED",
+    }:
+        return "payOS khong the hoan tat lenh chi cho tutor"
+    return "Lenh chi payOS dang duoc xu ly"
+
+
+def _map_payos_payout(payout: Any) -> ProviderPayoutResult:
+    first_transaction = payout.transactions[0] if getattr(payout, "transactions", None) else None
+    approval_state = getattr(payout, "approval_state", None)
+    transaction_state = getattr(first_transaction, "state", None)
+    provider_status = approval_state or transaction_state
+    if approval_state and transaction_state:
+        provider_status = f"{approval_state}:{transaction_state}"
+
+    if approval_state == "COMPLETED" or transaction_state == "SUCCEEDED":
+        local_status = "released"
+        payout_status = "paid"
+    elif approval_state in {"FAILED", "REJECTED", "CANCELLED"} or transaction_state in {
+        "FAILED",
+        "CANCELLED",
+        "REVERSED",
+    }:
+        local_status = "failed"
+        payout_status = "failed"
+    else:
+        local_status = "processing"
+        payout_status = "processing"
+
+    return ProviderPayoutResult(
+        provider=PAYOS_PROVIDER,
+        provider_order_id=str(getattr(payout, "id", "") or "") or None,
+        provider_transaction_id=getattr(first_transaction, "reference", None),
+        local_status=local_status,
+        payout_status=payout_status,
+        provider_status=provider_status,
+        raw_payload=_json_dumps(payout.model_dump_camel_case()),
+        message=getattr(first_transaction, "error_message", None)
+        or _payout_status_message(approval_state, transaction_state),
     )
 
 
-def _verify_vnpay_callback(payload: dict[str, Any]) -> ProviderVerificationResult:
-    hash_secret = _env("VNPAY_HASH_SECRET")
-    if not hash_secret:
-        raise PaymentGatewayError("Thieu cau hinh VNPAY_HASH_SECRET de verify callback")
-
-    input_data = {
-        key: str(value)
-        for key, value in payload.items()
-        if key.startswith("vnp_") and key not in {"vnp_SecureHash", "vnp_SecureHashType"}
-    }
-    sorted_params = dict(sorted(input_data.items()))
-    query_string = urlencode(sorted_params)
-    expected_hash = hmac.new(hash_secret.encode("utf-8"), query_string.encode("utf-8"), hashlib.sha512).hexdigest()
-    actual_hash = str(payload.get("vnp_SecureHash", ""))
-    if expected_hash.lower() != actual_hash.lower():
-        raise PaymentGatewayError("Chu ky callback VNPAY khong hop le")
-
-    response_code = str(payload.get("vnp_ResponseCode", ""))
-    return ProviderVerificationResult(
-        transaction_ref=str(payload.get("vnp_TxnRef", "")),
-        is_success=response_code == "00",
-        provider_transaction_id=str(payload.get("vnp_TransactionNo", "")) or None,
+def _create_mock_payout(
+    *,
+    reference_id: str,
+    amount: Decimal,
+    description: str,
+    to_bin: str,
+    to_account_number: str,
+) -> ProviderPayoutResult:
+    payout_id = _mock_payout_id(reference_id)
+    payload = _build_mock_payout_payload(
+        payout_id=payout_id,
+        reference_id=reference_id,
+        amount=amount,
+        description=description,
+        to_bin=to_bin,
+        to_account_number=to_account_number,
+        approval_state="COMPLETED",
+        transaction_state="SUCCEEDED",
+    )
+    return ProviderPayoutResult(
+        provider=PAYOS_PROVIDER,
+        provider_order_id=payout_id,
+        provider_transaction_id=f"MOCK-{reference_id}",
+        local_status="released",
+        payout_status="paid",
+        provider_status="COMPLETED:SUCCEEDED",
         raw_payload=_json_dumps(payload),
-        message=str(payload.get("vnp_OrderInfo", "")) or None,
+        message="Mock payout da duoc danh dau thanh cong",
+    )
+
+
+def _get_mock_payout_status(provider_order_id: str) -> ProviderPayoutResult:
+    reference_id = provider_order_id.removeprefix("mock-payout-").upper()
+    payload = _build_mock_payout_payload(
+        payout_id=provider_order_id,
+        reference_id=reference_id,
+        amount=Decimal("0"),
+        description="Mock payout",
+        to_bin="970000",
+        to_account_number="0000000000",
+        approval_state="COMPLETED",
+        transaction_state="SUCCEEDED",
+    )
+    return ProviderPayoutResult(
+        provider=PAYOS_PROVIDER,
+        provider_order_id=provider_order_id,
+        provider_transaction_id=f"MOCK-{reference_id}",
+        local_status="released",
+        payout_status="paid",
+        provider_status="COMPLETED:SUCCEEDED",
+        raw_payload=_json_dumps(payload),
+        message="Mock payout da duoc danh dau thanh cong",
+    )
+
+
+def _create_payos_payout(
+    *,
+    reference_id: str,
+    amount: Decimal,
+    description: str,
+    to_bin: str,
+    to_account_number: str,
+) -> ProviderPayoutResult:
+    try:
+        from payos.types import PayoutRequest
+    except ImportError as exc:
+        raise PaymentGatewayError(
+            "Chua cai dat SDK payos. Hay chay pip install -r server/requirements.txt"
+        ) from exc
+
+    payout_data = PayoutRequest(
+        reference_id=reference_id,
+        amount=int(amount),
+        description=description,
+        to_bin=to_bin,
+        to_account_number=to_account_number,
+    )
+
+    try:
+        with _build_payos_payout_client() as client:
+            payout = client.payouts.create(
+                payout_data=payout_data,
+                idempotency_key=reference_id,
+            )
+    except Exception as exc:
+        raise PaymentGatewayError(f"Khong tao duoc payout payOS: {exc}") from exc
+
+    return _map_payos_payout(payout)
+
+
+def _fetch_payos_payout_status(provider_order_id: str) -> ProviderPayoutResult:
+    try:
+        with _build_payos_payout_client() as client:
+            payout = client.payouts.get(provider_order_id)
+    except Exception as exc:
+        raise PaymentGatewayError(f"Khong lay duoc trang thai payout payOS: {exc}") from exc
+
+    return _map_payos_payout(payout)
+
+
+def _fetch_payos_payout_balance() -> ProviderPayoutBalanceResult:
+    try:
+        with _build_payos_payout_client() as client:
+            balance_info = client.payouts_account.balance()
+    except Exception as exc:
+        raise PaymentGatewayError(f"Khong lay duoc so du payout payOS: {exc}") from exc
+
+    return ProviderPayoutBalanceResult(
+        account_number=balance_info.account_number,
+        account_name=balance_info.account_name,
+        currency=balance_info.currency,
+        balance=Decimal(balance_info.balance),
     )

@@ -1,4 +1,4 @@
-# Routing — EConnect Flutter Client
+# Điều Hướng — EConnect Flutter Client
 
 Sử dụng **go_router** (`^15.x`). Toàn bộ cấu hình nằm tại:
 
@@ -8,9 +8,9 @@ client/lib/core/router/app_router.dart
 
 ---
 
-## Route table
+## Bảng route
 
-| Constant (`AppRoutes`) | Path | Screen | Auth |
+| Constant (`AppRoutes`) | Path | Màn hình | Xác thực |
 |---|---|---|---|
 | `login` | `/login` | `LoginScreen` | Public |
 | `signup` | `/signup` | `SignupScreen` | Public |
@@ -20,7 +20,7 @@ client/lib/core/router/app_router.dart
 
 ---
 
-## Auth guard
+## Chặn truy cập theo xác thực
 
 Router tự động redirect dựa trên trạng thái `currentUserProvider`:
 
@@ -44,7 +44,7 @@ context.go(AppRoutes.studentHome);
 
 ### Truyền data qua `extra`
 
-Dùng khi cần pass object phức tạp (không serialize được trên URL):
+Dùng khi cần truyền object phức tạp, không serialize được trên URL:
 
 ```dart
 context.go(AppRoutes.classDetail, extra: session);
@@ -53,28 +53,28 @@ context.go(AppRoutes.classDetail, extra: session);
 Nhận ở màn hình đích (`app_router.dart` xử lý):
 
 ```dart
-// Đã có sẵn trong router — không cần làm thêm
+// Đã có sẵn trong router, không cần làm thêm
 builder: (context, state) {
   final session = state.extra as ClassSession;
   return ClassDetailScreen(session: session);
 }
 ```
 
-### Push (giữ back stack) vs Go (xoá stack)
+### `push` giữ back stack, `go` thay toàn bộ stack
 
 ```dart
-context.go('/student');   // Xoá toàn bộ stack → không có nút back
-context.push('/student/class', extra: session); // Giữ stack → có nút back
+context.go('/student');
+context.push('/student/class', extra: session);
 ```
 
 > Dùng `go` khi chuyển tab hoặc sau login/logout.
-> Dùng `push` khi mở màn hình detail từ list.
+> Dùng `push` khi mở màn hình chi tiết từ danh sách.
 
 ### Quay lại
 
 ```dart
-context.pop();           // Quay lại màn hình trước
-context.canPop();        // Kiểm tra trước khi pop
+context.pop();
+context.canPop();
 ```
 
 ---
@@ -87,7 +87,7 @@ context.canPop();        // Kiểm tra trước khi pop
 // app_router.dart
 abstract class AppRoutes {
   // ... existing routes
-  static const studentProfile = '/student/profile'; // thêm vào đây
+  static const studentProfile = '/student/profile';
 }
 ```
 
@@ -106,11 +106,11 @@ GoRoute(
 
 ```dart
 GoRoute(
-  path: AppRoutes.studentHome,       // /student
+  path: AppRoutes.studentHome,
   builder: (context, _) => const StudentNavShell(),
   routes: [
     GoRoute(
-      path: 'profile',               // → /student/profile
+      path: 'profile',
       builder: (context, _) => const StudentProfileScreen(),
     ),
   ],
@@ -129,7 +129,7 @@ GoRoute(
 ),
 ```
 
-### 3. Điều hướng đến
+### 3. Điều hướng đến route mới
 
 ```dart
 context.push(AppRoutes.studentProfile);
@@ -140,6 +140,6 @@ context.push(AppRoutes.studentProfile, extra: userId);
 
 ## Lưu ý
 
-- **Không dùng `Navigator.push` / `MaterialPageRoute`** — dùng `context.go` hoặc `context.push` để auth guard và deep link hoạt động đúng.
-- Khi logout, gọi `context.go(AppRoutes.login)` để clear toàn bộ stack.
-- `extra` không tồn tại sau hot restart — nếu màn hình cần restore từ deep link, dùng `pathParameters` hoặc `queryParameters` thay thế.
+- Không dùng `Navigator.push` hoặc `MaterialPageRoute`; hãy dùng `context.go` hoặc `context.push` để auth guard và deep link hoạt động đúng.
+- Khi logout, gọi `context.go(AppRoutes.login)` để xóa toàn bộ stack.
+- `extra` không tồn tại sau hot restart; nếu màn hình cần restore từ deep link, hãy dùng `pathParameters` hoặc `queryParameters` thay thế.

@@ -7,9 +7,6 @@ from pydantic import BaseModel, field_validator
 from pydantic_schemas.class_create import ClassCreate
 
 
-SUPPORTED_PROVIDERS = {"momo", "vnpay"}
-
-
 def calculate_creation_fee(session_price: Decimal) -> Decimal:
     return (session_price * Decimal("0.10")).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
 
@@ -19,12 +16,11 @@ def calculate_student_tuition(session_price: Decimal, max_participants: int) -> 
 
 
 class CreateClassPaymentRequest(BaseModel):
-    provider: Literal["momo", "vnpay"]
     class_payload: ClassCreate
 
 
 class JoinClassPaymentRequest(BaseModel):
-    provider: Literal["momo", "vnpay"]
+    pass
 
 
 class PaymentCallbackRequest(BaseModel):
@@ -56,6 +52,33 @@ class ResolveComplaintRequest(BaseModel):
     note: Optional[str] = None
 
 
+class ConfirmPayOSWebhookRequest(BaseModel):
+    webhook_url: Optional[str] = None
+
+    @field_validator("webhook_url")
+    @classmethod
+    def normalize_webhook_url(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        normalized = value.strip()
+        return normalized or None
+
+
+class ConfirmPayOSWebhookResponse(BaseModel):
+    webhook_url: str
+    account_name: str
+    account_number: str
+    name: str
+    short_name: str
+
+
+class PayOSPayoutBalanceResponse(BaseModel):
+    account_number: str
+    account_name: str
+    currency: str
+    balance: Decimal
+
+
 class PaymentResponse(BaseModel):
     payment_id: str
     transaction_ref: str
@@ -79,6 +102,9 @@ class PaymentSummaryResponse(BaseModel):
     creation_payment_status: str
     creation_fee_amount: Decimal
     current_participants: int
+    minimum_participants_reached: bool
+    tutor_confirmation_status: str
+    tutor_confirmed_at: Optional[datetime] = None
     tutor_payout_status: str
     tutor_payout_amount: Decimal
     total_escrow_held: Decimal

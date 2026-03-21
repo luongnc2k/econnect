@@ -1,16 +1,16 @@
 # EConnect
 
-Nền tảng kết nối gia sư và học viên — offline English classes.
+Nền tảng kết nối gia sư và học viên cho các lớp tiếng Anh offline.
 
-## Monorepo structure
+## Cấu trúc monorepo
 
 ```
 econnect/
-├── client/      # Flutter mobile app (Android/iOS)
-├── server/      # Python FastAPI backend
+├── client/      # Ứng dụng Flutter (Android/iOS)
+├── server/      # Backend FastAPI bằng Python
 ├── docker/      # Docker Compose (PostgreSQL, pgAdmin, MinIO)
-├── scripts/     # Dev helper scripts
-└── docs/        # ERD and design documents
+├── scripts/     # Script hỗ trợ phát triển
+└── docs/        # Tài liệu thiết kế và ERD
 ```
 
 ---
@@ -19,13 +19,13 @@ econnect/
 
 - Flutter SDK ≥ 3.x
 - Python 3.11+
-- Docker & Docker Compose
+- Docker và Docker Compose
 
 ---
 
 ## Khởi động local
 
-### 1. Infrastructure
+### 1. Hạ tầng
 
 ```bash
 # Khởi động PostgreSQL + pgAdmin + MinIO
@@ -35,12 +35,12 @@ econnect/
 ./scripts/dev-down.sh
 ```
 
-| Service    | URL                          | Credentials                          |
-|------------|------------------------------|--------------------------------------|
-| PostgreSQL | `localhost:5433`             | `postgres` / `123456a@`              |
-| pgAdmin    | http://localhost:5050        | `admin@example.com` / `admin123`     |
-| MinIO API  | `localhost:9000`             | `minioadmin` / `minioadmin123`       |
-| MinIO UI   | http://localhost:9001        | `minioadmin` / `minioadmin123`       |
+| Dịch vụ | URL | Thông tin đăng nhập |
+|---|---|---|
+| PostgreSQL | `localhost:5433` | `postgres` / `123456a@` |
+| pgAdmin | http://localhost:5050 | `admin@example.com` / `admin123` |
+| MinIO API | `localhost:9000` | `minioadmin` / `minioadmin123` |
+| MinIO UI | http://localhost:9001 | `minioadmin` / `minioadmin123` |
 
 ### 2. Server
 
@@ -50,19 +50,19 @@ cd server
 # Tạo và kích hoạt virtual environment
 python3 -m venv venv
 source venv/bin/activate          # Linux/macOS
-# .\venv\Scripts\Activate         # Windows
+# .\venv\Scripts\Activate       # Windows
 
 # Cài dependencies
 pip install -r requirements.txt
 
 # Cấu hình môi trường
-cp .env.example .env              # chỉnh sửa nếu cần
+cp .env.example .env
 
 # Chạy server (hot reload)
 uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-Server sẵn sàng tại `http://localhost:8000` — Swagger UI tại `http://localhost:8000/docs`.
+Server sẵn sàng tại `http://localhost:8000`, Swagger UI tại `http://localhost:8000/docs`.
 
 **Reset database** (xóa toàn bộ bảng và tạo lại schema):
 
@@ -79,17 +79,17 @@ CREATE SCHEMA public;
 uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-**Hoặc dùng Python** — bỏ comment dòng `drop_all` trong `server/main.py`:
+**Hoặc dùng Python**: bỏ comment dòng `drop_all` trong `server/main.py`:
 
 ```python
 # server/main.py
-Base.metadata.drop_all(bind=engine)   # ← uncomment dòng này
+Base.metadata.drop_all(bind=engine)   # ← bỏ comment dòng này
 Base.metadata.create_all(bind=engine)
 ```
 
-Khởi động server một lần để drop & recreate, sau đó **comment lại ngay** để tránh mất dữ liệu mỗi lần restart.
+Khởi động server một lần để drop và recreate, sau đó **comment lại ngay** để tránh mất dữ liệu mỗi lần restart.
 
-> **Cảnh báo:** Các cách trên xóa toàn bộ dữ liệu không thể khôi phục. Chỉ dùng trong môi trường dev.
+> **Cảnh báo:** Các cách trên sẽ xóa toàn bộ dữ liệu và không thể khôi phục. Chỉ dùng trong môi trường dev.
 
 **Seed dữ liệu mẫu** (chạy sau khi server đã khởi động lần đầu):
 
@@ -97,7 +97,7 @@ Khởi động server một lần để drop & recreate, sau đó **comment lạ
 python seed.py
 ```
 
-Seed tạo: 1 admin, 2 giáo viên, 5 topics, 4 lớp học sắp diễn ra.
+Seed tạo: 1 admin, 2 giáo viên, 5 topic, 4 lớp học sắp diễn ra.
 
 ### 3. Client
 
@@ -113,6 +113,15 @@ flutter run
 
 # Bật mock test thủ công khi cần
 flutter run --dart-define=ENABLE_MANUAL_TEST_MOCKS=true
+
+# Ví dụ chạy client có bật FCM trên Android/iOS
+flutter run \
+  --dart-define=FCM_API_KEY=... \
+  --dart-define=FCM_PROJECT_ID=... \
+  --dart-define=FCM_MESSAGING_SENDER_ID=... \
+  --dart-define=FCM_ANDROID_APP_ID=... \
+  --dart-define=FCM_IOS_APP_ID=... \
+  --dart-define=FCM_IOS_BUNDLE_ID=com.example.client
 ```
 
 ---
@@ -121,43 +130,43 @@ flutter run --dart-define=ENABLE_MANUAL_TEST_MOCKS=true
 
 ### Auth — `/auth`
 
-| Method | Endpoint              | Auth | Mô tả                          |
-|--------|-----------------------|------|--------------------------------|
-| POST   | `/auth/signup`        | —    | Đăng ký (student / teacher)    |
-| POST   | `/auth/login`         | —    | Đăng nhập, trả về token        |
-| GET    | `/auth/`              | ✓    | Lấy thông tin user hiện tại    |
-| POST   | `/auth/create-admin`  | secret key | Tạo tài khoản admin    |
+| Method | Endpoint | Xác thực | Mô tả |
+|---|---|---|---|
+| POST | `/auth/signup` | — | Đăng ký (`student` / `teacher`) |
+| POST | `/auth/login` | — | Đăng nhập, trả về token |
+| GET | `/auth/` | ✓ | Lấy thông tin user hiện tại |
+| POST | `/auth/create-admin` | secret key | Tạo tài khoản admin |
 
 > `POST /auth/create-admin` yêu cầu header `x-admin-secret: <ADMIN_CREATE_SECRET>` từ `.env`.
 
 ### Classes — `/classes`
 
-| Method | Endpoint              | Auth | Role    | Mô tả                         |
-|--------|-----------------------|------|---------|-------------------------------|
-| GET    | `/classes/upcoming`   | ✓    | any     | Lớp sắp diễn ra (filter theo `?topic=slug`) |
-| POST   | `/classes`            | ✓    | teacher | Tạo lớp học mới               |
+| Method | Endpoint | Xác thực | Role | Mô tả |
+|---|---|---|---|---|
+| GET | `/classes/upcoming` | ✓ | any | Lớp sắp diễn ra, hỗ trợ filter theo `?topic=slug` |
+| POST | `/classes` | ✓ | teacher | Tạo lớp học mới |
 
 ### Topics — `/topics`
 
-| Method | Endpoint    | Auth | Role  | Mô tả                  |
-|--------|-------------|------|-------|------------------------|
-| GET    | `/topics`   | —    | —     | Danh sách topic active |
-| POST   | `/topics`   | ✓    | admin | Tạo topic mới          |
+| Method | Endpoint | Xác thực | Role | Mô tả |
+|---|---|---|---|---|
+| GET | `/topics` | — | — | Danh sách topic đang active |
+| POST | `/topics` | ✓ | admin | Tạo topic mới |
 
 ### Upload — `/upload`
 
-| Method | Endpoint            | Auth | Mô tả                                              |
-|--------|---------------------|------|----------------------------------------------------|
-| POST   | `/upload/thumbnail` | ✓    | Upload thumbnail lớp học (≤ 5MB) → trả về URL      |
-| POST   | `/upload/avatar`    | ✓    | Upload avatar user (≤ 2MB) → lưu vào DB luôn       |
+| Method | Endpoint | Xác thực | Mô tả |
+|---|---|---|---|
+| POST | `/upload/thumbnail` | ✓ | Upload thumbnail lớp học (≤ 5MB) và trả về URL |
+| POST | `/upload/avatar` | ✓ | Upload avatar người dùng (≤ 2MB) và lưu vào DB |
 
 ---
 
-## Architecture
+## Kiến trúc
 
 ### Client
 
-Feature-first folder structure dưới `lib/`:
+Cấu trúc feature-first dưới `lib/`:
 
 ```
 lib/
@@ -171,7 +180,7 @@ lib/
 ```
 
 - **State management:** Riverpod (`NotifierProvider`, `@riverpod` code-gen)
-- **Error handling:** `fpdart` — `Either<AppFailure, T>`
+- **Xử lý lỗi:** `fpdart` với `Either<AppFailure, T>`
 - **Auth:** token lưu trong `SharedPreferences`, gửi qua header `x-auth-token`
 
 ### Server
@@ -180,14 +189,14 @@ lib/
 server/
 ├── main.py               # app entry, router registration
 ├── database.py           # SQLAlchemy engine + session
-├── seed.py               # seed data script
-├── minio_client.py       # MinIO upload helper
+├── seed.py               # script seed dữ liệu
+├── minio_client.py       # helper upload MinIO
 ├── models/               # SQLAlchemy ORM models
-├── pydantic_schemas/     # request/response schemas
+├── pydantic_schemas/     # schema request/response
 ├── routes/               # API routers
 └── middleware/           # JWT auth middleware
 ```
 
 - **ORM:** SQLAlchemy + PostgreSQL
 - **Auth:** JWT (HS256), bcrypt password hashing
-- **File storage:** MinIO (S3-compatible)
+- **Lưu trữ file:** MinIO (tương thích S3)

@@ -12,6 +12,7 @@ class TeacherProfile(Base):
     nationality = Column(VARCHAR(50), nullable=True)
     native_language = Column(VARCHAR(50), nullable=True)
     bank_name = Column(VARCHAR(100), nullable=True)
+    bank_bin = Column(VARCHAR(20), nullable=True)
     bank_account_number = Column(VARCHAR(50), nullable=True)
     bank_account_holder = Column(VARCHAR(100), nullable=True)
     certifications = Column(ARRAY(TEXT), nullable=True)
