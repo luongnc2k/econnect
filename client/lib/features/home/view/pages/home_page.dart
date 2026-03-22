@@ -10,7 +10,7 @@ class HomePage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
-    if (user?.role == 'tutor') {
+    if (user?.role == 'teacher') {
       return const TutorNavShell();
     }
     // Default to student shell (covers 'student' role and any unexpected values)

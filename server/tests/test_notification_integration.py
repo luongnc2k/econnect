@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 
 from tests.helpers import (
     auth_headers,
-    create_topic,
+    create_learning_location,
     login_user,
     seed_paid_class_with_held_bookings,
     seed_user,
@@ -36,8 +36,11 @@ def test_minimum_participants_reached_notifies_tutor_and_tutor_confirmation_noti
     db_session,
 ):
     _, teacher_token = _signup_and_login(client, role="teacher", full_name="Teacher Notify")
-    topic = create_topic(db_session, name="Notification English")
-
+    location = create_learning_location(
+        db_session,
+        name="Notification Room",
+        address="Google Meet",
+    )
     start_time = datetime.now(timezone.utc) + timedelta(days=1)
     end_time = start_time + timedelta(hours=2)
     creation_response = client.post(
@@ -45,12 +48,11 @@ def test_minimum_participants_reached_notifies_tutor_and_tutor_confirmation_noti
         headers=auth_headers(teacher_token),
         json={
             "class_payload": {
-                "topic_id": topic.id,
+                "topic": "Notification English",
                 "title": "Minimum Participant Notification",
                 "description": "Test confirmation flow",
                 "level": "intermediate",
-                "location_name": "Online",
-                "location_address": "Google Meet",
+                "location_id": location.id,
                 "start_time": start_time.isoformat(),
                 "end_time": end_time.isoformat(),
                 "min_participants": 2,
@@ -155,6 +157,8 @@ def test_minimum_participants_reached_notifies_tutor_and_tutor_confirmation_noti
     )
     assert summary_response.status_code == 200
     summary_body = summary_response.json()
+    assert summary_body["min_participants"] == 2
+    assert summary_body["max_participants"] == 4
     assert summary_body["minimum_participants_reached"] is True
     assert summary_body["tutor_confirmation_status"] == "pending"
 
@@ -284,8 +288,11 @@ def test_notify_classes_starting_soon_notifies_tutor_and_students_once(client, d
 
 def test_tutor_cancel_class_creates_cancelled_and_refund_notifications(client, db_session):
     _, teacher_token = _signup_and_login(client, role="teacher", full_name="Teacher Cancel Flow")
-    topic = create_topic(db_session, name="Cancelled Class Topic")
-
+    location = create_learning_location(
+        db_session,
+        name="Cancelled Class Room",
+        address="Google Meet",
+    )
     start_time = datetime.now(timezone.utc) + timedelta(days=2)
     end_time = start_time + timedelta(hours=2)
     creation_response = client.post(
@@ -293,12 +300,11 @@ def test_tutor_cancel_class_creates_cancelled_and_refund_notifications(client, d
         headers=auth_headers(teacher_token),
         json={
             "class_payload": {
-                "topic_id": topic.id,
+                "topic": "Cancelled Class Topic",
                 "title": "Cancelled Class Notification",
                 "description": "Test cancel flow",
                 "level": "intermediate",
-                "location_name": "Online",
-                "location_address": "Google Meet",
+                "location_id": location.id,
                 "start_time": start_time.isoformat(),
                 "end_time": end_time.isoformat(),
                 "min_participants": 1,
@@ -368,6 +374,46 @@ def test_tutor_cancel_class_creates_cancelled_and_refund_notifications(client, d
     assert cancelled_notification["data"]["cancellation_reason"] == "Tutor co viec dot xuat"
     assert refund_notification["data"]["class_id"] == creation_body["class_id"]
     assert refund_notification["data"]["refund_reason"] == "Tutor co viec dot xuat"
+
+
+def test_cancel_underfilled_classes_uses_active_bookings_instead_of_stale_cached_count(
+    client,
+    db_session,
+):
+    now = datetime.now(timezone.utc)
+    seeded = seed_paid_class_with_held_bookings(
+        db_session,
+        student_count=2,
+        start_time=now + timedelta(hours=2),
+        end_time=now + timedelta(hours=4),
+    )
+
+    cls = seeded["class"]
+    bookings = seeded["bookings"]
+    payments = seeded["tuition_payments"]
+
+    cls.min_participants = 2
+    cls.current_participants = 2
+    bookings[1].status = "refunded"
+    bookings[1].payment_status = "refunded"
+    bookings[1].escrow_status = "refunded"
+    payments[1].status = "refunded"
+    db_session.commit()
+
+    response = client.post(
+        "/payments/jobs/cancel-underfilled-classes",
+        headers={"x-job-secret": "test-job-secret"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["count"] == 1
+    assert cls.id in body["cancelled_class_ids"]
+
+    db_session.expire_all()
+    refreshed_class = db_session.query(Class).filter(Class.id == cls.id).first()
+    assert refreshed_class is not None
+    assert refreshed_class.status == "cancelled"
+    assert refreshed_class.current_participants == 0
 
 
 def test_notifications_cursor_endpoint_returns_stable_pages(client, db_session):

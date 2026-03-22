@@ -9,6 +9,7 @@ class Class(Base):
     id = Column(TEXT, primary_key=True)
     teacher_id = Column(TEXT, ForeignKey("users.id"), nullable=False)
     topic_id = Column(TEXT, ForeignKey("topics.id"), nullable=False)
+    topic = Column(VARCHAR(100), nullable=False, default="")
     title = Column(VARCHAR(200), nullable=False)
     description = Column(TEXT, nullable=True)
     level = Column(TEXT, nullable=False)  # beginner | intermediate | advanced

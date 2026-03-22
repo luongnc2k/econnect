@@ -9,16 +9,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 class TutorClassSummaryScreen extends ConsumerStatefulWidget {
   final String classCode;
 
-  const TutorClassSummaryScreen({
-    required this.classCode,
-    super.key,
-  });
+  const TutorClassSummaryScreen({required this.classCode, super.key});
 
   @override
-  ConsumerState<TutorClassSummaryScreen> createState() => _TutorClassSummaryScreenState();
+  ConsumerState<TutorClassSummaryScreen> createState() =>
+      _TutorClassSummaryScreenState();
 }
 
-class _TutorClassSummaryScreenState extends ConsumerState<TutorClassSummaryScreen> {
+class _TutorClassSummaryScreenState
+    extends ConsumerState<TutorClassSummaryScreen> {
   PaymentSummary? _summary;
   String? _error;
   bool _loading = false;
@@ -40,10 +39,9 @@ class _TutorClassSummaryScreenState extends ConsumerState<TutorClassSummaryScree
       _error = null;
     });
 
-    final result = await ref.read(paymentsRemoteRepositoryProvider).getSummaryByClassCode(
-          token: user.token,
-          classCode: widget.classCode,
-        );
+    final result = await ref
+        .read(paymentsRemoteRepositoryProvider)
+        .getSummaryByClassCode(token: user.token, classCode: widget.classCode);
     if (!mounted) {
       return;
     }
@@ -70,9 +68,7 @@ class _TutorClassSummaryScreenState extends ConsumerState<TutorClassSummaryScree
     final cs = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Chi tiết lớp của Tutor'),
-      ),
+      appBar: AppBar(title: const Text('Chi tiết lớp của Tutor')),
       body: RefreshIndicator(
         onRefresh: _loadSummary,
         child: ListView(
@@ -90,16 +86,16 @@ class _TutorClassSummaryScreenState extends ConsumerState<TutorClassSummaryScree
                   Text(
                     widget.classCode,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     'Màn hình này tối ưu cho deeplink từ thông báo để Tutor mở nhanh tình trạng lớp và payout.',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: cs.onSurfaceVariant,
-                          height: 1.45,
-                        ),
+                      color: cs.onSurfaceVariant,
+                      height: 1.45,
+                    ),
                   ),
                 ],
               ),
@@ -129,9 +125,7 @@ class _TutorClassSummaryScreenState extends ConsumerState<TutorClassSummaryScree
 class _TutorSummaryCard extends StatelessWidget {
   final PaymentSummary summary;
 
-  const _TutorSummaryCard({
-    required this.summary,
-  });
+  const _TutorSummaryCard({required this.summary});
 
   @override
   Widget build(BuildContext context) {
@@ -148,15 +142,28 @@ class _TutorSummaryCard extends StatelessWidget {
         children: [
           Text(
             'Tổng quan thanh toán',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 14),
           _TutorSummaryRow(label: 'Trạng thái lớp', value: summary.classStatus),
-          _TutorSummaryRow(label: 'Creation fee', value: '${summary.creationFeeAmount} VND'),
-          _TutorSummaryRow(label: 'Creation payment', value: summary.creationPaymentStatus),
-          _TutorSummaryRow(label: 'Học viên hiện tại', value: summary.currentParticipants.toString()),
+          _TutorSummaryRow(
+            label: 'Creation fee',
+            value: '${summary.creationFeeAmount} VND',
+          ),
+          _TutorSummaryRow(
+            label: 'Creation payment',
+            value: summary.creationPaymentStatus,
+          ),
+          _TutorSummaryRow(
+            label: 'Học viên hiện tại',
+            value: '${summary.currentParticipants}/${summary.maxParticipants}',
+          ),
+          _TutorSummaryRow(
+            label: 'Ngưỡng tối thiểu',
+            value: summary.minParticipants.toString(),
+          ),
           _TutorSummaryRow(
             label: 'Đã đủ học viên tối thiểu',
             value: summary.minimumParticipantsReached ? 'Có' : 'Chưa',
@@ -165,10 +172,22 @@ class _TutorSummaryCard extends StatelessWidget {
             label: 'Tutor xác nhận dạy',
             value: summary.tutorConfirmationStatus,
           ),
-          _TutorSummaryRow(label: 'Tổng escrow', value: '${summary.totalEscrowHeld} VND'),
-          _TutorSummaryRow(label: 'Trạng thái payout', value: summary.tutorPayoutStatus),
-          _TutorSummaryRow(label: 'Số tiền payout', value: '${summary.tutorPayoutAmount} VND'),
-          _TutorSummaryRow(label: 'Khiếu nại đang mở', value: summary.activeDisputes.toString()),
+          _TutorSummaryRow(
+            label: 'Tổng escrow',
+            value: '${summary.totalEscrowHeld} VND',
+          ),
+          _TutorSummaryRow(
+            label: 'Trạng thái payout',
+            value: summary.tutorPayoutStatus,
+          ),
+          _TutorSummaryRow(
+            label: 'Số tiền payout',
+            value: '${summary.tutorPayoutAmount} VND',
+          ),
+          _TutorSummaryRow(
+            label: 'Khiếu nại đang mở',
+            value: summary.activeDisputes.toString(),
+          ),
         ],
       ),
     );
@@ -179,10 +198,7 @@ class _TutorSummaryRow extends StatelessWidget {
   final String label;
   final String value;
 
-  const _TutorSummaryRow({
-    required this.label,
-    required this.value,
-  });
+  const _TutorSummaryRow({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {

@@ -1,9 +1,9 @@
 import 'package:client/core/router/app_router.dart';
 import 'package:client/core/failure/failure.dart';
 import 'package:client/core/providers/current_user_notifier.dart';
-import 'package:client/features/auth/viewmodel/auth_viewmodel.dart';
 import 'package:client/features/payments/model/payment_summary.dart';
 import 'package:client/features/payments/repositories/payments_remote_repository.dart';
+import 'package:client/features/profile/view/widgets/my_profile_view.dart';
 import 'package:client/features/tutor/view/screens/tutor_home_tab.dart';
 import 'package:client/features/tutor/view/screens/tutor_schedule_screen.dart';
 import 'package:fpdart/fpdart.dart';
@@ -28,7 +28,7 @@ class _TutorNavShellState extends State<TutorNavShell> {
     ),
     const TutorScheduleScreen(),
     const _TutorPaymentTab(),
-    const _PlaceholderTab(label: 'Hoc vien'),
+    const _PlaceholderTab(label: 'Học viên'),
     const _ProfileTab(),
   ];
 
@@ -40,7 +40,7 @@ class _TutorNavShellState extends State<TutorNavShell> {
           ? FloatingActionButton.extended(
               onPressed: () => context.push(AppRoutes.teacherCreateClass),
               icon: const Icon(Icons.add_rounded),
-              label: const Text('Tao lop hoc'),
+              label: const Text('Tạo buổi học'),
             )
           : null,
       bottomNavigationBar: NavigationBar(
@@ -50,27 +50,27 @@ class _TutorNavShellState extends State<TutorNavShell> {
           NavigationDestination(
             icon: Icon(Icons.home_outlined),
             selectedIcon: Icon(Icons.home_rounded),
-            label: 'Trang chu',
+            label: 'Trang chủ',
           ),
           NavigationDestination(
             icon: Icon(Icons.calendar_month_outlined),
             selectedIcon: Icon(Icons.calendar_month_rounded),
-            label: 'Lich day',
+            label: 'Lịch dạy',
           ),
           NavigationDestination(
             icon: Icon(Icons.payments_outlined),
             selectedIcon: Icon(Icons.payments_rounded),
-            label: 'Thanh toan',
+            label: 'Thanh toán',
           ),
           NavigationDestination(
             icon: Icon(Icons.people_outline_rounded),
             selectedIcon: Icon(Icons.people_rounded),
-            label: 'Hoc vien',
+            label: 'Học viên',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline_rounded),
             selectedIcon: Icon(Icons.person_rounded),
-            label: 'Ho so',
+            label: 'Hồ sơ',
           ),
         ],
       ),
@@ -113,10 +113,9 @@ class _TutorPaymentTabState extends ConsumerState<_TutorPaymentTab> {
       _error = null;
     });
 
-    final result = await ref.read(paymentsRemoteRepositoryProvider).getSummaryByClassCode(
-          token: user.token,
-          classCode: code,
-        );
+    final result = await ref
+        .read(paymentsRemoteRepositoryProvider)
+        .getSummaryByClassCode(token: user.token, classCode: code);
     if (!mounted) {
       return;
     }
@@ -148,9 +147,9 @@ class _TutorPaymentTabState extends ConsumerState<_TutorPaymentTab> {
         children: [
           Text(
             'Theo doi thanh toan',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 8),
           Text(
@@ -164,7 +163,9 @@ class _TutorPaymentTabState extends ConsumerState<_TutorPaymentTab> {
             decoration: InputDecoration(
               labelText: 'Ma lop',
               hintText: 'VD: CLS-260315-ABCD',
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
             ),
           ),
           const SizedBox(height: 12),
@@ -206,24 +207,49 @@ class _SummaryCard extends StatelessWidget {
         children: [
           Text(
             'Tong quan doi soat',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 14),
           _SummaryRow(label: 'Trang thai lop', value: summary.classStatus),
-          _SummaryRow(label: 'Creation fee', value: '${summary.creationFeeAmount} VND'),
-          _SummaryRow(label: 'Creation payment', value: summary.creationPaymentStatus),
-          _SummaryRow(label: 'Hoc vien hien tai', value: summary.currentParticipants.toString()),
+          _SummaryRow(
+            label: 'Creation fee',
+            value: '${summary.creationFeeAmount} VND',
+          ),
+          _SummaryRow(
+            label: 'Creation payment',
+            value: summary.creationPaymentStatus,
+          ),
+          _SummaryRow(
+            label: 'Hoc vien hien tai',
+            value: '${summary.currentParticipants}/${summary.maxParticipants}',
+          ),
+          _SummaryRow(
+            label: 'Nguong toi thieu',
+            value: summary.minParticipants.toString(),
+          ),
           _SummaryRow(
             label: 'Da du hoc vien toi thieu',
             value: summary.minimumParticipantsReached ? 'Co' : 'Chua',
           ),
-          _SummaryRow(label: 'Tutor xac nhan day', value: summary.tutorConfirmationStatus),
-          _SummaryRow(label: 'Tong escrow', value: '${summary.totalEscrowHeld} VND'),
+          _SummaryRow(
+            label: 'Tutor xac nhan day',
+            value: summary.tutorConfirmationStatus,
+          ),
+          _SummaryRow(
+            label: 'Tong escrow',
+            value: '${summary.totalEscrowHeld} VND',
+          ),
           _SummaryRow(label: 'Payout tutor', value: summary.tutorPayoutStatus),
-          _SummaryRow(label: 'So tien payout', value: '${summary.tutorPayoutAmount} VND'),
-          _SummaryRow(label: 'Dispute dang mo', value: summary.activeDisputes.toString()),
+          _SummaryRow(
+            label: 'So tien payout',
+            value: '${summary.tutorPayoutAmount} VND',
+          ),
+          _SummaryRow(
+            label: 'Dispute dang mo',
+            value: summary.activeDisputes.toString(),
+          ),
         ],
       ),
     );
@@ -285,15 +311,6 @@ class _ProfileTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Center(
-      child: FilledButton.tonal(
-        onPressed: () => ref.read(authViewModelProvider.notifier).logout(),
-        style: FilledButton.styleFrom(
-          backgroundColor: Theme.of(context).colorScheme.errorContainer,
-          foregroundColor: Theme.of(context).colorScheme.onErrorContainer,
-        ),
-        child: const Text('Dang xuat'),
-      ),
-    );
+    return const SafeArea(child: MyProfileView());
   }
 }

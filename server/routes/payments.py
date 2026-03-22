@@ -10,12 +10,12 @@ from sqlalchemy import and_, func
 from sqlalchemy.orm import Session
 
 from database import get_db
+from learning_location_service import get_active_learning_location_or_400
 from middleware.auth_middleware import auth_middleware, optional_auth_middleware
 from models.booking import Booking
 from models.class_ import Class
 from models.payment import Payment
 from models.teacher_profile import TeacherProfile
-from models.topic import Topic
 from models.user import User
 from notification_service import (
     dispatch_due_class_starting_soon_notifications,
@@ -58,6 +58,7 @@ from pydantic_schemas.payment import (
     calculate_creation_fee,
     calculate_student_tuition,
 )
+from topic_service import ensure_topic_record
 
 router = APIRouter()
 JOB_SECRET = (os.getenv("JOB_SECRET", "") or "").strip()
@@ -559,22 +560,22 @@ def create_class_payment_request(
     _require_role(teacher, {"teacher"})
 
     class_data = body.class_payload
-    topic = db.query(Topic).filter(Topic.id == class_data.topic_id, Topic.is_active == True).first()
-    if not topic:
-        raise HTTPException(status_code=404, detail="Topic khong ton tai")
+    resolved_topic = ensure_topic_record(db, class_data.topic)
+    selected_location = get_active_learning_location_or_400(db, class_data.location_id)
 
     creation_fee = calculate_creation_fee(class_data.price)
     new_class = Class(
         id=str(uuid.uuid4()),
         teacher_id=teacher.id,
-        topic_id=topic.id,
+        topic_id=resolved_topic.id,
+        topic=resolved_topic.name,
         title=class_data.title,
         description=class_data.description,
         level=class_data.level,
-        location_name=class_data.location_name,
-        location_address=class_data.location_address,
-        latitude=class_data.latitude,
-        longitude=class_data.longitude,
+        location_name=selected_location.name,
+        location_address=selected_location.address,
+        latitude=selected_location.latitude,
+        longitude=selected_location.longitude,
         start_time=class_data.start_time,
         end_time=class_data.end_time,
         min_participants=class_data.min_participants,
@@ -1400,6 +1401,8 @@ def _build_class_payment_summary(db: Session, class_id: str) -> PaymentSummaryRe
         class_status=cls.status,
         creation_payment_status=cls.creation_payment_status,
         creation_fee_amount=cls.creation_fee_amount,
+        min_participants=cls.min_participants,
+        max_participants=cls.max_participants,
         current_participants=cls.current_participants,
         minimum_participants_reached=cls.minimum_participants_reached,
         tutor_confirmation_status=cls.tutor_confirmation_status,
@@ -1524,7 +1527,8 @@ def cancel_underfilled_classes(
 
     cancelled = []
     for cls in classes:
-        if cls.current_participants >= cls.min_participants:
+        active_count = _sync_class_participants(db, cls.id)
+        if active_count >= cls.min_participants:
             continue
 
         cls.status = "cancelled"

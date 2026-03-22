@@ -38,22 +38,22 @@ class _StudentNavShellState extends State<StudentNavShell> {
           NavigationDestination(
             icon: Icon(Icons.home_outlined),
             selectedIcon: Icon(Icons.home_rounded),
-            label: 'Trang chu',
+            label: 'Trang chủ',
           ),
           NavigationDestination(
             icon: Icon(Icons.search_outlined),
             selectedIcon: Icon(Icons.search_rounded),
-            label: 'Tim kiem',
+            label: 'Tìm kiếm',
           ),
           NavigationDestination(
             icon: Icon(Icons.menu_book_outlined),
             selectedIcon: Icon(Icons.menu_book_rounded),
-            label: 'Lop hoc',
+            label: 'Lớp học',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline_rounded),
             selectedIcon: Icon(Icons.person_rounded),
-            label: 'Ho so',
+            label: 'Hồ sơ',
           ),
         ],
       ),

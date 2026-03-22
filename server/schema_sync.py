@@ -1,9 +1,14 @@
 from sqlalchemy import inspect, text
 from sqlalchemy.engine import Engine
 
+from learning_location_service import DEFAULT_LEARNING_LOCATIONS
+
 
 def sync_schema(engine: Engine) -> None:
+    _ensure_learning_locations_table(engine)
+    _ensure_default_learning_locations(engine)
     _ensure_teacher_profile_bank_columns(engine)
+    _ensure_class_topic_column(engine)
     _ensure_class_payment_columns(engine)
     _ensure_booking_payment_columns(engine)
     _ensure_payment_columns(engine)
@@ -20,6 +25,33 @@ def _ensure_teacher_profile_bank_columns(engine: Engine) -> None:
         "bank_account_holder": "VARCHAR(100)",
     }
     _ensure_columns(engine, table_name, missing_columns)
+
+
+def _ensure_class_topic_column(engine: Engine) -> None:
+    _ensure_columns(
+        engine,
+        "classes",
+        {
+            "topic": "VARCHAR(100) NOT NULL DEFAULT ''",
+        },
+    )
+
+    inspector = inspect(engine)
+    if "classes" not in inspector.get_table_names() or "topics" not in inspector.get_table_names():
+        return
+
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                """
+                UPDATE classes
+                SET topic = topics.name
+                FROM topics
+                WHERE classes.topic_id = topics.id
+                  AND COALESCE(classes.topic, '') = ''
+                """
+            )
+        )
 
 
 def _ensure_class_payment_columns(engine: Engine) -> None:
@@ -175,3 +207,87 @@ def _ensure_push_device_tokens_table(engine: Engine) -> None:
 
     with engine.begin() as connection:
         connection.execute(text(create_table_statement))
+
+
+def _ensure_learning_locations_table(engine: Engine) -> None:
+    inspector = inspect(engine)
+    if "learning_locations" in inspector.get_table_names():
+        _ensure_columns(
+            engine,
+            "learning_locations",
+            {
+                "latitude": "NUMERIC(10, 8)",
+                "longitude": "NUMERIC(10, 7)",
+                "notes": "TEXT",
+                "is_active": "BOOLEAN NOT NULL DEFAULT TRUE",
+                "created_at": "TIMESTAMPTZ NOT NULL DEFAULT NOW()",
+                "updated_at": "TIMESTAMPTZ NOT NULL DEFAULT NOW()",
+            },
+        )
+        return
+
+    create_table_statement = """
+    CREATE TABLE learning_locations (
+        id TEXT PRIMARY KEY,
+        name VARCHAR(150) NOT NULL,
+        address TEXT NOT NULL,
+        latitude NUMERIC(10, 8),
+        longitude NUMERIC(10, 7),
+        notes TEXT,
+        is_active BOOLEAN NOT NULL DEFAULT TRUE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+    """
+
+    with engine.begin() as connection:
+        connection.execute(text(create_table_statement))
+
+
+def _ensure_default_learning_locations(engine: Engine) -> None:
+    inspector = inspect(engine)
+    if "learning_locations" not in inspector.get_table_names():
+        return
+
+    with engine.begin() as connection:
+        for location in DEFAULT_LEARNING_LOCATIONS:
+            exists = connection.execute(
+                text("SELECT 1 FROM learning_locations WHERE id = :id"),
+                {"id": location["id"]},
+            ).scalar()
+            if exists:
+                connection.execute(
+                    text(
+                        """
+                        UPDATE learning_locations
+                        SET name = :name,
+                            address = :address,
+                            notes = :notes,
+                            is_active = TRUE
+                        WHERE id = :id
+                        """
+                    ),
+                    location,
+                )
+                continue
+
+            connection.execute(
+                text(
+                    """
+                    INSERT INTO learning_locations (
+                        id,
+                        name,
+                        address,
+                        notes,
+                        is_active
+                    ) VALUES (
+                        :id,
+                        :name,
+                        :address,
+                        :notes,
+                        TRUE
+                    )
+                    """
+                ),
+                location,
+            )

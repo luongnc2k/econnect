@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 
 from models.booking import Booking
 from models.class_ import Class
-from tests.helpers import auth_headers, create_topic, login_user, signup_user
+from tests.helpers import auth_headers, create_learning_location, login_user, signup_user
 
 
 def test_payment_flow_creates_class_confirms_tuition_and_restricts_transaction_access(client, db_session):
@@ -19,8 +19,11 @@ def test_payment_flow_creates_class_confirms_tuition_and_restricts_transaction_a
         password=teacher_payload["password"],
     )
     teacher_token = teacher_login_response.json()["token"]
-    topic = create_topic(db_session, name="Business English")
-
+    location = create_learning_location(
+        db_session,
+        name="Online Payment Room",
+        address="Google Meet",
+    )
     start_time = datetime.now(timezone.utc) + timedelta(days=1)
     end_time = start_time + timedelta(hours=2)
     creation_response = client.post(
@@ -28,12 +31,11 @@ def test_payment_flow_creates_class_confirms_tuition_and_restricts_transaction_a
         headers=auth_headers(teacher_token),
         json={
             "class_payload": {
-                "topic_id": topic.id,
+                "topic": "Business English",
                 "title": "Production Payment Flow",
                 "description": "Test class",
                 "level": "intermediate",
-                "location_name": "Online",
-                "location_address": "Google Meet",
+                "location_id": location.id,
                 "start_time": start_time.isoformat(),
                 "end_time": end_time.isoformat(),
                 "min_participants": 1,
@@ -130,5 +132,54 @@ def test_payment_flow_creates_class_confirms_tuition_and_restricts_transaction_a
     assert cls is not None
     assert booking is not None
     assert cls.current_participants == 1
+    assert cls.location_name == "Online Payment Room"
+    assert cls.location_address == "Google Meet"
     assert booking.status == "confirmed"
     assert booking.escrow_status == "held"
+
+
+def test_class_creation_request_rejects_title_longer_than_100_characters(client, db_session):
+    teacher_payload, teacher_signup_response = signup_user(
+        client,
+        role="teacher",
+        full_name="Teacher Title Limit",
+    )
+    assert teacher_signup_response.status_code == 201
+
+    teacher_login_response = login_user(
+        client,
+        email=teacher_payload["email"],
+        password=teacher_payload["password"],
+    )
+    teacher_token = teacher_login_response.json()["token"]
+    location = create_learning_location(
+        db_session,
+        name="Online Title Limit",
+        address="Google Meet",
+    )
+    start_time = datetime.now(timezone.utc) + timedelta(days=1)
+    end_time = start_time + timedelta(hours=2)
+    response = client.post(
+        "/payments/class-creation/request",
+        headers=auth_headers(teacher_token),
+        json={
+            "class_payload": {
+                "topic": "Topic Title Limit",
+                "title": "A" * 101,
+                "description": "Test class",
+                "level": "intermediate",
+                "location_id": location.id,
+                "start_time": start_time.isoformat(),
+                "end_time": end_time.isoformat(),
+                "min_participants": 1,
+                "max_participants": 2,
+                "price": "200000",
+            }
+        },
+    )
+
+    assert response.status_code == 422
+    assert any(
+        error["loc"][-1] == "title" and "at most 100 characters" in error["msg"]
+        for error in response.json()["detail"]
+    )

@@ -5,9 +5,11 @@ from typing import Optional
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from database import get_db
+from learning_location_service import get_active_learning_location_or_400
 from middleware.auth_middleware import auth_middleware
 from models.booking import Booking
 from models.class_ import Class
@@ -21,9 +23,9 @@ from pydantic_schemas.class_response import (
     ClassResponse,
     EnrolledStudentBrief,
     TeacherBrief,
-    TopicBrief,
 )
 from pydantic_schemas.payment import calculate_creation_fee
+from topic_service import ensure_topic_record, resolve_class_topic_label
 
 router = APIRouter()
 
@@ -42,9 +44,10 @@ def _build_class_code(cls: Class) -> str:
 
 def _to_class_response(
     cls: Class,
-    tp: Topic,
     teacher_user: User,
     teacher_profile: Optional[TeacherProfile],
+    *,
+    topic_name: str,
 ) -> ClassResponse:
     return ClassResponse(
         id=cls.id,
@@ -65,12 +68,7 @@ def _to_class_response(
         price=cls.price,
         thumbnail_url=cls.thumbnail_url,
         status=cls.status,
-        topic=TopicBrief(
-            id=tp.id,
-            name=tp.name,
-            slug=tp.slug,
-            icon=tp.icon,
-        ),
+        topic=topic_name,
         teacher=TeacherBrief(
             id=teacher_user.id,
             full_name=teacher_user.full_name,
@@ -78,6 +76,14 @@ def _to_class_response(
             rating_avg=teacher_profile.rating_avg if teacher_profile else None,
             total_sessions=teacher_profile.total_sessions if teacher_profile else None,
         ),
+    )
+
+
+def _topic_filter_expression(raw_topic: str):
+    normalized = raw_topic.strip().lower()
+    return or_(
+        func.lower(Class.topic).contains(normalized),
+        func.lower(func.coalesce(Topic.name, "")).contains(normalized),
     )
 
 
@@ -164,7 +170,7 @@ def get_my_classes(
 
     query = (
         db.query(Class, Topic)
-        .join(Topic, Class.topic_id == Topic.id)
+        .outerjoin(Topic, Class.topic_id == Topic.id)
         .filter(Class.teacher_id == teacher.id)
     )
 
@@ -177,12 +183,20 @@ def get_my_classes(
         ).order_by(Class.start_time.asc())
 
     rows = query.all()
-    return [_to_class_response(cls, tp, teacher, teacher_profile) for cls, tp in rows]
+    return [
+        _to_class_response(
+            cls,
+            teacher,
+            teacher_profile,
+            topic_name=resolve_class_topic_label(cls, topic=tp),
+        )
+        for cls, tp in rows
+    ]
 
 
 @router.get("/upcoming", response_model=list[ClassResponse])
 def get_upcoming_classes(
-    topic: Optional[str] = Query(default=None, description="Filter by topic slug"),
+    topic: Optional[str] = Query(default=None, description="Filter by topic text"),
     q: Optional[str] = Query(default=None, description="Search by class title or class code"),
     db: Session = Depends(get_db),
     user_dict: dict = Depends(auth_middleware),
@@ -196,14 +210,14 @@ def get_upcoming_classes(
     now = datetime.now(timezone.utc)
     query = (
         db.query(Class, Topic, User, TeacherProfile)
-        .join(Topic, Class.topic_id == Topic.id)
+        .outerjoin(Topic, Class.topic_id == Topic.id)
         .join(User, Class.teacher_id == User.id)
         .outerjoin(TeacherProfile, TeacherProfile.user_id == User.id)
         .filter(Class.start_time > now, Class.status == "scheduled")
     )
 
-    if topic:
-        query = query.filter(Topic.slug == topic)
+    if topic and topic.strip():
+        query = query.filter(_topic_filter_expression(topic))
 
     rows = query.order_by(Class.start_time.asc()).all()
     keyword = (q or "").strip().lower()
@@ -211,9 +225,23 @@ def get_upcoming_classes(
     results = []
     for cls, tp, teacher_user, teacher_profile in rows:
         class_code = _build_class_code(cls)
-        if keyword and keyword not in cls.title.lower() and keyword not in class_code.lower():
+        topic_name_display = resolve_class_topic_label(cls, topic=tp)
+        topic_name = topic_name_display.lower()
+        if (
+            keyword
+            and keyword not in cls.title.lower()
+            and keyword not in class_code.lower()
+            and keyword not in topic_name
+        ):
             continue
-        results.append(_to_class_response(cls, tp, teacher_user, teacher_profile))
+        results.append(
+            _to_class_response(
+                cls,
+                teacher_user,
+                teacher_profile,
+                topic_name=topic_name_display,
+            )
+        )
 
     return results[:20]
 
@@ -237,7 +265,7 @@ def get_class_by_code(
     now = datetime.now(timezone.utc)
     rows = (
         db.query(Class, Topic, User, TeacherProfile)
-        .join(Topic, Class.topic_id == Topic.id)
+        .outerjoin(Topic, Class.topic_id == Topic.id)
         .join(User, Class.teacher_id == User.id)
         .outerjoin(TeacherProfile, TeacherProfile.user_id == User.id)
         .filter(Class.start_time > now, Class.status == "scheduled")
@@ -247,7 +275,12 @@ def get_class_by_code(
 
     for cls, tp, teacher_user, teacher_profile in rows:
         if _build_class_code(cls).upper() == normalized_code:
-            return _to_class_response(cls, tp, teacher_user, teacher_profile)
+            return _to_class_response(
+                cls,
+                teacher_user,
+                teacher_profile,
+                topic_name=resolve_class_topic_label(cls, topic=tp),
+            )
 
     raise HTTPException(status_code=404, detail="Khong tim thay lop hoc voi ma nay")
 
@@ -262,11 +295,16 @@ def get_class_detail(
     if not teacher or teacher.role != "teacher":
         raise HTTPException(status_code=403, detail="Chi giao vien moi co the xem chi tiet lop")
 
-    cls = db.query(Class).filter(Class.id == class_id, Class.teacher_id == teacher.id).first()
-    if not cls:
+    row = (
+        db.query(Class, Topic)
+        .outerjoin(Topic, Class.topic_id == Topic.id)
+        .filter(Class.id == class_id, Class.teacher_id == teacher.id)
+        .first()
+    )
+    if not row:
         raise HTTPException(status_code=404, detail="Khong tim thay lop hoc")
 
-    topic = db.query(Topic).filter(Topic.id == cls.topic_id).first()
+    cls, topic = row
     teacher_profile = db.query(TeacherProfile).filter(TeacherProfile.user_id == teacher.id).first()
 
     bookings = (
@@ -288,7 +326,12 @@ def get_class_detail(
         for booking, student in bookings
     ]
 
-    base = _to_class_response(cls, topic, teacher, teacher_profile)
+    base = _to_class_response(
+        cls,
+        teacher,
+        teacher_profile,
+        topic_name=resolve_class_topic_label(cls, topic=topic),
+    )
     return ClassDetailResponse(**base.model_dump(), enrolled_students=enrolled)
 
 
@@ -308,23 +351,22 @@ def create_class(
     if not teacher or teacher.role != "teacher":
         raise HTTPException(status_code=403, detail="Chi giao vien moi co the tao lop hoc")
 
-    topic = db.query(Topic).filter(Topic.id == body.topic_id, Topic.is_active.is_(True)).first()
-    if not topic:
-        raise HTTPException(status_code=404, detail="Topic khong ton tai")
-
+    resolved_topic = ensure_topic_record(db, body.topic)
+    selected_location = get_active_learning_location_or_400(db, body.location_id)
     creation_fee = calculate_creation_fee(body.price)
 
     new_class = Class(
         id=str(uuid.uuid4()),
         teacher_id=teacher.id,
-        topic_id=topic.id,
+        topic_id=resolved_topic.id,
+        topic=resolved_topic.name,
         title=body.title,
         description=body.description,
         level=body.level,
-        location_name=body.location_name,
-        location_address=body.location_address,
-        latitude=body.latitude,
-        longitude=body.longitude,
+        location_name=selected_location.name,
+        location_address=selected_location.address,
+        latitude=selected_location.latitude,
+        longitude=selected_location.longitude,
         start_time=body.start_time,
         end_time=body.end_time,
         min_participants=body.min_participants,
@@ -346,4 +388,9 @@ def create_class(
     db.refresh(new_class)
 
     teacher_profile = db.query(TeacherProfile).filter(TeacherProfile.user_id == teacher.id).first()
-    return _to_class_response(new_class, topic, teacher, teacher_profile)
+    return _to_class_response(
+        new_class,
+        teacher,
+        teacher_profile,
+        topic_name=resolve_class_topic_label(new_class, topic=resolved_topic),
+    )

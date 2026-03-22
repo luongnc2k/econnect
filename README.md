@@ -1,4 +1,4 @@
-# EConnect
+﻿# EConnect
 
 Nền tảng kết nối gia sư và học viên cho các lớp tiếng Anh offline.
 
@@ -62,6 +62,12 @@ cp .env.example .env
 uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
+Trên Windows, nếu local web/Chrome bị treo vì còn `uvicorn` cũ chiếm cổng `8000`, dùng script clean start:
+
+```powershell
+.\scripts\start-dev-backend.ps1
+```
+
 Server sẵn sàng tại `http://localhost:8000`, Swagger UI tại `http://localhost:8000/docs`.
 
 **Reset database** (xóa toàn bộ bảng và tạo lại schema):
@@ -114,6 +120,14 @@ flutter run
 # Bật mock test thủ công khi cần
 flutter run --dart-define=ENABLE_MANUAL_TEST_MOCKS=true
 
+# Android emulator local server
+# App se mac dinh dung 10.0.2.2 neu khong truyen SERVER_URL,
+# nhung ban van co the set ro rang nhu ben duoi
+flutter run --dart-define=SERVER_URL=http://10.0.2.2:8000
+
+# May that / thiet bi khac cung mang LAN
+flutter run --dart-define=SERVER_URL=http://<LAN_IP_CUA_MAY_DEV>:8000
+
 # Ví dụ chạy client có bật FCM trên Android/iOS
 flutter run \
   --dart-define=FCM_API_KEY=... \
@@ -143,8 +157,8 @@ flutter run \
 
 | Method | Endpoint | Xác thực | Role | Mô tả |
 |---|---|---|---|---|
-| GET | `/classes/upcoming` | ✓ | any | Lớp sắp diễn ra, hỗ trợ filter theo `?topic=slug` |
-| POST | `/classes` | ✓ | teacher | Tạo lớp học mới |
+| GET | `/classes/upcoming` | ✓ | any | Buổi học sắp diễn ra, hỗ trợ filter theo `?topic=slug` |
+| POST | `/classes` | ✓ | teacher | Tạo buổi học mới |
 
 ### Topics — `/topics`
 
@@ -157,7 +171,7 @@ flutter run \
 
 | Method | Endpoint | Xác thực | Mô tả |
 |---|---|---|---|
-| POST | `/upload/thumbnail` | ✓ | Upload thumbnail lớp học (≤ 5MB) và trả về URL |
+| POST | `/upload/thumbnail` | ✓ | Upload thumbnail buổi học (≤ 5MB) và trả về URL |
 | POST | `/upload/avatar` | ✓ | Upload avatar người dùng (≤ 2MB) và lưu vào DB |
 
 ---

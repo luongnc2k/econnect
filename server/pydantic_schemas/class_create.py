@@ -1,18 +1,15 @@
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 from datetime import datetime
 from typing import Literal, Optional
 from decimal import Decimal
 
 
 class ClassCreate(BaseModel):
-    topic_id: str
-    title: str
-    description: Optional[str] = None
+    topic: str = Field(min_length=1, max_length=100)
+    title: str = Field(min_length=1, max_length=100)
+    description: Optional[str] = Field(default=None, max_length=300)
     level: Literal['beginner', 'intermediate', 'advanced']
-    location_name: str
-    location_address: Optional[str] = None
-    latitude: Optional[Decimal] = None
-    longitude: Optional[Decimal] = None
+    location_id: str = Field(min_length=1)
     start_time: datetime
     end_time: datetime
     min_participants: int = 1
@@ -56,3 +53,20 @@ class ClassCreate(BaseModel):
         if start and v <= start:
             raise ValueError('end_time phải sau start_time')
         return v
+    @field_validator('topic', 'title', 'location_id', mode='before')
+    @classmethod
+    def required_text_not_blank(cls, value: object) -> str:
+        if value is None:
+            raise ValueError('truong bat buoc')
+        normalized = str(value).strip()
+        if not normalized:
+            raise ValueError('khong duoc de trong')
+        return normalized
+
+    @field_validator('description', 'thumbnail_url', mode='before')
+    @classmethod
+    def optional_text_trimmed(cls, value: object) -> Optional[str]:
+        if value is None:
+            return None
+        normalized = str(value).strip()
+        return normalized or None

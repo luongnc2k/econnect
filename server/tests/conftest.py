@@ -84,6 +84,7 @@ from models.base import Base
 # Import all models so metadata includes every table used by the app.
 from models.booking import Booking  # noqa: F401
 from models.class_ import Class  # noqa: F401
+from models.learning_location import LearningLocation  # noqa: F401
 from models.payment import Payment  # noqa: F401
 from models.notification import Notification  # noqa: F401
 from models.push_device_token import PushDeviceToken  # noqa: F401

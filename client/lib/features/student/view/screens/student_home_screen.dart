@@ -62,7 +62,7 @@ class StudentHomeScreen extends ConsumerWidget {
             delegate: _StickyFilterDelegate(
               scaffoldColor: Theme.of(context).scaffoldBackgroundColor,
               horizontalPadding: hPad,
-              categories: studentHomeCategories,
+              categories: state.categories,
               selectedCategory: state.selectedCategory,
               onSearchTap: onSearchTap,
               onCategorySelected: (val) => ref
@@ -74,12 +74,7 @@ class StudentHomeScreen extends ConsumerWidget {
           // Lớp học sắp diễn ra
           SliverToBoxAdapter(
             child: Padding(
-              padding: EdgeInsets.fromLTRB(
-                hPad,
-                0,
-                hPad,
-                0,
-              ),
+              padding: EdgeInsets.fromLTRB(hPad, 0, hPad, 0),
               child: SectionHeaderWidget(
                 title: 'Lớp học sắp diễn ra',
                 actionText: 'Tất cả',
@@ -94,28 +89,21 @@ class StudentHomeScreen extends ConsumerWidget {
               child: state.isLoading
                   ? const _ClassListSkeleton()
                   : state.error != null
-                      ? _ErrorBanner(message: state.error!)
-                      : state.classes.isEmpty
-                          ? const _EmptyClasses()
-                          : UpcomingClassListWidget(
-                              classes: state.classes,
-                              onClassTap: (session) => context.go(
-                                AppRoutes.classDetail,
-                                extra: session,
-                              ),
-                            ),
+                  ? _ErrorBanner(message: state.error!)
+                  : state.classes.isEmpty
+                  ? const _EmptyClasses()
+                  : UpcomingClassListWidget(
+                      classes: state.classes,
+                      onClassTap: (session) =>
+                          context.go(AppRoutes.classDetail, extra: session),
+                    ),
             ),
           ),
 
           // Giảng viên nổi bật
           SliverToBoxAdapter(
             child: Padding(
-              padding: EdgeInsets.fromLTRB(
-                hPad,
-                _sectionSpacing,
-                hPad,
-                16,
-              ),
+              padding: EdgeInsets.fromLTRB(hPad, _sectionSpacing, hPad, 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -228,7 +216,12 @@ class _StickyFilterDelegate extends SliverPersistentHeaderDelegate {
     return ColoredBox(
       color: scaffoldColor,
       child: Padding(
-        padding: EdgeInsets.fromLTRB(horizontalPadding, 12, horizontalPadding, 12),
+        padding: EdgeInsets.fromLTRB(
+          horizontalPadding,
+          12,
+          horizontalPadding,
+          12,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -251,7 +244,21 @@ class _StickyFilterDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   bool shouldRebuild(_StickyFilterDelegate old) =>
+      categories.length != old.categories.length ||
+      !_sameCategories(categories, old.categories) ||
       selectedCategory != old.selectedCategory ||
       scaffoldColor != old.scaffoldColor ||
       horizontalPadding != old.horizontalPadding;
+
+  bool _sameCategories(List<String> left, List<String> right) {
+    if (left.length != right.length) {
+      return false;
+    }
+    for (var index = 0; index < left.length; index++) {
+      if (left[index] != right[index]) {
+        return false;
+      }
+    }
+    return true;
+  }
 }

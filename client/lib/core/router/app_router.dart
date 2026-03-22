@@ -32,6 +32,10 @@ abstract class AppRoutes {
   static const teacherEditMyProfile = '/teacher/profile/edit';
   static const teacherCreateClass = '/teacher/create-class';
   static const teacherClassDetail = '/teacher/class';
+
+  static String homeForRole(String? role) {
+    return role == 'teacher' ? teacherHome : studentHome;
+  }
 }
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -39,9 +43,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
   return GoRouter(
     debugLogDiagnostics: false,
-    initialLocation: currentUser?.role == 'teacher'
-        ? AppRoutes.teacherHome
-        : AppRoutes.studentHome,
+    initialLocation: AppRoutes.homeForRole(currentUser?.role),
     redirect: (context, state) {
       final loggedIn = currentUser != null;
       final path = state.uri.path;
@@ -53,7 +55,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         final isTeacher = currentUser.role == 'teacher';
 
         if (onAuth) {
-          return isTeacher ? AppRoutes.teacherHome : AppRoutes.studentHome;
+          return AppRoutes.homeForRole(currentUser.role);
         }
 
         // teacher bị vào route student → redirect về teacher home

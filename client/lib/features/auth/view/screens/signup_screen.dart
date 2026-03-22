@@ -2,7 +2,7 @@
 
 import 'package:client/core/theme/app_pallete.dart';
 import 'package:client/core/utils.dart';
-import 'package:client/features/auth/view/screens/login_screen.dart';
+import 'package:client/core/router/app_router.dart';
 import 'package:client/features/auth/view/widgets/auth_gradient_button.dart';
 import 'package:client/features/auth/view/widgets/auth_logo.dart';
 import 'package:client/features/auth/view/widgets/auth_scroll_body.dart';
@@ -10,6 +10,7 @@ import 'package:client/features/auth/view/widgets/custom_field.dart';
 import 'package:client/features/auth/viewmodel/auth_viewmodel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 class SignupScreen extends ConsumerStatefulWidget {
   const SignupScreen({super.key});
@@ -42,13 +43,12 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     ref.listen(authViewModelProvider, (_, next) {
       next?.when(
         data: (data) {
+          if (!mounted) return;
           showSnackBar(context, 'Account created successfully! Please login');
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const LoginScreen()),
-          );
+          context.go(AppRoutes.login);
         },
         error: (error, st) {
+          if (!mounted) return;
           showSnackBar(context, error.toString());
         },
         loading: () {},
@@ -148,12 +148,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
               const SizedBox(height: 20),
               GestureDetector(
                 onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const LoginScreen(),
-                    ),
-                  );
+                  context.go(AppRoutes.login);
                 },
                 child: RichText(
                   text: TextSpan(

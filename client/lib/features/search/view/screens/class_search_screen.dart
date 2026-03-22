@@ -52,7 +52,8 @@ class _ClassSearchScreenState extends ConsumerState<ClassSearchScreen> {
         case Left(value: final failure):
           final fallback = ManualTestMocks.enabled
               ? ManualTestMocks.mockClasses.where((item) {
-                  return (item.classCode ?? '').toUpperCase() == normalized.toUpperCase();
+                  return (item.classCode ?? '').toUpperCase() ==
+                      normalized.toUpperCase();
                 }).toList()
               : const <ClassSession>[];
 
@@ -72,7 +73,10 @@ class _ClassSearchScreenState extends ConsumerState<ClassSearchScreen> {
       return;
     }
 
-    final result = await repository.getUpcomingClasses(token, query: normalized);
+    final result = await repository.getUpcomingClasses(
+      token,
+      query: normalized,
+    );
 
     switch (result) {
       case Left(value: final failure):
@@ -81,7 +85,8 @@ class _ClassSearchScreenState extends ConsumerState<ClassSearchScreen> {
                 final keyword = normalized.toLowerCase();
                 if (keyword.isEmpty) return true;
                 return item.title.toLowerCase().contains(keyword) ||
-                    (item.classCode ?? '').toLowerCase().contains(keyword);
+                    (item.classCode ?? '').toLowerCase().contains(keyword) ||
+                    item.tags.any((tag) => tag.toLowerCase().contains(keyword));
               }).toList()
             : const <ClassSession>[];
 
@@ -126,14 +131,12 @@ class _ClassSearchScreenState extends ConsumerState<ClassSearchScreen> {
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : _classes.isEmpty
-                      ? const Center(child: Text('Khong tim thay lop hoc'))
-                      : UpcomingClassListWidget(
-                          classes: _classes,
-                          onClassTap: (session) => context.push(
-                            AppRoutes.classDetail,
-                            extra: session,
-                          ),
-                        ),
+                  ? const Center(child: Text('Khong tim thay lop hoc'))
+                  : UpcomingClassListWidget(
+                      classes: _classes,
+                      onClassTap: (session) =>
+                          context.push(AppRoutes.classDetail, extra: session),
+                    ),
             ),
           ],
         ),

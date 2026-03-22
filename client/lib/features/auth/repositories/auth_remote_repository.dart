@@ -1,5 +1,6 @@
 // ignore_for_file: avoid_print
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:client/core/constants/server_constant.dart';
@@ -17,6 +18,8 @@ AuthRemoteRepository authRemoteRepository(Ref ref) {
 }
 
 class AuthRemoteRepository {
+  static const _requestTimeout = Duration(seconds: 15);
+
   Future<Either<AppFailure, UserModel>> signup({
     required String name,
     required String email,
@@ -24,21 +27,39 @@ class AuthRemoteRepository {
     required String role,
   }) async {
     try {
-      final response = await http.post(
-        Uri.parse('${ServerConstant.serverURL}/auth/signup'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'full_name': name, 'email': email, 'password': password, 'role': role}),
-      );
+      final response = await http
+          .post(
+            Uri.parse('${ServerConstant.serverURL}/auth/signup'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'full_name': name,
+              'email': email,
+              'password': password,
+              'role': role,
+            }),
+          )
+          .timeout(_requestTimeout);
 
-      final resBodyMap = jsonDecode(response.body) as Map<String, dynamic>;
+      final resBodyMap = _decodeResponseBody(response.body);
 
       if (response.statusCode != 201) {
-        return Left(AppFailure(resBodyMap['detail']));
+        return Left(
+          AppFailure(
+            resBodyMap['detail']?.toString() ?? 'Dang ky that bai',
+            response.statusCode,
+          ),
+        );
       }
 
       return Right(UserModel.fromMap(resBodyMap));
+    } on TimeoutException {
+      return Left(
+        AppFailure(ServerConstant.connectionHelpText(action: 'dang ky')),
+      );
     } catch (e) {
-      return Left(AppFailure(e.toString()));
+      return Left(
+        AppFailure(_networkFailureMessage(action: 'dang ky', error: e)),
+      );
     }
   }
 
@@ -47,49 +68,103 @@ class AuthRemoteRepository {
     required String password,
   }) async {
     try {
-      final response = await http.post(
-        Uri.parse('${ServerConstant.serverURL}/auth/login'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'email': email, 'password': password}),
-      );
+      final response = await http
+          .post(
+            Uri.parse('${ServerConstant.serverURL}/auth/login'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'email': email, 'password': password}),
+          )
+          .timeout(_requestTimeout);
 
-      final resBodyMap = jsonDecode(response.body) as Map<String, dynamic>;
+      final resBodyMap = _decodeResponseBody(response.body);
 
       if (response.statusCode != 200) {
-        return Left(AppFailure(resBodyMap['detail']));
+        return Left(
+          AppFailure(
+            resBodyMap['detail']?.toString() ?? 'Dang nhap that bai',
+            response.statusCode,
+          ),
+        );
       }
       return Right(
         UserModel.fromMap(
           resBodyMap['user'],
         ).copyWith(token: resBodyMap['token']),
       );
+    } on TimeoutException {
+      return Left(
+        AppFailure(ServerConstant.connectionHelpText(action: 'dang nhap')),
+      );
     } catch (e) {
-      return Left(AppFailure(e.toString()));
+      return Left(
+        AppFailure(_networkFailureMessage(action: 'dang nhap', error: e)),
+      );
     }
   }
 
   Future<Either<AppFailure, UserModel>> getCurrentUserData(String token) async {
     try {
-      final response = await http.get(
-        Uri.parse('${ServerConstant.serverURL}/auth/'),
-        headers: {
-          'Content-Type': 'application/json',
-          'x-auth-token': token
-        },
-      );
+      final response = await http
+          .get(
+            Uri.parse('${ServerConstant.serverURL}/auth/'),
+            headers: {
+              'Content-Type': 'application/json',
+              'x-auth-token': token,
+            },
+          )
+          .timeout(_requestTimeout);
 
-      final resBodyMap = jsonDecode(response.body) as Map<String, dynamic>;
+      final resBodyMap = _decodeResponseBody(response.body);
 
       if (response.statusCode != 200) {
-        return Left(AppFailure(resBodyMap['detail'], response.statusCode));
+        return Left(
+          AppFailure(
+            resBodyMap['detail']?.toString() ??
+                'Khong the tai thong tin nguoi dung',
+            response.statusCode,
+          ),
+        );
       }
-      return Right(
-        UserModel.fromMap(resBodyMap).copyWith(
-          token: token,
+      return Right(UserModel.fromMap(resBodyMap).copyWith(token: token));
+    } on TimeoutException {
+      return Left(
+        AppFailure(
+          ServerConstant.connectionHelpText(action: 'tai phien dang nhap'),
         ),
       );
     } catch (e) {
-      return Left(AppFailure(e.toString()));
+      return Left(
+        AppFailure(
+          _networkFailureMessage(action: 'tai phien dang nhap', error: e),
+        ),
+      );
     }
+  }
+
+  Map<String, dynamic> _decodeResponseBody(String body) {
+    if (body.trim().isEmpty) {
+      return const {};
+    }
+
+    final decoded = jsonDecode(body);
+    if (decoded is Map<String, dynamic>) {
+      return decoded;
+    }
+
+    return const {};
+  }
+
+  String _networkFailureMessage({
+    required String action,
+    required Object error,
+  }) {
+    final raw = error.toString().toLowerCase();
+    if (raw.contains('socketexception') ||
+        raw.contains('clientexception') ||
+        raw.contains('connection refused') ||
+        raw.contains('failed host lookup')) {
+      return ServerConstant.connectionHelpText(action: action);
+    }
+    return 'Khong the $action. $error';
   }
 }

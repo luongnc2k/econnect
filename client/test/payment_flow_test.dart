@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/core/failure/failure.dart';
 import 'package:client/core/theme/theme.dart';
@@ -5,6 +7,9 @@ import 'package:client/features/auth/model/user_model.dart';
 import 'package:client/features/payments/model/payment_summary.dart';
 import 'package:client/features/payments/model/payment_transaction_status.dart';
 import 'package:client/features/payments/repositories/payments_remote_repository.dart';
+import 'package:client/features/profile/model/teacher_my_profile_model.dart';
+import 'package:client/features/profile/repositories/my_profile_repository.dart';
+import 'package:client/features/profile/view/widgets/my_profile_view.dart';
 import 'package:client/features/student/model/class_session.dart';
 import 'package:client/features/student/view/screens/class_detail_screen.dart';
 import 'package:client/features/tutor/view/screens/tutor_home_screen.dart';
@@ -28,7 +33,9 @@ void main() {
     UrlLauncherPlatform.instance = fakeUrlLauncher;
   });
 
-  testWidgets('student payment flow opens browser and polls paid status', (tester) async {
+  testWidgets('student payment flow opens browser and polls paid status', (
+    tester,
+  ) async {
     fakeRepo.createJoinPaymentResult = const PaymentTransactionStatus(
       paymentId: 'pay-1',
       transactionRef: 'TUI-123',
@@ -76,18 +83,25 @@ void main() {
 
     expect(fakeRepo.createJoinPaymentCalls, 1);
     expect(fakeRepo.getTransactionStatusCalls, 1);
-    expect(fakeUrlLauncher.launchedUrls.single, 'http://localhost:8000/payments/mock/checkout/TUI-123');
+    expect(
+      fakeUrlLauncher.launchedUrls.single,
+      'http://localhost:8000/payments/mock/checkout/TUI-123',
+    );
     expect(find.text('Trang thai thanh toan'), findsOneWidget);
     expect(find.textContaining('Thanh toan thanh cong'), findsOneWidget);
     expect(find.text('So tien: 50000 VND'), findsOneWidget);
   });
 
-  testWidgets('tutor payment tab loads class summary by class code', (tester) async {
+  testWidgets('tutor payment tab loads class summary by class code', (
+    tester,
+  ) async {
     fakeRepo.summaryResult = const PaymentSummary(
       classId: 'class-1',
       classStatus: 'scheduled',
       creationPaymentStatus: 'paid',
       creationFeeAmount: 12000,
+      minParticipants: 2,
+      maxParticipants: 4,
       currentParticipants: 3,
       minimumParticipantsReached: true,
       tutorConfirmationStatus: 'confirmed',
@@ -105,7 +119,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('Thanh toan'));
+    await tester.tap(find.text('Thanh toán'));
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextField), 'CLS-260316-ABCD');
@@ -117,22 +131,55 @@ void main() {
     expect(find.text('12000 VND'), findsOneWidget);
     expect(find.text('60000 VND'), findsOneWidget);
   });
+
+  testWidgets('tutor profile tab shows tutor profile details', (tester) async {
+    final fakeProfileRepo = _FakeMyProfileRepository(
+      profile: TeacherMyProfileModel(
+        id: 'teacher-1',
+        email: 'teacher@example.com',
+        fullName: 'Tutor Profile',
+        role: 'teacher',
+        isActive: true,
+        token: 'token-123',
+        specialization: 'English',
+        yearsOfExperience: 5,
+        bankName: 'VCB',
+      ),
+    );
+
+    await tester.pumpWidget(
+      _buildApp(
+        child: const TutorNavShell(),
+        fakeRepo: fakeRepo,
+        fakeProfileRepo: fakeProfileRepo,
+        user: _sampleUser(role: 'teacher'),
+      ),
+    );
+
+    await tester.tap(find.text('Hồ sơ'));
+    await tester.pump();
+    await tester.pump();
+
+    expect(fakeProfileRepo.getMyProfileCalls, 1);
+    expect(find.byType(MyProfileView), findsOneWidget);
+    expect(find.text('Tutor Profile'), findsNWidgets(2));
+  });
 }
 
 Widget _buildApp({
   required Widget child,
   required _FakePaymentsRemoteRepository fakeRepo,
+  _FakeMyProfileRepository? fakeProfileRepo,
   required UserModel user,
 }) {
   return ProviderScope(
     overrides: [
       currentUserProvider.overrideWithValue(user),
       paymentsRemoteRepositoryProvider.overrideWithValue(fakeRepo),
+      if (fakeProfileRepo != null)
+        myProfileRepositoryProvider.overrideWithValue(fakeProfileRepo),
     ],
-    child: MaterialApp(
-      theme: AppTheme.lightThemeMode,
-      home: child,
-    ),
+    child: MaterialApp(theme: AppTheme.lightThemeMode, home: child),
   );
 }
 
@@ -202,7 +249,42 @@ class _FakePaymentsRemoteRepository extends PaymentsRemoteRepository {
   }
 }
 
-class _FakeUrlLauncher extends UrlLauncherPlatform with MockPlatformInterfaceMixin {
+class _FakeMyProfileRepository implements IMyProfileRepository {
+  final UserModel profile;
+  int getMyProfileCalls = 0;
+
+  _FakeMyProfileRepository({required this.profile});
+
+  @override
+  Future<UserModel> getMyProfile() async {
+    getMyProfileCalls += 1;
+    return profile;
+  }
+
+  @override
+  Future<UserModel> updateMyProfile(UserModel profile) async => profile;
+
+  @override
+  Future<String> uploadMyAvatar({
+    required String fileName,
+    required Uint8List fileBytes,
+    String? filePath,
+  }) async {
+    return 'http://localhost:8000/static/avatar.jpg';
+  }
+
+  @override
+  Future<String> uploadTutorDocument({
+    required String fileName,
+    required Uint8List fileBytes,
+    String? filePath,
+  }) async {
+    return 'http://localhost:8000/static/teacher-doc.jpg';
+  }
+}
+
+class _FakeUrlLauncher extends UrlLauncherPlatform
+    with MockPlatformInterfaceMixin {
   final launchedUrls = <String>[];
 
   @override

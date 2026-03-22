@@ -1,7 +1,7 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy.orm import Session
 from typing import Optional
 
@@ -14,10 +14,28 @@ router = APIRouter()
 
 
 class TopicCreate(BaseModel):
-    name: str
-    slug: str
+    name: str = Field(min_length=1, max_length=100)
+    slug: str = Field(min_length=1, max_length=100)
     description: Optional[str] = None
     icon: Optional[str] = None
+
+    @field_validator("name", "slug", mode="before")
+    @classmethod
+    def normalize_required_text(cls, value: object) -> str:
+        if value is None:
+            raise ValueError("Truong bat buoc")
+        normalized = str(value).strip()
+        if not normalized:
+            raise ValueError("Khong duoc de trong")
+        return normalized
+
+    @field_validator("description", "icon", mode="before")
+    @classmethod
+    def normalize_optional_text(cls, value: object) -> Optional[str]:
+        if value is None:
+            return None
+        normalized = str(value).strip()
+        return normalized or None
 
 
 class TopicResponse(BaseModel):

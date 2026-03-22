@@ -101,6 +101,8 @@ class PaymentSummaryResponse(BaseModel):
     class_status: str
     creation_payment_status: str
     creation_fee_amount: Decimal
+    min_participants: int
+    max_participants: int
     current_participants: int
     minimum_participants_reached: bool
     tutor_confirmation_status: str

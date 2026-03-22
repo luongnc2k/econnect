@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from models.booking import Booking
 from models.class_ import Class
+from models.learning_location import LearningLocation
 from models.payment import Payment
 from models.teacher_profile import TeacherProfile
 from models.topic import Topic
@@ -110,6 +111,24 @@ def create_topic(db: Session, *, name: str = "English Conversation") -> Topic:
     return topic
 
 
+def create_learning_location(
+    db: Session,
+    *,
+    name: str = "Online",
+    address: str = "Google Meet",
+) -> LearningLocation:
+    location = LearningLocation(
+        id=str(uuid.uuid4()),
+        name=name,
+        address=address,
+        is_active=True,
+    )
+    db.add(location)
+    db.commit()
+    db.refresh(location)
+    return location
+
+
 def seed_teacher_profile(
     db: Session,
     *,
@@ -151,6 +170,7 @@ def seed_paid_class_with_held_booking(
     teacher = teacher or seed_user(db, role="teacher")
     student = student or seed_user(db, role="student")
     topic = create_topic(db)
+    location = create_learning_location(db, name="Online", address="Zoom")
     seed_teacher_profile(db, teacher_id=teacher.id, bank_account_holder=teacher.full_name)
 
     now = datetime.now(timezone.utc)
@@ -162,11 +182,12 @@ def seed_paid_class_with_held_booking(
         id=str(uuid.uuid4()),
         teacher_id=teacher.id,
         topic_id=topic.id,
+        topic=topic.name,
         title="Production Readiness Class",
         description="Payout-ready class",
         level="intermediate",
-        location_name="Online",
-        location_address="Zoom",
+        location_name=location.name,
+        location_address=location.address,
         start_time=actual_start_time,
         end_time=actual_end_time,
         min_participants=1,
@@ -247,6 +268,7 @@ def seed_paid_class_with_held_bookings(
 
     teacher = teacher or seed_user(db, role="teacher")
     topic = create_topic(db)
+    location = create_learning_location(db, name="Online", address="Zoom")
     seed_teacher_profile(db, teacher_id=teacher.id, bank_account_holder=teacher.full_name)
 
     now = datetime.now(timezone.utc)
@@ -259,11 +281,12 @@ def seed_paid_class_with_held_bookings(
         id=str(uuid.uuid4()),
         teacher_id=teacher.id,
         topic_id=topic.id,
+        topic=topic.name,
         title="Production Readiness Class",
         description="Payout-ready class",
         level="intermediate",
-        location_name="Online",
-        location_address="Zoom",
+        location_name=location.name,
+        location_address=location.address,
         start_time=actual_start_time,
         end_time=actual_end_time,
         min_participants=1,
@@ -354,6 +377,7 @@ def seed_paid_class_with_held_bookings(
         "teacher": teacher,
         "students": students,
         "topic": topic,
+        "location": location,
         "class": cls,
         "bookings": bookings,
         "tuition_payments": tuition_payments,

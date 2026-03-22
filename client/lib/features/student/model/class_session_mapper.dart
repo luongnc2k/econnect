@@ -7,7 +7,12 @@ class ClassSessionMapper {
     final maxSlots = (m['max_participants'] as num).toInt();
     final current = (m['current_participants'] as num).toInt();
     final remaining = maxSlots - current;
-    final topic = m['topic'] as Map<String, dynamic>;
+    final rawTopic = m['topic'];
+    final topic = switch (rawTopic) {
+      final Map<String, dynamic> topicMap =>
+        topicMap['name']?.toString().trim() ?? '',
+      _ => rawTopic?.toString().trim() ?? '',
+    };
     final teacher = m['teacher'] as Map<String, dynamic>;
 
     return ClassSession(
@@ -25,7 +30,7 @@ class ClassSessionMapper {
       imageUrl: m['thumbnail_url'] as String?,
       statusText: mapStatus(m['status'] as String),
       countdownText: remaining > 0 ? 'Còn $remaining chỗ' : 'Hết chỗ',
-      tags: [topic['name'] as String],
+      tags: topic.isEmpty ? const [] : [topic],
       description: m['description'] as String?,
       dateText: formatDate(startTime),
       slotText: '$current/$maxSlots đã đăng ký',
@@ -66,19 +71,19 @@ class ClassSessionMapper {
   }
 
   static String mapStatus(String status) => switch (status) {
-        'scheduled' => 'OPEN',
-        'ongoing'   => 'LIVE',
-        'completed' => 'DONE',
-        'cancelled' => 'HUỶ',
-        _           => status.toUpperCase(),
-      };
+    'scheduled' => 'OPEN',
+    'ongoing' => 'LIVE',
+    'completed' => 'DONE',
+    'cancelled' => 'HUỶ',
+    _ => status.toUpperCase(),
+  };
 
   static String mapLevel(String level) => switch (level) {
-        'beginner'     => 'Beginner',
-        'intermediate' => 'Intermediate+',
-        'advanced'     => 'Advanced',
-        _              => level,
-      };
+    'beginner' => 'Beginner',
+    'intermediate' => 'Intermediate+',
+    'advanced' => 'Advanced',
+    _ => level,
+  };
 
   static int _dayDiff(DateTime dt) {
     final now = DateTime.now();

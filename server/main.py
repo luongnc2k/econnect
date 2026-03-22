@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 
 from models.base import Base
 from database import engine
-from routes import auth, upload, classes, topics, profile, users, payments, notifications
+from routes import auth, upload, classes, profile, users, payments, notifications, locations
 
 # Import all models so Base.metadata knows about them
 from models.user import User
@@ -17,6 +17,7 @@ from models.teacher_profile import TeacherProfile
 from models.student_profile import StudentProfile
 from models.teacher_specialty import TeacherSpecialty
 from models.class_ import Class
+from models.learning_location import LearningLocation
 from models.booking import Booking
 from models.payment import Payment
 from models.notification import Notification
@@ -90,11 +91,11 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/auth")
 app.include_router(upload.router, prefix="/upload")
 app.include_router(classes.router, prefix="/classes")
-app.include_router(topics.router, prefix="/topics")
 app.include_router(profile.router, prefix="/profile")
 app.include_router(users.router, prefix="/users")
 app.include_router(payments.router, prefix="/payments")
 app.include_router(notifications.router, prefix="/notifications")
+app.include_router(locations.router, prefix="/locations")
 
 uploads_dir = Path(os.getenv("LOCAL_UPLOAD_ROOT", "uploads"))
 uploads_dir.mkdir(parents=True, exist_ok=True)

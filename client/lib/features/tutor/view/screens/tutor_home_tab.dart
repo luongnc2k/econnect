@@ -218,7 +218,7 @@ class _EmptyClasses extends StatelessWidget {
           const SizedBox(height: 16),
           FilledButton.tonal(
             onPressed: onCreateClass,
-            child: const Text('Tạo lớp học ngay'),
+            child: const Text('Tạo buổi học ngay'),
           ),
         ],
       ),

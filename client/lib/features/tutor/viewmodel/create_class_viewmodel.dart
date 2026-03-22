@@ -13,40 +13,20 @@ final createClassViewModelProvider =
 
 class CreateClassViewModel extends Notifier<CreateClassState> {
   @override
-  CreateClassState build() {
-    Future.microtask(_loadTopics);
-    return const CreateClassState(isLoadingTopics: true);
-  }
-
-  Future<void> _loadTopics() async {
-    final repo = ref.read(tutorRemoteRepositoryProvider);
-    final result = await repo.getTopics();
-    switch (result) {
-      case Left(value: final failure):
-        state = state.copyWith(isLoadingTopics: false, error: failure.message);
-      case Right(value: final topics):
-        state = state.copyWith(
-          isLoadingTopics: false,
-          topics: topics,
-          clearError: true,
-        );
-    }
-  }
+  CreateClassState build() => const CreateClassState();
 
   Future<bool> submitClass({
-    required String topicId,
+    required String topic,
     required String title,
     String? description,
     required String level,
-    required String locationName,
-    String? locationAddress,
+    required String locationId,
     required DateTime startTime,
     required DateTime endTime,
     required int minParticipants,
     required int maxParticipants,
     required double price,
     String? thumbnailUrl,
-    // thumbnail upload params
     Uint8List? thumbnailBytes,
     String? thumbnailFileName,
     String? thumbnailFilePath,
@@ -61,7 +41,6 @@ class CreateClassViewModel extends Notifier<CreateClassState> {
 
     final repo = ref.read(tutorRemoteRepositoryProvider);
 
-    // Upload thumbnail if provided
     String? finalThumbnailUrl = thumbnailUrl;
     if (thumbnailBytes != null && thumbnailFileName != null) {
       final uploadResult = await repo.uploadThumbnail(
@@ -79,16 +58,13 @@ class CreateClassViewModel extends Notifier<CreateClassState> {
       }
     }
 
-    // Build request body — send times as UTC ISO-8601
     final body = <String, dynamic>{
-      'topic_id': topicId,
+      'topic': topic,
       'title': title,
       if (description != null && description.isNotEmpty)
         'description': description,
       'level': level,
-      'location_name': locationName,
-      if (locationAddress != null && locationAddress.isNotEmpty)
-        'location_address': locationAddress,
+      'location_id': locationId,
       'start_time': startTime.toUtc().toIso8601String(),
       'end_time': endTime.toUtc().toIso8601String(),
       'min_participants': minParticipants,

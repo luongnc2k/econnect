@@ -24,6 +24,12 @@ pip install -r requirements.txt
 uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
+Nếu local Chrome/web không gọi được backend hoặc bị treo loading do còn process `uvicorn` cũ, chạy từ thư mục repo:
+
+```powershell
+.\scripts\start-dev-backend.ps1
+```
+
 Swagger UI: http://localhost:8000/docs
 
 ## Thiết lập môi trường

@@ -3,7 +3,7 @@ SQLAlchemy
 psycopg2
 bcrypt
 PyJWT
-uvicorn
+uvicorn[standard]
 python-dotenv
 minio
 python-multipart

@@ -5,15 +5,6 @@ from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class TopicBrief(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: str
-    name: str
-    slug: str
-    icon: Optional[str] = None
-
-
 class TeacherBrief(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -45,7 +36,7 @@ class ClassResponse(BaseModel):
     price: Decimal
     thumbnail_url: Optional[str] = None
     status: str
-    topic: TopicBrief
+    topic: str
     teacher: TeacherBrief
 
 
