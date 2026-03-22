@@ -6,8 +6,10 @@ import 'package:client/features/student/model/enrolled_student_preview.dart';
 import 'package:client/features/student/model/teacher_preview.dart';
 
 class ManualTestMocks {
-  static const enabled =
-      bool.fromEnvironment('ENABLE_MANUAL_TEST_MOCKS', defaultValue: false);
+  static const enabled = bool.fromEnvironment(
+    'ENABLE_MANUAL_TEST_MOCKS',
+    defaultValue: false,
+  );
 
   static const mockClasses = [
     ClassSession(
@@ -15,7 +17,7 @@ class ManualTestMocks {
       classCode: 'CLS-250305-A1B2',
       teacherId: 'teacher-james-wilson',
       title: 'Luyen noi Business English',
-      location: 'HighLand Coffee Cau Giay',
+      location: 'Khong gian hoc nhom 01',
       teacherName: 'Alexander Ng',
       timeText: '18:30 Hom nay',
       priceText: '120.000d',
@@ -43,7 +45,7 @@ class ManualTestMocks {
       classCode: 'CLS-250306-B2C3',
       teacherId: 'teacher-anna-lee',
       title: 'IELTS Speaking Practice',
-      location: 'The Coffee House Hoan Kiem',
+      location: 'Khong gian hoc nhom 02',
       teacherName: 'Sarah Johnson',
       timeText: '09:00 Ngay mai',
       priceText: '150.000d',

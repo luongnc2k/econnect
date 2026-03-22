@@ -13,18 +13,37 @@ final paymentsRemoteRepositoryProvider = Provider<PaymentsRemoteRepository>(
 );
 
 class PaymentsRemoteRepository {
+  Future<Either<AppFailure, PaymentTransactionStatus>>
+  createClassCreationPayment({
+    required String token,
+    required Map<String, dynamic> classPayload,
+  }) async {
+    try {
+      final uri = Uri.parse(
+        '${ServerConstant.serverURL}/payments/class-creation/request',
+      );
+      final response = await http.post(
+        uri,
+        headers: {'Content-Type': 'application/json', 'x-auth-token': token},
+        body: jsonEncode({'class_payload': classPayload}),
+      );
+      return _decodeTransactionResponse(response);
+    } catch (e) {
+      return Left(AppFailure(e.toString()));
+    }
+  }
+
   Future<Either<AppFailure, PaymentTransactionStatus>> createJoinPayment({
     required String token,
     required String classId,
   }) async {
     try {
-      final uri = Uri.parse('${ServerConstant.serverURL}/payments/classes/$classId/join/request');
+      final uri = Uri.parse(
+        '${ServerConstant.serverURL}/payments/classes/$classId/join/request',
+      );
       final response = await http.post(
         uri,
-        headers: {
-          'Content-Type': 'application/json',
-          'x-auth-token': token,
-        },
+        headers: {'Content-Type': 'application/json', 'x-auth-token': token},
         body: jsonEncode({}),
       );
       return _decodeTransactionResponse(response);
@@ -38,7 +57,9 @@ class PaymentsRemoteRepository {
     required String transactionRef,
   }) async {
     try {
-      final uri = Uri.parse('${ServerConstant.serverURL}/payments/transactions/$transactionRef');
+      final uri = Uri.parse(
+        '${ServerConstant.serverURL}/payments/transactions/$transactionRef',
+      );
       final response = await http.get(uri, headers: {'x-auth-token': token});
       return _decodeTransactionResponse(response);
     } catch (e) {
@@ -65,7 +86,9 @@ class PaymentsRemoteRepository {
     }
   }
 
-  Either<AppFailure, PaymentTransactionStatus> _decodeTransactionResponse(http.Response response) {
+  Either<AppFailure, PaymentTransactionStatus> _decodeTransactionResponse(
+    http.Response response,
+  ) {
     if (response.statusCode != 200 && response.statusCode != 201) {
       return Left(_decodeFailure(response));
     }
@@ -76,7 +99,10 @@ class PaymentsRemoteRepository {
   AppFailure _decodeFailure(http.Response response) {
     try {
       final map = jsonDecode(response.body) as Map<String, dynamic>;
-      return AppFailure(map['detail']?.toString() ?? 'Co loi xay ra', response.statusCode);
+      return AppFailure(
+        map['detail']?.toString() ?? 'Co loi xay ra',
+        response.statusCode,
+      );
     } catch (_) {
       return AppFailure('Co loi xay ra', response.statusCode);
     }

@@ -1,14 +1,20 @@
+import 'dart:async';
+
 import 'package:client/core/providers/current_user_notifier.dart';
+import 'package:client/features/payments/model/payment_transaction_status.dart';
+import 'package:client/features/payments/repositories/payments_remote_repository.dart';
 import 'package:client/features/tutor/model/create_class_state.dart';
 import 'package:client/features/tutor/model/learning_location.dart';
 import 'package:client/features/tutor/repositories/tutor_remote_repository.dart';
 import 'package:client/features/tutor/viewmodel/create_class_viewmodel.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fpdart/fpdart.dart' show Left, Right;
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class CreateClassScreen extends ConsumerStatefulWidget {
   const CreateClassScreen({super.key});
@@ -34,11 +40,18 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
   Uint8List? _thumbnailBytes;
   String? _thumbnailFileName;
   String? _thumbnailFilePath;
+  PaymentTransactionStatus? _transaction;
+  Timer? _pollTimer;
+  bool _pollingPayment = false;
+  int _pollAttempts = 0;
+  int _consecutivePollErrors = 0;
 
   List<LearningLocation> _locations = const [];
   String? _selectedLocationId;
   bool _isLoadingLocations = false;
   String? _locationError;
+  static const _maxPollAttempts = 90;
+  static const _maxConsecutivePollErrors = 3;
 
   static const _levels = [
     ('beginner', 'Cơ bản'),
@@ -69,6 +82,8 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
     _minParticipantsController.dispose();
     _maxParticipantsController.dispose();
     _priceController.dispose();
+    _pollTimer?.cancel();
+    _pollTimer = null;
     super.dispose();
   }
 
@@ -77,7 +92,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
     if (token == null) {
       setState(() {
         _locationError =
-            'Vui lòng đăng nhập lại để tải danh sách địa điểm học tại Hà Nội.';
+            'Vui lòng đăng nhập lại để tải danh sách địa điểm học.';
         _selectedLocationId = null;
         _locations = const [];
         _isLoadingLocations = false;
@@ -116,7 +131,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
               ? _selectedLocationId
               : null;
           _locationError = locations.isEmpty
-              ? 'Chưa tải được danh sách 3 quán cà phê học tại Hà Nội. Vui lòng thử lại.'
+              ? 'Chưa tải được danh sách địa điểm học. Vui lòng thử lại.'
               : null;
         });
     }
@@ -241,7 +256,9 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
       return;
     }
 
-    final success = await ref
+    setState(() => _transaction = null);
+
+    final payment = await ref
         .read(createClassViewModelProvider.notifier)
         .submitClass(
           topic: _topicController.text.trim(),
@@ -262,14 +279,110 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
           thumbnailFilePath: _thumbnailFilePath,
         );
 
-    if (!mounted || !success) {
+    if (!mounted || payment == null) {
       return;
     }
 
+    setState(() => _transaction = payment);
+    _beginPolling(payment.transactionRef);
+
+    final redirectUrl = payment.redirectUrl;
+    if (redirectUrl == null || redirectUrl.isEmpty) {
+      _stopPolling();
+      _showMessage('Khong nhan duoc URL thanh toan phi tao lop tu he thong.');
+      return;
+    }
+
+    final launched = await launchUrl(
+      Uri.parse(redirectUrl),
+      mode: LaunchMode.platformDefault,
+      webOnlyWindowName: kIsWeb ? '_blank' : null,
+    );
+
+    if (!launched && mounted) {
+      _stopPolling();
+      _showMessage('Khong mo duoc cong thanh toan. Vui long thu lai.');
+    }
+    return;
+  }
+
+  void _beginPolling(String transactionRef) {
+    _pollTimer?.cancel();
+    setState(() {
+      _pollingPayment = true;
+      _pollAttempts = 0;
+      _consecutivePollErrors = 0;
+    });
+
+    _pollTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
+      final user = ref.read(currentUserProvider);
+      if (user == null) {
+        _stopPolling();
+        return;
+      }
+
+      _pollAttempts += 1;
+      if (_pollAttempts > _maxPollAttempts) {
+        _stopPolling();
+        _showMessage(
+          'Da het thoi gian doi ket qua thanh toan. Ban hay mo lai trang thai giao dich sau.',
+        );
+        return;
+      }
+
+      final result = await ref
+          .read(paymentsRemoteRepositoryProvider)
+          .getTransactionStatus(
+            token: user.token,
+            transactionRef: transactionRef,
+          );
+      if (!mounted) {
+        return;
+      }
+
+      switch (result) {
+        case Right(value: final status):
+          setState(() {
+            _transaction = status;
+            _consecutivePollErrors = 0;
+          });
+
+          if (!status.isTerminal) {
+            return;
+          }
+
+          _stopPolling();
+          if (status.isSuccessLike && status.classStatus == 'scheduled') {
+            _showMessage('Thanh toan thanh cong, buoi hoc da duoc tao.');
+            context.pop();
+            return;
+          }
+
+          _showMessage(
+            status.message ?? 'Thanh toan phi tao lop khong thanh cong.',
+          );
+        case Left(value: final failure):
+          _consecutivePollErrors += 1;
+          if (_consecutivePollErrors >= _maxConsecutivePollErrors) {
+            _stopPolling();
+            _showMessage(failure.message);
+          }
+      }
+    });
+  }
+
+  void _stopPolling() {
+    _pollTimer?.cancel();
+    _pollTimer = null;
+    if (mounted) {
+      setState(() => _pollingPayment = false);
+    }
+  }
+
+  void _showMessage(String message) {
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(const SnackBar(content: Text('Tạo buổi học thành công')));
-    context.pop();
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -451,7 +564,9 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
             ),
             const SizedBox(height: 32),
             FilledButton(
-              onPressed: vmState.isSubmitting ? null : () => _submit(vmState),
+              onPressed: vmState.isSubmitting || _pollingPayment
+                  ? null
+                  : () => _submit(vmState),
               style: FilledButton.styleFrom(
                 minimumSize: const Size.fromHeight(52),
               ),
@@ -461,8 +576,20 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                       height: 22,
                       child: CircularProgressIndicator(strokeWidth: 2.5),
                     )
-                  : const Text('Tạo buổi học', style: TextStyle(fontSize: 16)),
+                  : Text(
+                      _pollingPayment
+                          ? 'Dang cho thanh toan phi tao lop...'
+                          : 'Tao buoi hoc va thanh toan',
+                      style: const TextStyle(fontSize: 16),
+                    ),
             ),
+            if (_transaction != null) ...[
+              const SizedBox(height: 16),
+              _PaymentStatusCard(
+                transaction: _transaction!,
+                isPolling: _pollingPayment,
+              ),
+            ],
             const SizedBox(height: 24),
           ],
         ),
@@ -514,7 +641,7 @@ class _LocationSection extends StatelessWidget {
     if (isLoading) {
       return const _StatusCard(
         icon: Icons.location_searching_rounded,
-        message: 'Đang tải 3 địa điểm học mặc định tại Hà Nội...',
+        message: 'Đang tải danh sách địa điểm học...',
       );
     }
 
@@ -658,6 +785,79 @@ class _StatusCard extends StatelessWidget {
           if (actionLabel != null && onPressed != null) ...[
             const SizedBox(height: 12),
             OutlinedButton(onPressed: onPressed, child: Text(actionLabel!)),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _PaymentStatusCard extends StatelessWidget {
+  final PaymentTransactionStatus transaction;
+  final bool isPolling;
+
+  const _PaymentStatusCard({
+    required this.transaction,
+    required this.isPolling,
+  });
+
+  String _labelForStatus(String status) {
+    switch (status) {
+      case 'pending':
+        return 'Dang cho thanh toan';
+      case 'paid':
+        return 'Da thanh toan';
+      case 'released':
+        return 'Da doi soat';
+      case 'failed':
+        return 'Thanh toan that bai';
+      case 'refunded':
+        return 'Da hoan tien';
+      default:
+        return status;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colorScheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Trang thai thanh toan',
+            style: Theme.of(
+              context,
+            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 8),
+          Text('Ma giao dich: ${transaction.transactionRef}'),
+          const SizedBox(height: 4),
+          Text('Trang thai: ${_labelForStatus(transaction.status)}'),
+          const SizedBox(height: 4),
+          Text('So tien: ${transaction.amount} VND'),
+          if (transaction.message != null &&
+              transaction.message!.trim().isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              transaction.message!,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+          if (isPolling) ...[
+            const SizedBox(height: 12),
+            const LinearProgressIndicator(),
           ],
         ],
       ),

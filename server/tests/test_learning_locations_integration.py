@@ -1,10 +1,10 @@
 from datetime import datetime, timedelta, timezone
 
-from learning_location_service import DEFAULT_LEARNING_LOCATIONS, default_learning_location_ids
+from learning_location_service import DEFAULT_LEARNING_LOCATIONS
 from tests.helpers import auth_headers, create_admin_user, login_user, signup_user
 
 
-def test_tutor_only_sees_three_default_hanoi_cafe_locations(client, db_session):
+def test_tutor_sees_all_active_learning_locations(client, db_session):
     admin_payload, admin_response = create_admin_user(client)
     assert admin_response.status_code == 201
 
@@ -48,11 +48,10 @@ def test_tutor_only_sees_three_default_hanoi_cafe_locations(client, db_session):
     assert list_response.status_code == 200
 
     locations = list_response.json()
-    assert [item["id"] for item in locations] == list(default_learning_location_ids())
-    assert [item["name"] for item in locations] == [
-        item["name"] for item in DEFAULT_LEARNING_LOCATIONS
-    ]
-    assert created_body["id"] not in {item["id"] for item in locations}
+    location_ids = {item["id"] for item in locations}
+    assert created_body["id"] in location_ids
+    for default_location in DEFAULT_LEARNING_LOCATIONS:
+        assert default_location["id"] in location_ids
 
     admin_list_response = client.get(
         "/locations",

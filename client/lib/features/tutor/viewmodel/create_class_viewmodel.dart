@@ -1,6 +1,8 @@
 import 'dart:typed_data';
 
 import 'package:client/core/providers/current_user_notifier.dart';
+import 'package:client/features/payments/model/payment_transaction_status.dart';
+import 'package:client/features/payments/repositories/payments_remote_repository.dart';
 import 'package:client/features/tutor/model/create_class_state.dart';
 import 'package:client/features/tutor/repositories/tutor_remote_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,7 +17,7 @@ class CreateClassViewModel extends Notifier<CreateClassState> {
   @override
   CreateClassState build() => const CreateClassState();
 
-  Future<bool> submitClass({
+  Future<PaymentTransactionStatus?> submitClass({
     required String topic,
     required String title,
     String? description,
@@ -33,17 +35,18 @@ class CreateClassViewModel extends Notifier<CreateClassState> {
   }) async {
     final token = ref.read(currentUserProvider)?.token;
     if (token == null) {
-      state = state.copyWith(error: 'Vui lòng đăng nhập lại');
-      return false;
+      state = state.copyWith(error: 'Vui long dang nhap lai');
+      return null;
     }
 
     state = state.copyWith(isSubmitting: true, clearError: true);
 
-    final repo = ref.read(tutorRemoteRepositoryProvider);
+    final tutorRepo = ref.read(tutorRemoteRepositoryProvider);
+    final paymentsRepo = ref.read(paymentsRemoteRepositoryProvider);
 
     String? finalThumbnailUrl = thumbnailUrl;
     if (thumbnailBytes != null && thumbnailFileName != null) {
-      final uploadResult = await repo.uploadThumbnail(
+      final uploadResult = await tutorRepo.uploadThumbnail(
         token: token,
         fileName: thumbnailFileName,
         fileBytes: thumbnailBytes,
@@ -52,7 +55,7 @@ class CreateClassViewModel extends Notifier<CreateClassState> {
       switch (uploadResult) {
         case Left(value: final failure):
           state = state.copyWith(isSubmitting: false, error: failure.message);
-          return false;
+          return null;
         case Right(value: final url):
           finalThumbnailUrl = url;
       }
@@ -76,18 +79,21 @@ class CreateClassViewModel extends Notifier<CreateClassState> {
       },
     };
 
-    final result = await repo.createClass(token, body);
+    final result = await paymentsRepo.createClassCreationPayment(
+      token: token,
+      classPayload: body,
+    );
     switch (result) {
       case Left(value: final failure):
         state = state.copyWith(isSubmitting: false, error: failure.message);
-        return false;
-      case Right():
+        return null;
+      case Right(value: final payment):
         state = state.copyWith(
           isSubmitting: false,
-          success: true,
+          success: false,
           clearError: true,
         );
-        return true;
+        return payment;
     }
   }
 

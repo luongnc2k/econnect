@@ -8,7 +8,6 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from database import get_db
-from learning_location_service import default_learning_location_ids
 from middleware.auth_middleware import auth_middleware
 from models.learning_location import LearningLocation
 from models.user import User
@@ -120,18 +119,13 @@ def list_learning_locations(
 ):
     user = _get_user_or_404(db, user_dict["uid"])
     query = db.query(LearningLocation)
-    default_ids = default_learning_location_ids()
 
     if user.role != "admin":
-        rows = (
-            query.filter(
-                LearningLocation.is_active.is_(True),
-                LearningLocation.id.in_(default_ids),
-            )
+        return (
+            query.filter(LearningLocation.is_active.is_(True))
+            .order_by(LearningLocation.name.asc(), LearningLocation.address.asc())
             .all()
         )
-        rows_by_id = {row.id: row for row in rows}
-        return [rows_by_id[location_id] for location_id in default_ids if location_id in rows_by_id]
 
     if not include_inactive:
         query = query.filter(LearningLocation.is_active.is_(True))

@@ -13,6 +13,13 @@ econnect/
 └── docs/        # Tài liệu thiết kế và ERD
 ```
 
+## Tài liệu
+
+- [Tương tác admin với hệ thống](docs/admin-operations.md)
+- [Checklist production](docs/production-checklist.md)
+- [Điều hướng client](docs/routing.md)
+- [ERD](docs/erd.md)
+
 ---
 
 ## Yêu cầu
