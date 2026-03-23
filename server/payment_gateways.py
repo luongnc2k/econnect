@@ -240,6 +240,14 @@ def _coalesce_env(*names: str) -> Optional[str]:
     return None
 
 
+def _require_env_value(*names: str, error_label: str) -> str:
+    value = _coalesce_env(*names)
+    if value:
+        return value
+    joined_names = ", ".join(names)
+    raise PaymentGatewayError(f"Thieu cau hinh payOS {error_label}: {joined_names}")
+
+
 def _build_payos_client(
     *,
     client_id_envs: tuple[str, ...],
@@ -254,6 +262,12 @@ def _build_payos_client(
     PayOS = _load_payos_sdk()
 
     client_kwargs: dict[str, Any] = {}
+    client_id = _require_env_value(*client_id_envs, error_label=f"{error_label} client_id")
+    api_key = _require_env_value(*api_key_envs, error_label=f"{error_label} api_key")
+    checksum_key = _require_env_value(
+        *checksum_key_envs,
+        error_label=f"{error_label} checksum_key",
+    )
     partner_code = _coalesce_env(*partner_code_envs) if partner_code_envs else None
     base_url = _coalesce_env(*base_url_envs) if base_url_envs else None
     timeout = _coalesce_env(*timeout_envs) if timeout_envs else None
@@ -270,9 +284,9 @@ def _build_payos_client(
 
     try:
         return PayOS(
-            client_id=_coalesce_env(*client_id_envs),
-            api_key=_coalesce_env(*api_key_envs),
-            checksum_key=_coalesce_env(*checksum_key_envs),
+            client_id=client_id,
+            api_key=api_key,
+            checksum_key=checksum_key,
             **client_kwargs,
         )
     except Exception as exc:
@@ -294,9 +308,9 @@ def _build_payos_payment_client():
 
 def _build_payos_payout_client():
     return _build_payos_client(
-        client_id_envs=("PAYOS_PAYOUT_CLIENT_ID", "PAYOS_CLIENT_ID"),
-        api_key_envs=("PAYOS_PAYOUT_API_KEY", "PAYOS_API_KEY"),
-        checksum_key_envs=("PAYOS_PAYOUT_CHECKSUM_KEY", "PAYOS_CHECKSUM_KEY"),
+        client_id_envs=("PAYOS_PAYOUT_CLIENT_ID",),
+        api_key_envs=("PAYOS_PAYOUT_API_KEY",),
+        checksum_key_envs=("PAYOS_PAYOUT_CHECKSUM_KEY",),
         partner_code_envs=("PAYOS_PAYOUT_PARTNER_CODE", "PAYOS_PARTNER_CODE"),
         base_url_envs=("PAYOS_PAYOUT_BASE_URL", "PAYOS_BASE_URL"),
         timeout_envs=("PAYOS_PAYOUT_TIMEOUT", "PAYOS_TIMEOUT"),

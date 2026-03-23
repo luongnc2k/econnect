@@ -74,6 +74,15 @@ def _validate_public_url(name: str, value: str, *, require_https: bool) -> list[
     return errors
 
 
+def _validate_required_envs(names: list[str]) -> list[str]:
+    missing: list[str] = []
+    for name in names:
+        value = _env(name)
+        if _looks_like_placeholder(value):
+            missing.append(name)
+    return missing
+
+
 def validate_runtime_configuration(cors_origins: list[str]) -> None:
     env_name = app_environment()
     strict_validation = strict_startup_validation_enabled()
@@ -86,7 +95,10 @@ def validate_runtime_configuration(cors_origins: list[str]) -> None:
     job_secret = _env("JOB_SECRET")
     payment_gateway_mode = _env("PAYMENT_GATEWAY_MODE", "mock").lower() or "mock"
     payment_public_base_url = _env("PAYMENT_PUBLIC_BASE_URL")
+    payment_mock_mode = _env_flag("PAYOS_MOCK_MODE", payment_gateway_mode == "mock")
+    payout_mock_mode = _env_flag("PAYOS_PAYOUT_MOCK_MODE", payment_gateway_mode == "mock")
     server_public_url = _env("SERVER_PUBLIC_URL")
+    static_public_url = _env("STATIC_PUBLIC_URL")
 
     if jwt_secret == DEFAULT_DEV_JWT_SECRET or len(jwt_secret) < 32:
         if env_name == "production":
@@ -109,6 +121,28 @@ def validate_runtime_configuration(cors_origins: list[str]) -> None:
             issues.append("PAYMENT_GATEWAY_MODE dang o mock")
         elif should_warn:
             warnings.append("PAYMENT_GATEWAY_MODE dang o mock")
+
+    if payment_gateway_mode != "mock" and not payment_mock_mode:
+        missing_payment_envs = _validate_required_envs(
+            ["PAYOS_CLIENT_ID", "PAYOS_API_KEY", "PAYOS_CHECKSUM_KEY"]
+        )
+        if missing_payment_envs:
+            message = "Thieu cau hinh payOS payment: " + ", ".join(missing_payment_envs)
+            if env_name == "production":
+                issues.append(message)
+            elif should_warn:
+                warnings.append(message)
+
+    if payment_gateway_mode != "mock" and not payout_mock_mode:
+        missing_payout_envs = _validate_required_envs(
+            ["PAYOS_PAYOUT_CLIENT_ID", "PAYOS_PAYOUT_API_KEY", "PAYOS_PAYOUT_CHECKSUM_KEY"]
+        )
+        if missing_payout_envs:
+            message = "Thieu cau hinh payOS payout rieng: " + ", ".join(missing_payout_envs)
+            if env_name == "production":
+                issues.append(message)
+            elif should_warn:
+                warnings.append(message)
 
     if cors_origins == ["*"]:
         if env_name == "production":
@@ -135,6 +169,14 @@ def validate_runtime_configuration(cors_origins: list[str]) -> None:
                 _validate_public_url(
                     "SERVER_PUBLIC_URL",
                     server_public_url,
+                    require_https=True,
+                )
+            )
+        if static_public_url:
+            issues.extend(
+                _validate_public_url(
+                    "STATIC_PUBLIC_URL",
+                    static_public_url,
                     require_https=True,
                 )
             )

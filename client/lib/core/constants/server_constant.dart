@@ -10,12 +10,14 @@ class ServerConstant {
     environmentUrl: _serverUrlOverride,
     isWeb: kIsWeb,
     targetPlatform: defaultTargetPlatform,
+    browserBaseUri: kIsWeb ? Uri.base : null,
   );
 
   static String resolveServerUrl({
     required String environmentUrl,
     required bool isWeb,
     required TargetPlatform targetPlatform,
+    Uri? browserBaseUri,
   }) {
     final trimmed = environmentUrl.trim();
     if (trimmed.isNotEmpty) {
@@ -23,6 +25,10 @@ class ServerConstant {
     }
 
     if (isWeb) {
+      final inferredWebUrl = _inferWebServerUrl(browserBaseUri);
+      if (inferredWebUrl != null) {
+        return inferredWebUrl;
+      }
       return 'http://127.0.0.1:8000';
     }
 
@@ -31,6 +37,33 @@ class ServerConstant {
     }
 
     return 'http://127.0.0.1:8000';
+  }
+
+  static String? _inferWebServerUrl(Uri? browserBaseUri) {
+    if (browserBaseUri == null) {
+      return null;
+    }
+
+    final scheme = browserBaseUri.scheme.toLowerCase();
+    final host = browserBaseUri.host.trim();
+    if (host.isEmpty || (scheme != 'http' && scheme != 'https')) {
+      return null;
+    }
+
+    final originPort = browserBaseUri.hasPort
+        ? browserBaseUri.port
+        : scheme == 'https'
+        ? 443
+        : 80;
+    if (originPort == 8000) {
+      return '$scheme://$host:8000';
+    }
+
+    if (scheme == 'https') {
+      return '$scheme://$host';
+    }
+
+    return '$scheme://$host:8000';
   }
 
   static Uri? get serverUri => Uri.tryParse(serverURL);

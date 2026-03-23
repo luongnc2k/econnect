@@ -35,4 +35,28 @@ void main() {
       'http://127.0.0.1:8000',
     );
   });
+
+  test('web infers http backend from current browser host', () {
+    expect(
+      ServerConstant.resolveServerUrl(
+        environmentUrl: '',
+        isWeb: true,
+        targetPlatform: TargetPlatform.android,
+        browserBaseUri: Uri.parse('http://192.168.1.20:54321/'),
+      ),
+      'http://192.168.1.20:8000',
+    );
+  });
+
+  test('web keeps https host when app is opened from https origin', () {
+    expect(
+      ServerConstant.resolveServerUrl(
+        environmentUrl: '',
+        isWeb: true,
+        targetPlatform: TargetPlatform.android,
+        browserBaseUri: Uri.parse('https://demo.ngrok-free.app/'),
+      ),
+      'https://demo.ngrok-free.app',
+    );
+  });
 }

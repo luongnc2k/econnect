@@ -1,3 +1,4 @@
+import 'package:client/core/utils/backend_asset_url.dart';
 import 'package:client/features/student/model/class_session.dart';
 
 class ClassSessionMapper {
@@ -27,7 +28,7 @@ class ClassSessionMapper {
       endDateTime: endTime,
       timeText: formatTime(startTime),
       priceText: formatPrice(m['price']),
-      imageUrl: m['thumbnail_url'] as String?,
+      imageUrl: normalizeBackendAssetUrl(m['thumbnail_url'] as String?),
       statusText: mapStatus(m['status'] as String),
       countdownText: remaining > 0 ? 'Còn $remaining chỗ' : 'Hết chỗ',
       tags: topic.isEmpty ? const [] : [topic],

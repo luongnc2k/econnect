@@ -7,6 +7,7 @@ import 'package:client/features/tutor/model/create_class_state.dart';
 import 'package:client/features/tutor/model/learning_location.dart';
 import 'package:client/features/tutor/repositories/tutor_remote_repository.dart';
 import 'package:client/features/tutor/viewmodel/create_class_viewmodel.dart';
+import 'package:client/features/tutor/viewmodel/tutor_home_viewmodel.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -195,7 +196,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
     setState(() {
       _thumbnailBytes = bytes;
       _thumbnailFileName = picked.name;
-      _thumbnailFilePath = picked.path;
+      _thumbnailFilePath = kIsWeb ? null : picked.path;
     });
   }
 
@@ -353,6 +354,10 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
 
           _stopPolling();
           if (status.isSuccessLike && status.classStatus == 'scheduled') {
+            await ref.read(tutorHomeViewModelProvider.notifier).refresh();
+            if (!mounted) {
+              return;
+            }
             _showMessage('Thanh toan thanh cong, buoi hoc da duoc tao.');
             context.pop();
             return;

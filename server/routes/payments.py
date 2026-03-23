@@ -152,6 +152,65 @@ def _payment_status_message(payment: Payment) -> str:
     return status_messages.get(payment.status, payment.status)
 
 
+def _sync_transaction_status_with_provider(
+    db: Session,
+    payment: Payment,
+) -> tuple[Payment, Optional[Class], Optional[Booking]]:
+    cls = _get_class_or_404(db, payment.class_id) if payment.class_id else None
+    booking = db.query(Booking).filter(Booking.id == payment.booking_id).first() if payment.booking_id else None
+
+    if payment.provider != PAYOS_PROVIDER:
+        return payment, cls, booking
+
+    if payment.status not in {"pending", "processing"}:
+        return payment, cls, booking
+
+    provider_order_id = (payment.provider_order_id or "").strip()
+    if not provider_order_id:
+        return payment, cls, booking
+
+    try:
+        gateway_status = fetch_provider_payment_status(PAYOS_PROVIDER, provider_order_id)
+    except PaymentGatewayError:
+        return payment, cls, booking
+
+    if gateway_status.raw_payload:
+        payment.provider_payload = gateway_status.raw_payload
+
+    provider_status = (gateway_status.provider_status or "").upper()
+    if provider_status in {"PAID", "CANCELLED", "FAILED", "EXPIRED"}:
+        processed_payment = _process_payment_result(
+            db=db,
+            transaction_ref=gateway_status.transaction_ref,
+            is_success=provider_status == "PAID",
+            provider_transaction_id=gateway_status.provider_transaction_id,
+            message=gateway_status.message,
+            raw_payload=gateway_status.raw_payload,
+        )
+        refreshed_payment = _get_payment_by_reference_or_order_id(
+            db,
+            processed_payment.transaction_ref,
+        )
+        if refreshed_payment:
+            payment = refreshed_payment
+            cls = _get_class_or_404(db, payment.class_id) if payment.class_id else None
+            booking = (
+                db.query(Booking).filter(Booking.id == payment.booking_id).first()
+                if payment.booking_id
+                else None
+            )
+        return payment, cls, booking
+
+    if provider_status == "PROCESSING" and payment.status != "processing":
+        payment.status = "processing"
+        db.commit()
+        db.refresh(payment)
+
+    cls = _get_class_or_404(db, payment.class_id) if payment.class_id else None
+    booking = db.query(Booking).filter(Booking.id == payment.booking_id).first() if payment.booking_id else None
+    return payment, cls, booking
+
+
 def _serialize_transaction_status(
     payment: Payment,
     cls: Optional[Class] = None,
@@ -751,8 +810,7 @@ def get_transaction_status(
 
     user = _get_user_or_404(db, user_dict["uid"])
     _require_payment_access(user, payment)
-    cls = _get_class_or_404(db, payment.class_id) if payment.class_id else None
-    booking = db.query(Booking).filter(Booking.id == payment.booking_id).first() if payment.booking_id else None
+    payment, cls, booking = _sync_transaction_status_with_provider(db, payment)
     return _serialize_transaction_status(payment, cls=cls, booking=booking)
 
 

@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:client/core/network/multipart_file_helper.dart';
 import 'package:client/core/network/dio_provider.dart';
 import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/features/auth/model/user_model.dart';
@@ -41,9 +42,7 @@ class MyProfileRepository implements IMyProfileRepository {
 
     final response = await dio.get(
       '/profile/me',
-      options: Options(
-        headers: {'x-auth-token': token},
-      ),
+      options: Options(headers: {'x-auth-token': token}),
     );
 
     final data = response.data;
@@ -54,9 +53,9 @@ class MyProfileRepository implements IMyProfileRepository {
     final mapped = {...data, 'token': token};
     final profile = _mapProfile(mapped);
 
-    ref.read(currentUserProvider.notifier).setUser(
-          UserModel.fromMap(mapped).copyWith(token: token),
-        );
+    ref
+        .read(currentUserProvider.notifier)
+        .setUser(UserModel.fromMap(mapped).copyWith(token: token));
 
     return profile;
   }
@@ -73,9 +72,7 @@ class MyProfileRepository implements IMyProfileRepository {
     final response = await dio.put(
       '/profile/me',
       data: profile.toMap(),
-      options: Options(
-        headers: {'x-auth-token': token},
-      ),
+      options: Options(headers: {'x-auth-token': token}),
     );
 
     final data = response.data;
@@ -86,9 +83,9 @@ class MyProfileRepository implements IMyProfileRepository {
     final mapped = {...data, 'token': token};
     final updatedProfile = _mapProfile(mapped);
 
-    ref.read(currentUserProvider.notifier).setUser(
-          UserModel.fromMap(mapped).copyWith(token: token),
-        );
+    ref
+        .read(currentUserProvider.notifier)
+        .setUser(UserModel.fromMap(mapped).copyWith(token: token));
 
     return updatedProfile;
   }
@@ -107,19 +104,17 @@ class MyProfileRepository implements IMyProfileRepository {
     }
 
     final formData = FormData.fromMap({
-      'file': filePath != null
-          ? await MultipartFile.fromFile(filePath, filename: fileName)
-          : MultipartFile.fromBytes(fileBytes, filename: fileName),
+      'file': await buildUploadMultipartFile(
+        fileName: fileName,
+        fileBytes: fileBytes,
+        filePath: filePath,
+      ),
     });
 
     final response = await dio.post(
       '/upload/avatar',
       data: formData,
-      options: Options(
-        headers: {
-          'x-auth-token': token,
-        },
-      ),
+      options: Options(headers: {'x-auth-token': token}),
     );
 
     final data = response.data;
@@ -147,17 +142,17 @@ class MyProfileRepository implements IMyProfileRepository {
     }
 
     final formData = FormData.fromMap({
-      'file': filePath != null
-          ? await MultipartFile.fromFile(filePath, filename: fileName)
-          : MultipartFile.fromBytes(fileBytes, filename: fileName),
+      'file': await buildUploadMultipartFile(
+        fileName: fileName,
+        fileBytes: fileBytes,
+        filePath: filePath,
+      ),
     });
 
     final response = await dio.post(
       '/upload/teacher-document',
       data: formData,
-      options: Options(
-        headers: {'x-auth-token': token},
-      ),
+      options: Options(headers: {'x-auth-token': token}),
     );
 
     final data = response.data;

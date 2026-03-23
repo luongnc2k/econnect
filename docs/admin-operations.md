@@ -44,9 +44,254 @@ Cần chuẩn bị:
 Nếu test payOS thật local, cần thêm:
 
 - `ngrok` hoặc tunnel HTTPS public tương đương
+- tài khoản `ngrok` đã verify email
+- `ngrok authtoken` đã được cài vào máy
 - `PAYMENT_GATEWAY_MODE=payos`
 - `PAYOS_MOCK_MODE=false`
 - `SERVER_PUBLIC_URL` và `PAYMENT_PUBLIC_BASE_URL` trỏ đến URL HTTPS public
+- `STATIC_PUBLIC_URL` trỏ đến địa chỉ backend mà app thực tế tải được ảnh/file `/static/...`
+
+## 3.1. Chuẩn bị ngrok để test payOS thật trên local
+
+Khi test payOS thật từ máy local, admin cần một URL HTTPS public để:
+
+- payOS redirect người dùng quay lại trang kết quả thanh toán
+- payOS gửi webhook về backend local
+
+Trong tài liệu này, cách đơn giản nhất là dùng `ngrok`.
+
+### 3.1.1. Cài ngrok
+
+Sau khi tải và cài `ngrok`, hãy mở terminal mới và kiểm tra:
+
+```powershell
+ngrok version
+```
+
+Nếu terminal báo `ngrok is not recognized`, thường là do:
+
+- terminal hiện tại chưa nạp lại `PATH`
+- `ngrok` chưa được thêm vào `PATH`
+
+Cách xử lý nhanh nhất là đóng terminal hiện tại, mở terminal mới, rồi chạy lại `ngrok version`.
+
+### 3.1.2. Đăng ký tài khoản và cài authtoken
+
+`ngrok` không cho mở tunnel nếu chưa có tài khoản đã xác thực và chưa cài `authtoken`.
+
+Nếu bạn gặp lỗi:
+
+```text
+ERR_NGROK_4018
+authentication failed: Usage of ngrok requires a verified account and authtoken.
+```
+
+hãy làm theo thứ tự sau:
+
+1. Đăng ký hoặc đăng nhập tại `https://dashboard.ngrok.com/signup`
+2. Verify email của tài khoản `ngrok`
+3. Lấy `authtoken` tại `https://dashboard.ngrok.com/get-started/your-authtoken`
+4. Cài `authtoken` vào máy:
+
+```powershell
+ngrok config add-authtoken <AUTHTOKEN_CUA_BAN>
+```
+
+5. Kiểm tra lại cấu hình:
+
+```powershell
+ngrok config check
+```
+
+Nếu thành công, `ngrok` sẽ tạo file config trong user profile của Windows.
+
+### 3.1.2.a. Làm lần lượt theo thứ tự này
+
+Admin có thể đi đúng chuỗi thao tác sau:
+
+1. Tạo hoặc đăng nhập tài khoản:
+   `https://dashboard.ngrok.com/signup`
+2. Verify email nếu `ngrok` yêu cầu.
+3. Lấy `authtoken` tại:
+   `https://dashboard.ngrok.com/get-started/your-authtoken`
+4. Cài token trên máy:
+
+```powershell
+ngrok config add-authtoken <AUTHTOKEN_CUA_BAN>
+```
+
+5. Kiểm tra config:
+
+```powershell
+ngrok config check
+```
+
+6. Mở tunnel cho backend:
+
+```powershell
+ngrok http 8000
+```
+
+Khi thành công, `ngrok` sẽ hiện URL dạng:
+
+```text
+https://xxxxx.ngrok-free.app
+```
+
+Sau đó admin cần:
+
+- cập nhật `SERVER_PUBLIC_URL`
+- cập nhật `PAYMENT_PUBLIC_BASE_URL`
+- kiểm tra `STATIC_PUBLIC_URL` đã trỏ đúng về local/LAN theo `SERVER_URL` của app chưa
+
+trong `server/.env`, rồi restart backend.
+
+### 3.1.3. Mở tunnel cho backend local
+
+Giả sử backend local đang chạy ở cổng `8000`:
+
+```powershell
+ngrok http 8000
+```
+
+Khi thành công, `ngrok` sẽ trả về một URL dạng:
+
+```text
+https://xxxxx.ngrok-free.app
+```
+
+Admin cần copy URL này để cập nhật:
+
+- `SERVER_PUBLIC_URL`
+- `PAYMENT_PUBLIC_BASE_URL`
+- và nếu cần thì chỉnh `STATIC_PUBLIC_URL` về đúng địa chỉ local/LAN mà app truy cập được
+
+trong file `server/.env`, sau đó restart backend rồi mới confirm webhook.
+
+### 3.1.4. Khi nào phải confirm webhook lại
+
+Admin không cần confirm webhook trước mỗi lần thanh toán.
+
+Chỉ cần làm lại khi:
+
+- lần đầu setup payOS thật
+- URL `ngrok` thay đổi
+- đổi merchant payOS
+- đổi môi trường
+
+Nếu dùng gói `ngrok` free, URL rất dễ thay đổi mỗi lần mở tunnel mới, nên gần như mỗi lần đổi URL bạn phải:
+
+1. cập nhật `server/.env`
+2. restart backend
+3. đăng nhập admin
+4. confirm webhook lại
+
+## 3.2. Phân biệt URL local của app và URL public cho payOS
+
+Khi test local nhưng tương tác thật với payOS, có 3 nhóm URL khác nhau và rất dễ bị nhầm:
+
+- `SERVER_URL` của Flutter app:
+  địa chỉ mà app gọi API hằng ngày. Giá trị này thường vẫn là địa chỉ local hoặc LAN của backend.
+- `SERVER_PUBLIC_URL` của backend:
+  URL public tổng quát của backend, hiện được giữ làm fallback nếu `STATIC_PUBLIC_URL` chưa cấu hình.
+- `PAYMENT_PUBLIC_BASE_URL` của backend:
+  URL public để backend tạo `return_url` và `webhook_url` gửi sang payOS.
+- `STATIC_PUBLIC_URL` của backend:
+  URL backend dùng để sinh link `/static/...` khi local upload fallback, ví dụ avatar, ảnh bìa lớp, hay file chứng chỉ.
+
+Quy tắc thực tế nên nhớ:
+
+- app vẫn gọi backend local qua `SERVER_URL`
+- payOS chỉ gọi lại backend qua `PAYMENT_PUBLIC_BASE_URL`
+- file tĩnh local fallback sẽ được app tải qua `STATIC_PUBLIC_URL`
+- không cần đổi toàn bộ client sang URL `ngrok` nếu mục tiêu chỉ là cho payOS callback được về local
+
+Ví dụ thường dùng:
+
+- Android emulator:
+  `flutter run --dart-define=SERVER_URL=http://10.0.2.2:8000`
+- iPhone simulator hoặc Flutter web chạy cùng máy:
+  `flutter run --dart-define=SERVER_URL=http://127.0.0.1:8000`
+- máy thật cùng mạng LAN:
+  `flutter run --dart-define=SERVER_URL=http://<LAN_IP_CUA_MAY_DEV>:8000`
+
+Trong khi đó, ở `server/.env`, `SERVER_PUBLIC_URL` và `PAYMENT_PUBLIC_BASE_URL` vẫn nên là URL HTTPS public kiểu:
+
+```text
+https://xxxxx.ngrok-free.app
+```
+
+Nhưng `STATIC_PUBLIC_URL` nên theo đúng địa chỉ mà app thật sự truy cập được, ví dụ:
+
+```text
+http://127.0.0.1:8000
+http://10.0.2.2:8000
+http://<LAN_IP_CUA_MAY_DEV>:8000
+```
+
+Nếu app mở được trang payOS nhưng quay về xong không cập nhật trạng thái, hãy kiểm tra lại cả hai phía:
+
+- app có đang gọi đúng backend local bằng `SERVER_URL` hay không
+- backend có đang public đúng URL `ngrok` trong `SERVER_PUBLIC_URL` và `PAYMENT_PUBLIC_BASE_URL` hay không
+- `STATIC_PUBLIC_URL` có đang trỏ đúng về địa chỉ backend mà app tải được ảnh/file hay không
+
+## 3.3. Chọn phạm vi test phù hợp
+
+Không phải lúc nào cũng nên bật cả payment thật lẫn payout thật ngay từ đầu.
+
+### Phương án khuyến nghị: payment thật, payout mock
+
+Đây là cấu hình an toàn và đủ để test gần hết luồng người dùng:
+
+- tạo payment link payOS thật
+- thanh toán thật ở bước tạo lớp
+- thanh toán thật ở bước học viên tham gia lớp
+- nhận `return_url` thật
+- nhận webhook thật
+- app poll lại transaction thật
+
+Biến môi trường nên đặt:
+
+```env
+PAYMENT_GATEWAY_MODE=payos
+PAYOS_MOCK_MODE=false
+PAYOS_PAYOUT_MOCK_MODE=true
+```
+
+### Khi nào mới bật payout thật
+
+Chỉ nên chuyển sang payout thật khi bạn thật sự cần test:
+
+- balance payout account
+- release payout cho tutor
+- sync payout status
+- retry payout
+
+Lúc đó mới đổi thêm:
+
+```env
+PAYOS_PAYOUT_MOCK_MODE=false
+```
+
+và điền riêng:
+
+- `PAYOS_PAYOUT_CLIENT_ID`
+- `PAYOS_PAYOUT_API_KEY`
+- `PAYOS_PAYOUT_CHECKSUM_KEY`
+
+Nếu payout dùng partner code riêng, điền thêm `PAYOS_PAYOUT_PARTNER_CODE`.
+
+## 3.4. Checklist kỹ thuật trước khi mở app
+
+Trước khi test bằng `teacher` hoặc `student`, nên kiểm tra nhanh:
+
+1. backend local đang chạy được ở `http://127.0.0.1:8000` hoặc địa chỉ LAN tương ứng
+2. tunnel `ngrok` vẫn đang sống và chưa đổi URL
+3. `SERVER_PUBLIC_URL` và `PAYMENT_PUBLIC_BASE_URL` đang trùng đúng URL `ngrok` hiện tại
+4. `STATIC_PUBLIC_URL` đang trỏ đúng về địa chỉ local/LAN mà app thực tế truy cập được
+5. backend đã được restart sau lần sửa `.env` gần nhất
+6. webhook đã được confirm lại nếu URL `ngrok` vừa thay đổi
+6. nếu copy từ `server/.env.payos-ngrok.sample`, nhớ kiểm tra lại `DATABASE_URL` cho đúng máy bạn
 
 ## 4. Quy ước xác thực
 
@@ -258,8 +503,9 @@ Quy trình đúng:
 1. Chạy backend local
 2. Chạy `ngrok http 8000`
 3. Cập nhật `SERVER_PUBLIC_URL` và `PAYMENT_PUBLIC_BASE_URL`
-4. Restart backend
-5. Login admin
+4. Cập nhật `STATIC_PUBLIC_URL` theo đúng địa chỉ local/LAN mà app dùng
+5. Restart backend
+6. Login admin
 6. Confirm webhook
 7. Sau đó mới test `teacher` và `student`
 
@@ -503,20 +749,57 @@ Dùng khi:
 Đây là quy trình gọn nhất cho local:
 
 1. Chạy backend local.
-2. Chạy `ngrok http 8000`.
-3. Copy URL `https://...ngrok-free.app`.
+2. Chạy `ngrok http 8000`
+3. Copy URL `https://...ngrok-free.app` mà ngrok trả về.
 4. Cập nhật `server/.env`:
    - `PAYMENT_GATEWAY_MODE=payos`
    - `PAYOS_MOCK_MODE=false`
+   - `PAYOS_PAYOUT_MOCK_MODE=true` nếu mới test payment flow
    - `SERVER_PUBLIC_URL=https://...`
    - `PAYMENT_PUBLIC_BASE_URL=https://...`
-5. Restart backend.
-6. Tạo admin nếu chưa có.
-7. Đăng nhập admin và lấy token.
-8. Confirm webhook.
-9. Đăng nhập bằng `teacher` để tạo lớp.
-10. Đăng nhập bằng `student` để join và thanh toán.
-11. Nếu cần, dùng admin để xem summary, balance, complaint, payout.
+   - `STATIC_PUBLIC_URL=http://127.0.0.1:8000` hoặc `http://10.0.2.2:8000` hoặc `http://<LAN_IP_CUA_MAY_DEV>:8000`
+5. Nếu bạn lấy file nền từ `server/.env.payos-ngrok.sample`, nhớ kiểm tra lại `DATABASE_URL`.
+   Với stack Docker mặc định của repo, PostgreSQL đang publish ở `localhost:5433`.
+6. Restart backend.
+7. Tạo admin nếu chưa có.
+8. Đăng nhập admin và lấy token.
+9. Confirm webhook.
+10. Chạy client nhưng vẫn trỏ `SERVER_URL` về backend local hoặc LAN của bạn, ví dụ:
+
+```powershell
+# Android emulator
+flutter run --dart-define=SERVER_URL=http://10.0.2.2:8000
+
+# Flutter web hoặc simulator chạy cùng máy
+flutter run --dart-define=SERVER_URL=http://127.0.0.1:8000
+
+# Máy thật cùng mạng LAN
+flutter run --dart-define=SERVER_URL=http://<LAN_IP_CUA_MAY_DEV>:8000
+```
+
+11. Đăng nhập bằng `teacher` để tạo lớp và thanh toán phí tạo lớp.
+12. Đăng nhập bằng `student` để join lớp và thanh toán học phí.
+13. Nếu cần, dùng admin để xem summary, balance, complaint, payout.
+
+### Cách hiểu đúng quy trình trên
+
+- `SERVER_URL` của app vẫn là địa chỉ local hoặc LAN của backend
+- `SERVER_PUBLIC_URL` và `PAYMENT_PUBLIC_BASE_URL` là URL public cho backend/payOS
+- `STATIC_PUBLIC_URL` là URL mà app dùng để tải avatar, ảnh bìa lớp, và file local fallback
+- `confirm webhook` chỉ cần làm lại khi URL public đổi hoặc đổi merchant/môi trường
+
+### Khi nào nên đổi từ payout mock sang payout thật
+
+Chỉ đổi `PAYOS_PAYOUT_MOCK_MODE=false` khi bạn chuẩn bị test một trong các luồng sau:
+
+- `GET /payments/providers/payos/payout-account/balance`
+- `POST /payments/jobs/release-eligible-payouts`
+- `POST /payments/jobs/sync-payout-statuses`
+- `POST /payments/classes/{class_id}/retry-payout`
+
+Khi đổi sang payout thật, cần điền bộ `PAYOS_PAYOUT_CLIENT_ID`, `PAYOS_PAYOUT_API_KEY`, `PAYOS_PAYOUT_CHECKSUM_KEY` riêng cho kênh payout.
+
+Nếu chưa test các luồng này, nên để payout mock để tránh phát sinh lỗi ngoài ý muốn.
 
 ## 10. Lỗi thường gặp và cách xử lý
 
@@ -552,16 +835,22 @@ Lưu ý:
 Nguyên nhân thường gặp:
 
 - URL `ngrok` đã đổi nhưng chưa confirm lại
+- `ngrok` chưa được login bằng `authtoken`
+- tài khoản `ngrok` chưa verify email nên tunnel không mở được
 - backend chưa restart sau khi sửa `.env`
 - `PAYMENT_PUBLIC_BASE_URL` không trùng URL public hiện tại
 - payOS đang ở mock hoặc backend đang ở mock mode
+- app đang gọi sai `SERVER_URL`, nên poll transaction vào nhầm backend
+- tab `ngrok` đã tắt hoặc tunnel hết hiệu lực giữa chừng
 
 Cách xử lý:
 
 1. kiểm tra `.env`
-2. restart backend
-3. confirm webhook lại
-4. test lại giao dịch mới
+2. kiểm tra `ngrok config check`
+3. restart backend
+4. kiểm tra lại `flutter run --dart-define=SERVER_URL=...`
+5. confirm webhook lại
+6. test lại giao dịch mới
 
 ### Retry payout vẫn fail
 
@@ -596,11 +885,14 @@ Cách xử lý:
 3. Tạo admin nếu chưa có.
 4. Đăng nhập admin và lưu token.
 5. Thử gọi một API admin để kiểm tra token.
-6. Nếu test payOS thật, confirm webhook.
-7. Biết cách xem payment summary.
-8. Biết cách resolve complaint.
-9. Biết cách retry payout.
-10. Biết cách chạy tay job khi cần.
+6. Nếu test payOS thật, kiểm tra `ngrok` đã verify tài khoản và cài `authtoken`.
+7. Nếu test payOS thật, mở `ngrok http 8000` và copy URL public.
+8. Cập nhật `SERVER_PUBLIC_URL`, `PAYMENT_PUBLIC_BASE_URL`, và `STATIC_PUBLIC_URL`, rồi restart backend.
+9. Confirm webhook khi cần.
+10. Biết cách xem payment summary.
+11. Biết cách resolve complaint.
+12. Biết cách retry payout.
+13. Biết cách chạy tay job khi cần.
 
 ## 13. Tóm tắt ngắn
 

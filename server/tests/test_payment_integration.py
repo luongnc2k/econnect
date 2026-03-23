@@ -1,7 +1,10 @@
 from datetime import datetime, timedelta, timezone
 
+from payment_gateways import ProviderVerificationResult
 from models.booking import Booking
 from models.class_ import Class
+from models.payment import Payment
+from routes import payments as payments_routes
 from tests.helpers import auth_headers, create_learning_location, login_user, signup_user
 
 
@@ -183,3 +186,95 @@ def test_class_creation_request_rejects_title_longer_than_100_characters(client,
         error["loc"][-1] == "title" and "at most 100 characters" in error["msg"]
         for error in response.json()["detail"]
     )
+
+
+def test_transaction_status_syncs_pending_creation_payment_from_payos(
+    client,
+    db_session,
+    monkeypatch,
+):
+    teacher_payload, teacher_signup_response = signup_user(
+        client,
+        role="teacher",
+        full_name="Teacher Sync Payment",
+    )
+    assert teacher_signup_response.status_code == 201
+
+    teacher_login_response = login_user(
+        client,
+        email=teacher_payload["email"],
+        password=teacher_payload["password"],
+    )
+    teacher_token = teacher_login_response.json()["token"]
+
+    location = create_learning_location(
+        db_session,
+        name="Sync Payment Room",
+        address="Google Meet",
+    )
+    start_time = datetime.now(timezone.utc) + timedelta(days=1)
+    end_time = start_time + timedelta(hours=2)
+
+    creation_response = client.post(
+        "/payments/class-creation/request",
+        headers=auth_headers(teacher_token),
+        json={
+            "class_payload": {
+                "topic": "Business English",
+                "title": "Provider Sync Class",
+                "description": "Test class",
+                "level": "intermediate",
+                "location_id": location.id,
+                "start_time": start_time.isoformat(),
+                "end_time": end_time.isoformat(),
+                "min_participants": 1,
+                "max_participants": 2,
+                "price": "200000",
+            }
+        },
+    )
+
+    assert creation_response.status_code == 201
+    creation_body = creation_response.json()
+
+    payment = db_session.query(Payment).filter(Payment.id == creation_body["payment_id"]).first()
+    assert payment is not None
+    payment.provider_order_id = "987654321"
+    db_session.commit()
+
+    def _fake_fetch_provider_payment_status(provider: str, provider_order_id: str):
+        assert provider == "payos"
+        assert provider_order_id == "987654321"
+        return ProviderVerificationResult(
+            transaction_ref="987654321",
+            is_success=True,
+            provider_transaction_id="PAYOS-TXN-001",
+            raw_payload='{"status":"PAID"}',
+            message="payOS da ghi nhan thanh toan thanh cong",
+            provider_status="PAID",
+        )
+
+    monkeypatch.setattr(
+        payments_routes,
+        "fetch_provider_payment_status",
+        _fake_fetch_provider_payment_status,
+    )
+
+    status_response = client.get(
+        f"/payments/transactions/{creation_body['transaction_ref']}",
+        headers=auth_headers(teacher_token),
+    )
+
+    assert status_response.status_code == 200
+    status_body = status_response.json()
+    assert status_body["status"] == "paid"
+    assert status_body["class_status"] == "scheduled"
+
+    db_session.expire_all()
+    synced_class = db_session.query(Class).filter(Class.id == creation_body["class_id"]).first()
+    synced_payment = db_session.query(Payment).filter(Payment.id == creation_body["payment_id"]).first()
+    assert synced_class is not None
+    assert synced_payment is not None
+    assert synced_class.creation_payment_status == "paid"
+    assert synced_class.status == "scheduled"
+    assert synced_payment.status == "paid"

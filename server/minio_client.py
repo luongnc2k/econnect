@@ -15,11 +15,16 @@ except ImportError:  # pragma: no cover - local file fallback remains available
     class S3Error(Exception):
         pass
 
+def _env_url(name: str, default: str) -> str:
+    return (os.getenv(name, default) or "").strip().rstrip("/")
+
+
 MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "localhost:9000")
-MINIO_PUBLIC_URL = os.getenv("MINIO_PUBLIC_URL", "http://localhost:9000")
+MINIO_PUBLIC_URL = _env_url("MINIO_PUBLIC_URL", "http://localhost:9000")
 MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY", "minioadmin")
 MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY", "minioadmin123")
-SERVER_PUBLIC_URL = os.getenv("SERVER_PUBLIC_URL", "http://127.0.0.1:8000")
+SERVER_PUBLIC_URL = _env_url("SERVER_PUBLIC_URL", "http://127.0.0.1:8000")
+STATIC_PUBLIC_URL = _env_url("STATIC_PUBLIC_URL", "")
 UPLOAD_ROOT = Path(os.getenv("LOCAL_UPLOAD_ROOT", "uploads"))
 UPLOAD_ROOT.mkdir(parents=True, exist_ok=True)
 
@@ -88,7 +93,8 @@ def _local_upload(folder: str, file_data: bytes, content_type: str) -> str:
     target_dir.mkdir(parents=True, exist_ok=True)
     target_path = target_dir / object_name
     target_path.write_bytes(file_data)
-    return f"{SERVER_PUBLIC_URL}/static/{folder}/{object_name}"
+    public_base_url = STATIC_PUBLIC_URL or SERVER_PUBLIC_URL
+    return f"{public_base_url}/static/{folder}/{object_name}"
 
 
 def _delete(bucket: str, url: str) -> None:

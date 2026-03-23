@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:client/core/constants/server_constant.dart';
 import 'package:client/core/failure/failure.dart';
 import 'package:client/core/network/dio_provider.dart';
+import 'package:client/core/network/multipart_file_helper.dart';
 import 'package:client/features/student/model/class_session.dart';
 import 'package:client/features/student/model/class_session_mapper.dart';
 import 'package:client/features/tutor/model/enrolled_student.dart';
@@ -172,9 +173,11 @@ class TutorRemoteRepository {
   }) async {
     try {
       final formData = FormData.fromMap({
-        'file': filePath != null
-            ? await MultipartFile.fromFile(filePath, filename: fileName)
-            : MultipartFile.fromBytes(fileBytes, filename: fileName),
+        'file': await buildUploadMultipartFile(
+          fileName: fileName,
+          fileBytes: fileBytes,
+          filePath: filePath,
+        ),
       });
 
       final response = await _dio.post(
