@@ -48,7 +48,7 @@ class _StudentNavShellState extends State<StudentNavShell> {
           NavigationDestination(
             icon: Icon(Icons.menu_book_outlined),
             selectedIcon: Icon(Icons.menu_book_rounded),
-            label: 'Lớp học',
+            label: 'Buổi học',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline_rounded),

@@ -167,6 +167,20 @@ def test_payment_flow_creates_class_confirms_tuition_and_restricts_transaction_a
     )
 
 
+    my_booking_status_response = client.get(
+        f"/classes/{creation_body['class_id']}/my-booking-status",
+        headers=auth_headers(student_token),
+    )
+    assert my_booking_status_response.status_code == 200
+    my_booking_status_body = my_booking_status_response.json()
+    assert my_booking_status_body["has_booking"] is True
+    assert my_booking_status_body["is_registered"] is True
+    assert my_booking_status_body["booking_status"] == "confirmed"
+    assert my_booking_status_body["payment_status"] == "paid"
+    assert my_booking_status_body["escrow_status"] == "held"
+    assert my_booking_status_body["payment_reference"] == join_body["transaction_ref"]
+
+
 def test_class_creation_request_rejects_title_longer_than_100_characters(client, db_session):
     teacher_payload, teacher_signup_response = signup_user(
         client,

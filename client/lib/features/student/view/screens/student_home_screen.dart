@@ -76,7 +76,7 @@ class StudentHomeScreen extends ConsumerWidget {
             child: Padding(
               padding: EdgeInsets.fromLTRB(hPad, 0, hPad, 0),
               child: SectionHeaderWidget(
-                title: 'Lớp học sắp diễn ra',
+                title: 'Buổi học sắp diễn ra',
                 actionText: 'Tất cả',
                 onActionTap: onClassesTap,
               ),
@@ -85,7 +85,7 @@ class StudentHomeScreen extends ConsumerWidget {
 
           SliverToBoxAdapter(
             child: Padding(
-              padding: EdgeInsets.only(left: hPad),
+              padding: EdgeInsets.fromLTRB(hPad, 8, hPad, 0),
               child: state.isLoading
                   ? const _ClassListSkeleton()
                   : state.error != null
@@ -93,6 +93,8 @@ class StudentHomeScreen extends ConsumerWidget {
                   : state.classes.isEmpty
                   ? const _EmptyClasses()
                   : UpcomingClassListWidget(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
                       classes: state.classes,
                       onClassTap: (session) =>
                           context.go(AppRoutes.classDetail, extra: session),
@@ -134,15 +136,12 @@ class _ClassListSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final h = (MediaQuery.of(context).size.height * 0.42).clamp(320.0, 460.0);
-    return SizedBox(
-      height: h,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: 3,
-        separatorBuilder: (_, _) => const SizedBox(width: 12),
-        itemBuilder: (context, _) => Container(
-          width: 240,
+    return Column(
+      children: List.generate(
+        3,
+        (_) => Container(
+          height: 174,
+          margin: const EdgeInsets.only(bottom: 12),
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(16),

@@ -23,6 +23,7 @@ from pydantic_schemas.class_response import (
     ClassDetailResponse,
     ClassResponse,
     EnrolledStudentBrief,
+    StudentClassBookingStatusResponse,
     TeacherBrief,
 )
 from pydantic_schemas.payment import calculate_creation_fee
@@ -132,6 +133,36 @@ def _build_location_notes_lookup(
             location.notes,
         )
     return lookup or None
+
+
+def _build_student_booking_status_response(
+    db: Session,
+    *,
+    cls: Class,
+    student_id: str,
+) -> StudentClassBookingStatusResponse:
+    booking = (
+        db.query(Booking)
+        .filter(Booking.class_id == cls.id, Booking.student_id == student_id)
+        .first()
+    )
+    is_registered = bool(
+        booking
+        and booking.status in {"confirmed", "completed"}
+        and booking.payment_status == "paid"
+    )
+    return StudentClassBookingStatusResponse(
+        class_id=cls.id,
+        has_booking=booking is not None,
+        is_registered=is_registered,
+        booking_id=booking.id if booking else None,
+        booking_status=booking.status if booking else None,
+        payment_status=booking.payment_status if booking else None,
+        escrow_status=booking.escrow_status if booking else None,
+        payment_reference=booking.payment_reference if booking else None,
+        tuition_amount=booking.tuition_amount if booking else None,
+        booked_at=booking.booked_at if booking else None,
+    )
 
 
 @router.get("/income")
@@ -342,6 +373,27 @@ def get_class_by_code(
             )
 
     raise HTTPException(status_code=404, detail="Khong tim thay lop hoc voi ma nay")
+
+
+@router.get("/{class_id}/my-booking-status", response_model=StudentClassBookingStatusResponse)
+def get_my_class_booking_status(
+    class_id: str,
+    db: Session = Depends(get_db),
+    user_dict: dict = Depends(auth_middleware),
+):
+    student = db.query(User).filter(User.id == user_dict["uid"]).first()
+    if not student or student.role != "student":
+        raise HTTPException(status_code=403, detail="Chi hoc vien moi co the xem trang thai dang ky cua minh")
+
+    cls = db.query(Class).filter(Class.id == class_id).first()
+    if not cls:
+        raise HTTPException(status_code=404, detail="Khong tim thay lop hoc")
+
+    return _build_student_booking_status_response(
+        db,
+        cls=cls,
+        student_id=student.id,
+    )
 
 
 @router.get("/{class_id}", response_model=ClassDetailResponse)

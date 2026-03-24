@@ -53,3 +53,16 @@ class EnrolledStudentBrief(BaseModel):
 
 class ClassDetailResponse(ClassResponse):
     enrolled_students: list[EnrolledStudentBrief] = Field(default_factory=list)
+
+
+class StudentClassBookingStatusResponse(BaseModel):
+    class_id: str
+    has_booking: bool = False
+    is_registered: bool = False
+    booking_id: Optional[str] = None
+    booking_status: Optional[str] = None
+    payment_status: Optional[str] = None
+    escrow_status: Optional[str] = None
+    payment_reference: Optional[str] = None
+    tuition_amount: Optional[Decimal] = None
+    booked_at: Optional[datetime] = None

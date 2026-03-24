@@ -4,6 +4,7 @@ import 'package:client/core/constants/server_constant.dart';
 import 'package:client/core/failure/failure.dart';
 import 'package:client/features/student/model/class_session.dart';
 import 'package:client/features/student/model/class_session_mapper.dart';
+import 'package:client/features/student/model/student_class_booking_status.dart';
 import 'package:fpdart/fpdart.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
@@ -76,6 +77,34 @@ class StudentRemoteRepository {
 
       final map = jsonDecode(response.body) as Map<String, dynamic>;
       return Right(ClassSessionMapper.fromMap(map));
+    } catch (e) {
+      return Left(AppFailure(e.toString()));
+    }
+  }
+
+  Future<Either<AppFailure, StudentClassBookingStatus>> getMyBookingStatus({
+    required String token,
+    required String classId,
+  }) async {
+    try {
+      final uri = Uri.parse(
+        '${ServerConstant.serverURL}/classes/$classId/my-booking-status',
+      );
+
+      final response = await http.get(uri, headers: {'x-auth-token': token});
+
+      if (response.statusCode != 200) {
+        final body = jsonDecode(response.body) as Map<String, dynamic>;
+        return Left(
+          AppFailure(
+            body['detail'] ?? 'Khong tai duoc trang thai dang ky',
+            response.statusCode,
+          ),
+        );
+      }
+
+      final map = jsonDecode(response.body) as Map<String, dynamic>;
+      return Right(StudentClassBookingStatus.fromMap(map));
     } catch (e) {
       return Left(AppFailure(e.toString()));
     }

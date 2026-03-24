@@ -11,6 +11,8 @@ import 'package:client/features/profile/model/teacher_my_profile_model.dart';
 import 'package:client/features/profile/repositories/my_profile_repository.dart';
 import 'package:client/features/profile/view/widgets/my_profile_view.dart';
 import 'package:client/features/student/model/class_session.dart';
+import 'package:client/features/student/model/student_class_booking_status.dart';
+import 'package:client/features/student/repositories/student_remote_repository.dart';
 import 'package:client/features/student/view/screens/class_detail_screen.dart';
 import 'package:client/features/tutor/view/screens/tutor_home_screen.dart';
 import 'package:flutter/material.dart';
@@ -25,15 +27,17 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late _FakePaymentsRemoteRepository fakeRepo;
+  late _FakeStudentRemoteRepository fakeStudentRepo;
   late _FakeUrlLauncher fakeUrlLauncher;
 
   setUp(() {
     fakeRepo = _FakePaymentsRemoteRepository();
+    fakeStudentRepo = _FakeStudentRemoteRepository();
     fakeUrlLauncher = _FakeUrlLauncher();
     UrlLauncherPlatform.instance = fakeUrlLauncher;
   });
 
-  testWidgets('student payment flow opens browser and polls paid status', (
+  testWidgets('student payment flow opens browser and hides CTA after paid', (
     tester,
   ) async {
     fakeRepo.createJoinPaymentResult = const PaymentTransactionStatus(
@@ -49,7 +53,7 @@ void main() {
       bookingStatus: 'payment_pending',
       escrowStatus: 'pending',
       classStatus: 'scheduled',
-      message: 'Đang chờ kết quả thanh toán',
+      message: 'Dang cho ket qua thanh toan',
     );
     fakeRepo.transactionStatuses = [
       const PaymentTransactionStatus(
@@ -64,23 +68,30 @@ void main() {
         bookingStatus: 'confirmed',
         escrowStatus: 'held',
         classStatus: 'scheduled',
-        message: 'Thanh toán thành công',
+        message: 'Thanh toan thanh cong',
       ),
     ];
+    fakeStudentRepo.bookingStatusResult = const StudentClassBookingStatus(
+      classId: 'class-1',
+      hasBooking: false,
+      isRegistered: false,
+    );
 
     await tester.pumpWidget(
       _buildApp(
         child: ClassDetailScreen(session: _sampleClassSession()),
         fakeRepo: fakeRepo,
+        fakeStudentRepo: fakeStudentRepo,
         user: _sampleUser(role: 'student'),
       ),
     );
+    await tester.pump();
 
     expect(find.text('Cafe A'), findsNWidgets(2));
     expect(find.text('123 Main Street'), findsOneWidget);
     expect(find.text('Mang theo tai nghe.'), findsOneWidget);
 
-    await tester.tap(find.text('Đăng ký và thanh toán'));
+    await tester.tap(find.byType(FilledButton));
     await tester.pump();
     await tester.pump(const Duration(seconds: 2));
     await tester.pump();
@@ -91,10 +102,45 @@ void main() {
       fakeUrlLauncher.launchedUrls.single,
       'http://localhost:8000/payments/mock/checkout/TUI-123',
     );
-    expect(find.text('Trạng thái thanh toán'), findsOneWidget);
-    expect(find.textContaining('Thanh toán thành công'), findsOneWidget);
-    expect(find.text('Số tiền: 50000 VND'), findsOneWidget);
+    expect(find.text('BOOKING CONFIRMED'), findsOneWidget);
+    expect(find.text('ESCROW HELD'), findsOneWidget);
+    expect(find.textContaining('50000 VND'), findsNWidgets(2));
+    expect(find.textContaining('TUI-123'), findsWidgets);
+    expect(find.byType(FilledButton), findsNothing);
   });
+
+  testWidgets(
+    'student detail hides payment action when class is already registered',
+    (tester) async {
+      fakeStudentRepo.bookingStatusResult = const StudentClassBookingStatus(
+        classId: 'class-1',
+        hasBooking: true,
+        isRegistered: true,
+        bookingId: 'booking-1',
+        bookingStatus: 'confirmed',
+        paymentStatus: 'paid',
+        escrowStatus: 'held',
+        paymentReference: 'TUI-REGISTERED-1',
+        tuitionAmount: 50000,
+      );
+
+      await tester.pumpWidget(
+        _buildApp(
+          child: ClassDetailScreen(session: _sampleClassSession()),
+          fakeRepo: fakeRepo,
+          fakeStudentRepo: fakeStudentRepo,
+          user: _sampleUser(role: 'student'),
+        ),
+      );
+      await tester.pump();
+
+      expect(fakeStudentRepo.getMyBookingStatusCalls, 1);
+      expect(find.text('BOOKING CONFIRMED'), findsOneWidget);
+      expect(find.text('PAYMENT PAID'), findsOneWidget);
+      expect(find.textContaining('TUI-REGISTERED-1'), findsOneWidget);
+      expect(find.byType(FilledButton), findsNothing);
+    },
+  );
 
   testWidgets('tutor payment tab loads class summary by class code', (
     tester,
@@ -119,6 +165,7 @@ void main() {
       _buildApp(
         child: const TutorNavShell(),
         fakeRepo: fakeRepo,
+        fakeStudentRepo: fakeStudentRepo,
         user: _sampleUser(role: 'teacher'),
       ),
     );
@@ -155,6 +202,7 @@ void main() {
       _buildApp(
         child: const TutorNavShell(),
         fakeRepo: fakeRepo,
+        fakeStudentRepo: fakeStudentRepo,
         fakeProfileRepo: fakeProfileRepo,
         user: _sampleUser(role: 'teacher'),
       ),
@@ -173,6 +221,7 @@ void main() {
 Widget _buildApp({
   required Widget child,
   required _FakePaymentsRemoteRepository fakeRepo,
+  required _FakeStudentRemoteRepository fakeStudentRepo,
   _FakeMyProfileRepository? fakeProfileRepo,
   required UserModel user,
 }) {
@@ -180,6 +229,7 @@ Widget _buildApp({
     overrides: [
       currentUserProvider.overrideWithValue(user),
       paymentsRemoteRepositoryProvider.overrideWithValue(fakeRepo),
+      studentRemoteRepositoryProvider.overrideWithValue(fakeStudentRepo),
       if (fakeProfileRepo != null)
         myProfileRepositoryProvider.overrideWithValue(fakeProfileRepo),
     ],
@@ -252,6 +302,25 @@ class _FakePaymentsRemoteRepository extends PaymentsRemoteRepository {
   }) async {
     lastRequestedClassCode = classCode;
     return Right(summaryResult!);
+  }
+}
+
+class _FakeStudentRemoteRepository extends StudentRemoteRepository {
+  StudentClassBookingStatus bookingStatusResult =
+      const StudentClassBookingStatus(
+        classId: 'class-1',
+        hasBooking: false,
+        isRegistered: false,
+      );
+  int getMyBookingStatusCalls = 0;
+
+  @override
+  Future<Either<AppFailure, StudentClassBookingStatus>> getMyBookingStatus({
+    required String token,
+    required String classId,
+  }) async {
+    getMyBookingStatusCalls += 1;
+    return Right(bookingStatusResult);
   }
 }
 
