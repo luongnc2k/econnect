@@ -29,7 +29,7 @@ class StudentRemoteRepository {
         final body = jsonDecode(response.body) as Map<String, dynamic>;
         return Left(
           AppFailure(
-            body['detail'] ?? 'Khong tai duoc lich hoc',
+            body['detail'] ?? 'Không tải được lịch học',
             response.statusCode,
           ),
         );
@@ -129,7 +129,7 @@ class StudentRemoteRepository {
         final body = jsonDecode(response.body) as Map<String, dynamic>;
         return Left(
           AppFailure(
-            body['detail'] ?? 'Khong tai duoc trang thai dang ky',
+            body['detail'] ?? 'Không tải được trạng thái đăng ký',
             response.statusCode,
           ),
         );

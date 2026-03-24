@@ -87,9 +87,9 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('Cafe A'), findsNWidgets(2));
+    expect(find.text('Cafe A'), findsOneWidget);
     expect(find.text('123 Main Street'), findsOneWidget);
-    expect(find.text('Mang theo tai nghe.'), findsOneWidget);
+    expect(find.text('Mang theo tai nghe.'), findsNothing);
 
     await tester.tap(find.byType(FilledButton));
     await tester.pump();

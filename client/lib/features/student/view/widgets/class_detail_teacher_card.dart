@@ -24,15 +24,15 @@ class ClassDetailTeacherCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
           color: cs.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(10),
         ),
         child: Row(
           children: [
             CircleAvatar(
-              radius: 24,
+              radius: 20,
               backgroundColor: const Color(0xFF7950F2),
               backgroundImage: avatarUrl != null && avatarUrl!.isNotEmpty
                   ? NetworkImage(avatarUrl!)
@@ -43,12 +43,12 @@ class ClassDetailTeacherCard extends StatelessWidget {
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w700,
-                        fontSize: 18,
+                        fontSize: 16,
                       ),
                     )
                   : null,
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -56,30 +56,30 @@ class ClassDetailTeacherCard extends StatelessWidget {
                   Text(
                     name,
                     style: TextStyle(
-                      fontSize: 15,
+                      fontSize: 14,
                       fontWeight: FontWeight.w700,
                       color: cs.onSurface,
                     ),
                   ),
-                  const SizedBox(height: 3),
+                  const SizedBox(height: 2),
                   Row(
                     children: [
                       ...List.generate(
                         5,
                         (i) => Icon(
                           Icons.star_rounded,
-                          size: 14,
+                          size: 12,
                           color: i < (rating ?? 0).floor()
                               ? const Color(0xFFFCC419)
                               : cs.outlineVariant,
                         ),
                       ),
-                      const SizedBox(width: 4),
+                      const SizedBox(width: 3),
                       Text(
                         '${rating ?? ''}'
                         '${sessionCount != null ? ' · $sessionCount buổi' : ''}',
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 11,
                           color: cs.onSurfaceVariant,
                         ),
                       ),
@@ -88,7 +88,11 @@ class ClassDetailTeacherCard extends StatelessWidget {
                 ],
               ),
             ),
-            Icon(Icons.chevron_right_rounded, color: cs.onSurfaceVariant),
+            Icon(
+              Icons.chevron_right_rounded,
+              size: 20,
+              color: cs.onSurfaceVariant,
+            ),
           ],
         ),
       ),

@@ -36,20 +36,20 @@ class ClassCardWidget extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(14),
       child: Container(
         decoration: BoxDecoration(
           color: cs.surfaceContainer,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(color: cs.outlineVariant, width: 1),
         ),
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(10),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SizedBox(width: 120, height: 148, child: _buildThumbnail(cs)),
-              const SizedBox(width: 12),
+              SizedBox(width: 108, height: 136, child: _buildThumbnail(cs)),
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -62,21 +62,21 @@ class ClassCardWidget extends StatelessWidget {
                             .map((tag) => AppTagChip(label: tag))
                             .toList(),
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 8),
                     ],
                     Text(
                       title,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 17,
+                        fontSize: 16,
                         fontWeight: FontWeight.w700,
                         color: cs.onSurface,
                         height: 1.2,
                       ),
                     ),
                     if (classCode != null && classCode!.isNotEmpty) ...[
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 4),
                       InkWell(
                         borderRadius: BorderRadius.circular(8),
                         onTap: () async {
@@ -119,14 +119,14 @@ class ClassCardWidget extends StatelessWidget {
                         ),
                       ),
                     ],
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
                     _MetaRow(icon: Icons.place_outlined, text: location),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
                     _MetaRow(
                       icon: Icons.account_circle_outlined,
                       text: teacherName,
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 10),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -136,7 +136,7 @@ class ClassCardWidget extends StatelessWidget {
                             value: timeText,
                           ),
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 10),
                         Expanded(
                           child: _InfoColumn(
                             label: 'Phí tham gia',
@@ -157,7 +157,7 @@ class ClassCardWidget extends StatelessWidget {
 
   Widget _buildThumbnail(ColorScheme cs) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(12),
       child: Container(
         width: double.infinity,
         color: cs.surfaceContainerHighest,
@@ -172,15 +172,11 @@ class ClassCardWidget extends StatelessWidget {
                     )
                   : _PlaceholderImage(cs: cs),
             ),
-            Positioned(
-              top: 10,
-              left: 10,
-              child: StatusBadge(label: statusText),
-            ),
+            Positioned(top: 8, left: 8, child: StatusBadge(label: statusText)),
             if (countdownText != null && countdownText!.isNotEmpty)
               Positioned(
-                top: 10,
-                right: 10,
+                top: 8,
+                right: 8,
                 child: _OutlineBadge(label: countdownText!),
               ),
           ],
@@ -202,14 +198,14 @@ class _InfoColumn extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant)),
-        const SizedBox(height: 4),
+        Text(label, style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant)),
+        const SizedBox(height: 3),
         Text(
           value,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            fontSize: 14,
+            fontSize: 13,
             fontWeight: FontWeight.w600,
             color: cs.onSurface,
             height: 1.2,
@@ -232,18 +228,18 @@ class _MetaRow extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 16, color: cs.onSurfaceVariant),
-        const SizedBox(width: 6),
+        Icon(icon, size: 14, color: cs.onSurfaceVariant),
+        const SizedBox(width: 5),
         Expanded(
           child: Text(
             text,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              fontSize: 12,
+              fontSize: 11,
               color: cs.onSurfaceVariant,
               fontWeight: FontWeight.w500,
-              height: 1.35,
+              height: 1.3,
             ),
           ),
         ),
@@ -261,7 +257,7 @@ class _OutlineBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: cs.surfaceContainer,
         borderRadius: BorderRadius.circular(20),
@@ -270,7 +266,7 @@ class _OutlineBadge extends StatelessWidget {
       child: Text(
         label,
         style: TextStyle(
-          fontSize: 10,
+          fontSize: 9,
           color: cs.onSurface,
           fontWeight: FontWeight.w600,
         ),

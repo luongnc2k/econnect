@@ -25,7 +25,7 @@ void main() {
             location: 'Cafe A',
             teacherId: 'teacher-1',
             teacherName: 'Tutor Demo',
-            timeText: '18:00 Hom nay',
+            timeText: '18:00 Hôm nay',
             priceText: '50000 VND',
             statusText: 'OPEN',
             tags: ['Speaking'],
@@ -36,7 +36,8 @@ void main() {
         routes: [
           GoRoute(
             path: '/',
-            builder: (_, __) => const Scaffold(body: StudentScheduleScreen()),
+            builder: (context, state) =>
+                const Scaffold(body: StudentScheduleScreen()),
           ),
           GoRoute(
             path: AppRoutes.classDetail,
@@ -90,13 +91,9 @@ UserModel _sampleUser() {
 
 class _FakeStudentRemoteRepository extends StudentRemoteRepository {
   final List<ClassSession> upcomingClasses;
-  final List<ClassSession> pastClasses;
   int getRegisteredClassesCalls = 0;
 
-  _FakeStudentRemoteRepository({
-    this.upcomingClasses = const [],
-    this.pastClasses = const [],
-  });
+  _FakeStudentRemoteRepository({this.upcomingClasses = const []});
 
   @override
   Future<Either<AppFailure, List<ClassSession>>> getRegisteredClasses(
@@ -104,6 +101,6 @@ class _FakeStudentRemoteRepository extends StudentRemoteRepository {
     bool past = false,
   }) async {
     getRegisteredClassesCalls += 1;
-    return Right(past ? pastClasses : upcomingClasses);
+    return Right(upcomingClasses);
   }
 }

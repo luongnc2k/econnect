@@ -36,7 +36,7 @@ class _StudentScheduleScreenState extends ConsumerState<StudentScheduleScreen> {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _error = 'Khong tim thay thong tin dang nhap';
+        _error = 'Không tìm thấy thông tin đăng nhập';
         _classes = const [];
       });
       return;
