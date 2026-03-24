@@ -14,6 +14,38 @@ final studentRemoteRepositoryProvider = Provider<StudentRemoteRepository>(
 );
 
 class StudentRemoteRepository {
+  Future<Either<AppFailure, List<ClassSession>>> getRegisteredClasses(
+    String token, {
+    bool past = false,
+  }) async {
+    try {
+      final uri = Uri.parse(
+        '${ServerConstant.serverURL}/classes/registered',
+      ).replace(queryParameters: past ? {'past': 'true'} : null);
+
+      final response = await http.get(uri, headers: {'x-auth-token': token});
+
+      if (response.statusCode != 200) {
+        final body = jsonDecode(response.body) as Map<String, dynamic>;
+        return Left(
+          AppFailure(
+            body['detail'] ?? 'Khong tai duoc lich hoc',
+            response.statusCode,
+          ),
+        );
+      }
+
+      final list = jsonDecode(response.body) as List<dynamic>;
+      final classes = list
+          .map((e) => ClassSessionMapper.fromMap(e as Map<String, dynamic>))
+          .toList();
+
+      return Right(classes);
+    } catch (e) {
+      return Left(AppFailure(e.toString()));
+    }
+  }
+
   Future<Either<AppFailure, List<ClassSession>>> getUpcomingClasses(
     String token, {
     String? topic,

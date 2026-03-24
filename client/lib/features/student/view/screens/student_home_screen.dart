@@ -76,7 +76,7 @@ class StudentHomeScreen extends ConsumerWidget {
             child: Padding(
               padding: EdgeInsets.fromLTRB(hPad, 0, hPad, 0),
               child: SectionHeaderWidget(
-                title: 'Buổi học sắp diễn ra',
+                title: 'Danh sách buổi học',
                 actionText: 'Tất cả',
                 onActionTap: onClassesTap,
               ),

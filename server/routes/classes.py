@@ -334,6 +334,52 @@ def get_upcoming_classes(
     return results[:20]
 
 
+@router.get("/registered", response_model=list[ClassResponse])
+def get_registered_classes(
+    past: bool = Query(default=False, description="True = lop da hoc, False = lop sap hoc"),
+    db: Session = Depends(get_db),
+    user_dict: dict = Depends(auth_middleware),
+):
+    student = db.query(User).filter(User.id == user_dict["uid"]).first()
+    if not student or student.role != "student":
+        raise HTTPException(status_code=403, detail="Chi hoc vien moi co the xem lich hoc cua minh")
+
+    now = datetime.now(timezone.utc)
+    query = (
+        db.query(Class, Topic, User, TeacherProfile)
+        .join(Booking, Booking.class_id == Class.id)
+        .outerjoin(Topic, Class.topic_id == Topic.id)
+        .join(User, Class.teacher_id == User.id)
+        .outerjoin(TeacherProfile, TeacherProfile.user_id == User.id)
+        .filter(
+            Booking.student_id == student.id,
+            Booking.status.in_(["confirmed", "completed"]),
+            Booking.payment_status == "paid",
+        )
+    )
+
+    if past:
+        query = query.filter(Class.start_time <= now).order_by(Class.start_time.desc())
+    else:
+        query = query.filter(Class.start_time > now).order_by(Class.start_time.asc())
+
+    rows = query.all()
+    location_notes_lookup = _build_location_notes_lookup(
+        db,
+        [cls for cls, *_ in rows],
+    )
+    return [
+        _to_class_response(
+            cls,
+            teacher_user,
+            teacher_profile,
+            topic_name=resolve_class_topic_label(cls, topic=tp),
+            location_notes_lookup=location_notes_lookup,
+        )
+        for cls, tp, teacher_user, teacher_profile in rows
+    ]
+
+
 @router.get("/by-code/{class_code}", response_model=ClassResponse)
 def get_class_by_code(
     class_code: str,

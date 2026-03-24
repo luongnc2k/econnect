@@ -1,8 +1,10 @@
+import 'package:client/core/router/app_router.dart';
 import 'package:client/features/search/view/screens/class_search_screen.dart';
-import 'package:client/features/search/view/screens/user_search_screen.dart';
 import 'package:client/features/profile/view/widgets/my_profile_view.dart';
 import 'package:client/features/student/view/screens/student_home_screen.dart';
+import 'package:client/features/student/view/screens/student_schedule_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 class StudentNavShell extends StatefulWidget {
   const StudentNavShell({super.key});
@@ -17,10 +19,10 @@ class _StudentNavShellState extends State<StudentNavShell> {
   late final List<Widget> _screens = [
     StudentHomeScreen(
       onAvatarTap: () => setState(() => _currentIndex = 3),
-      onSearchTap: () => setState(() => _currentIndex = 1),
+      onSearchTap: () => context.push(AppRoutes.studentSearch),
       onClassesTap: () => setState(() => _currentIndex = 2),
     ),
-    const UserSearchScreen(),
+    const StudentScheduleScreen(),
     const ClassSearchScreen(),
     const MyProfileTab(),
   ];
@@ -41,9 +43,9 @@ class _StudentNavShellState extends State<StudentNavShell> {
             label: 'Trang chủ',
           ),
           NavigationDestination(
-            icon: Icon(Icons.search_outlined),
-            selectedIcon: Icon(Icons.search_rounded),
-            label: 'Tìm kiếm',
+            icon: Icon(Icons.calendar_month_outlined),
+            selectedIcon: Icon(Icons.calendar_month_rounded),
+            label: 'Lịch học',
           ),
           NavigationDestination(
             icon: Icon(Icons.menu_book_outlined),

@@ -9,6 +9,7 @@ from tests.helpers import (
     create_learning_location,
     create_topic,
     login_user,
+    seed_paid_class_with_held_booking,
     seed_teacher_profile,
     seed_user,
 )
@@ -112,7 +113,7 @@ def test_get_class_by_code_fills_legacy_location_notes_from_learning_locations(
         db_session,
         name="Legacy Study Room",
         address="12 Nguyen Hue, Quan 1, TP.HCM",
-        notes="Lên tầng 2, báo lễ tân mã lớp để được hướng dẫn.",
+        notes="Len tang 2, bao le tan ma lop de duoc huong dan.",
     )
 
     start_time = datetime.now(timezone.utc) + timedelta(days=2)
@@ -158,4 +159,64 @@ def test_get_class_by_code_fills_legacy_location_notes_from_learning_locations(
     body = response.json()
     assert body["location_name"] == "Legacy Study Room"
     assert body["location_address"] == "12 Nguyen Hue, Quan 1, TP.HCM"
-    assert body["location_notes"] == "Lên tầng 2, báo lễ tân mã lớp để được hướng dẫn."
+    assert body["location_notes"] == "Len tang 2, bao le tan ma lop de duoc huong dan."
+
+
+def test_student_registered_classes_returns_upcoming_and_past_classes(
+    client,
+    db_session,
+):
+    teacher = seed_user(db_session, role="teacher", full_name="Teacher Student Schedule")
+    student = seed_user(db_session, role="student", full_name="Student Schedule")
+
+    now = datetime.now(timezone.utc)
+    upcoming_seed = seed_paid_class_with_held_booking(
+        db_session,
+        teacher=teacher,
+        student=student,
+        start_time=now + timedelta(days=2),
+        end_time=now + timedelta(days=2, hours=2),
+        class_status="scheduled",
+    )
+    past_seed = seed_paid_class_with_held_booking(
+        db_session,
+        teacher=teacher,
+        student=student,
+        start_time=now - timedelta(days=2, hours=2),
+        end_time=now - timedelta(days=2),
+        class_status="completed",
+    )
+
+    upcoming_class = db_session.query(Class).filter(Class.id == upcoming_seed["class"].id).first()
+    past_class = db_session.query(Class).filter(Class.id == past_seed["class"].id).first()
+    assert upcoming_class is not None
+    assert past_class is not None
+    upcoming_class.title = "Upcoming Registered Class"
+    past_class.title = "Past Registered Class"
+    db_session.commit()
+
+    login_response = login_user(client, email=student.email)
+    assert login_response.status_code == 200
+    student_token = login_response.json()["token"]
+
+    upcoming_response = client.get(
+        "/classes/registered",
+        headers=auth_headers(student_token),
+    )
+    assert upcoming_response.status_code == 200
+    upcoming_body = upcoming_response.json()
+    assert len(upcoming_body) == 1
+    assert upcoming_body[0]["id"] == upcoming_class.id
+    assert upcoming_body[0]["title"] == "Upcoming Registered Class"
+    assert upcoming_body[0]["teacher"]["id"] == teacher.id
+
+    past_response = client.get(
+        "/classes/registered?past=true",
+        headers=auth_headers(student_token),
+    )
+    assert past_response.status_code == 200
+    past_body = past_response.json()
+    assert len(past_body) == 1
+    assert past_body[0]["id"] == past_class.id
+    assert past_body[0]["title"] == "Past Registered Class"
+    assert past_body[0]["teacher"]["full_name"] == teacher.full_name

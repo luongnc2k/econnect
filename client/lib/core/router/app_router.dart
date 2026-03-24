@@ -5,6 +5,7 @@ import 'package:client/features/auth/view/screens/signup_screen.dart';
 import 'package:client/features/profile/view/screens/edit_my_profile_screen.dart';
 import 'package:client/features/profile/view/screens/my_profile_screen.dart';
 import 'package:client/features/profile/view/screens/user_profile_screen.dart';
+import 'package:client/features/search/view/screens/user_search_screen.dart';
 import 'package:client/features/student/model/class_session.dart';
 import 'package:client/features/student/view/screens/class_detail_screen.dart';
 import 'package:client/features/student/view/screens/student_nav_shell.dart';
@@ -21,6 +22,7 @@ abstract class AppRoutes {
   static const notifications = '/notifications';
 
   static const studentHome = '/student';
+  static const studentSearch = '/student/search';
   static const classDetail = '/student/class';
   static const studentMyProfile = '/student/profile';
   static const studentEditMyProfile = '/student/profile/edit';
@@ -95,6 +97,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.studentHome,
         builder: (context, state) => const StudentNavShell(),
         routes: [
+          GoRoute(
+            path: 'search',
+            builder: (context, state) => const UserSearchScreen(),
+          ),
           GoRoute(
             path: 'class',
             builder: (context, state) {
