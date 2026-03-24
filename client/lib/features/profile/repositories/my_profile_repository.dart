@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
-import 'package:client/core/network/multipart_file_helper.dart';
 import 'package:client/core/network/dio_provider.dart';
+import 'package:client/core/network/multipart_file_helper.dart';
 import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/features/auth/model/user_model.dart';
 import 'package:dio/dio.dart';
@@ -37,7 +37,7 @@ class MyProfileRepository implements IMyProfileRepository {
     final token = currentUser?.token ?? '';
 
     if (token.isEmpty) {
-      throw Exception('Thieu token dang nhap');
+      throw Exception('Thiếu token đăng nhập');
     }
 
     final response = await dio.get(
@@ -47,7 +47,7 @@ class MyProfileRepository implements IMyProfileRepository {
 
     final data = response.data;
     if (response.statusCode != 200 || data is! Map<String, dynamic>) {
-      throw Exception('Khong the tai ho so');
+      throw Exception('Không thể tải hồ sơ');
     }
 
     final mapped = {...data, 'token': token};
@@ -66,7 +66,7 @@ class MyProfileRepository implements IMyProfileRepository {
     final token = currentUser?.token ?? '';
 
     if (token.isEmpty) {
-      throw Exception('Thieu token dang nhap');
+      throw Exception('Thiếu token đăng nhập');
     }
 
     final response = await dio.put(
@@ -77,7 +77,7 @@ class MyProfileRepository implements IMyProfileRepository {
 
     final data = response.data;
     if (response.statusCode != 200 || data is! Map<String, dynamic>) {
-      throw Exception('Cap nhat ho so that bai');
+      throw Exception('Cập nhật hồ sơ thất bại');
     }
 
     final mapped = {...data, 'token': token};
@@ -100,7 +100,7 @@ class MyProfileRepository implements IMyProfileRepository {
     final token = currentUser?.token ?? '';
 
     if (token.isEmpty) {
-      throw Exception('Thieu token dang nhap');
+      throw Exception('Thiếu token đăng nhập');
     }
 
     final formData = FormData.fromMap({
@@ -125,7 +125,7 @@ class MyProfileRepository implements IMyProfileRepository {
       return data['url'].toString();
     }
 
-    throw Exception('Upload avatar that bai');
+    throw Exception('Upload avatar thất bại');
   }
 
   @override
@@ -138,7 +138,7 @@ class MyProfileRepository implements IMyProfileRepository {
     final token = currentUser?.token ?? '';
 
     if (token.isEmpty) {
-      throw Exception('Thieu token dang nhap');
+      throw Exception('Thiếu token đăng nhập');
     }
 
     final formData = FormData.fromMap({
@@ -162,7 +162,7 @@ class MyProfileRepository implements IMyProfileRepository {
       return data['url'].toString();
     }
 
-    throw Exception('Upload teacher document that bai');
+    throw Exception('Upload tài liệu giảng viên thất bại');
   }
 
   UserModel _mapProfile(Map<String, dynamic> map) {

@@ -1,24 +1,25 @@
-import 'package:client/core/router/app_router.dart';
 import 'package:client/core/failure/failure.dart';
 import 'package:client/core/providers/current_user_notifier.dart';
+import 'package:client/core/router/app_router.dart';
 import 'package:client/features/payments/model/payment_summary.dart';
 import 'package:client/features/payments/repositories/payments_remote_repository.dart';
 import 'package:client/features/profile/view/widgets/my_profile_view.dart';
 import 'package:client/features/tutor/view/screens/tutor_home_tab.dart';
 import 'package:client/features/tutor/view/screens/tutor_schedule_screen.dart';
+import 'package:client/features/tutor/viewmodel/tutor_home_viewmodel.dart';
 import 'package:fpdart/fpdart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-class TutorNavShell extends StatefulWidget {
+class TutorNavShell extends ConsumerStatefulWidget {
   const TutorNavShell({super.key});
 
   @override
-  State<TutorNavShell> createState() => _TutorNavShellState();
+  ConsumerState<TutorNavShell> createState() => _TutorNavShellState();
 }
 
-class _TutorNavShellState extends State<TutorNavShell> {
+class _TutorNavShellState extends ConsumerState<TutorNavShell> {
   int _currentIndex = 0;
 
   late final List<Widget> _screens = [
@@ -38,7 +39,15 @@ class _TutorNavShellState extends State<TutorNavShell> {
       body: IndexedStack(index: _currentIndex, children: _screens),
       floatingActionButton: _currentIndex == 0
           ? FloatingActionButton.extended(
-              onPressed: () => context.push(AppRoutes.teacherCreateClass),
+              onPressed: () async {
+                await context.push(AppRoutes.teacherCreateClass);
+                if (!mounted) {
+                  return;
+                }
+                await ref
+                    .read(tutorHomeViewModelProvider.notifier)
+                    .refresh(silent: true);
+              },
               icon: const Icon(Icons.add_rounded),
               label: const Text('Tạo buổi học'),
             )
@@ -104,7 +113,7 @@ class _TutorPaymentTabState extends ConsumerState<_TutorPaymentTab> {
     }
     final code = _controller.text.trim().toUpperCase();
     if (code.isEmpty) {
-      setState(() => _error = 'Nhap ma lop de tra cuu thanh toan.');
+      setState(() => _error = 'Nhập mã lớp để tra cứu thanh toán.');
       return;
     }
 
@@ -146,14 +155,14 @@ class _TutorPaymentTabState extends ConsumerState<_TutorPaymentTab> {
         padding: const EdgeInsets.all(20),
         children: [
           Text(
-            'Theo doi thanh toan',
+            'Theo dõi thanh toán',
             style: Theme.of(
               context,
             ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 8),
           Text(
-            'Nhap ma lop de xem creation fee, so tien dang escrow, payout cho tutor va dispute hien tai.',
+            'Nhập mã lớp để xem phí tạo lớp, số tiền đang escrow, payout cho tutor và dispute hiện tại.',
             style: TextStyle(color: cs.onSurfaceVariant, height: 1.45),
           ),
           const SizedBox(height: 16),
@@ -161,7 +170,7 @@ class _TutorPaymentTabState extends ConsumerState<_TutorPaymentTab> {
             controller: _controller,
             textCapitalization: TextCapitalization.characters,
             decoration: InputDecoration(
-              labelText: 'Ma lop',
+              labelText: 'Mã lớp',
               hintText: 'VD: CLS-260315-ABCD',
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
@@ -171,7 +180,7 @@ class _TutorPaymentTabState extends ConsumerState<_TutorPaymentTab> {
           const SizedBox(height: 12),
           FilledButton(
             onPressed: _loading ? null : _loadSummary,
-            child: Text(_loading ? 'Dang tai...' : 'Xem trang thai'),
+            child: Text(_loading ? 'Đang tải...' : 'Xem trạng thái'),
           ),
           if (_error != null) ...[
             const SizedBox(height: 12),
@@ -206,48 +215,48 @@ class _SummaryCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Tong quan doi soat',
+            'Tổng quan đối soát',
             style: Theme.of(
               context,
             ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 14),
-          _SummaryRow(label: 'Trang thai lop', value: summary.classStatus),
+          _SummaryRow(label: 'Trạng thái lớp', value: summary.classStatus),
           _SummaryRow(
-            label: 'Creation fee',
+            label: 'Phí tạo lớp',
             value: '${summary.creationFeeAmount} VND',
           ),
           _SummaryRow(
-            label: 'Creation payment',
+            label: 'Thanh toán phí tạo lớp',
             value: summary.creationPaymentStatus,
           ),
           _SummaryRow(
-            label: 'Hoc vien hien tai',
+            label: 'Học viên hiện tại',
             value: '${summary.currentParticipants}/${summary.maxParticipants}',
           ),
           _SummaryRow(
-            label: 'Nguong toi thieu',
+            label: 'Ngưỡng tối thiểu',
             value: summary.minParticipants.toString(),
           ),
           _SummaryRow(
-            label: 'Da du hoc vien toi thieu',
-            value: summary.minimumParticipantsReached ? 'Co' : 'Chua',
+            label: 'Đã đủ học viên tối thiểu',
+            value: summary.minimumParticipantsReached ? 'Có' : 'Chưa',
           ),
           _SummaryRow(
-            label: 'Tutor xac nhan day',
+            label: 'Tutor xác nhận dạy',
             value: summary.tutorConfirmationStatus,
           ),
           _SummaryRow(
-            label: 'Tong escrow',
+            label: 'Tổng escrow',
             value: '${summary.totalEscrowHeld} VND',
           ),
           _SummaryRow(label: 'Payout tutor', value: summary.tutorPayoutStatus),
           _SummaryRow(
-            label: 'So tien payout',
+            label: 'Số tiền payout',
             value: '${summary.tutorPayoutAmount} VND',
           ),
           _SummaryRow(
-            label: 'Dispute dang mo',
+            label: 'Dispute đang mở',
             value: summary.activeDisputes.toString(),
           ),
         ],

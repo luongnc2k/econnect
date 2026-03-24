@@ -100,11 +100,11 @@ class PaymentsRemoteRepository {
     try {
       final map = jsonDecode(response.body) as Map<String, dynamic>;
       return AppFailure(
-        map['detail']?.toString() ?? 'Co loi xay ra',
+        map['detail']?.toString() ?? 'Có lỗi xảy ra',
         response.statusCode,
       );
     } catch (_) {
-      return AppFailure('Co loi xay ra', response.statusCode);
+      return AppFailure('Có lỗi xảy ra', response.statusCode);
     }
   }
 }

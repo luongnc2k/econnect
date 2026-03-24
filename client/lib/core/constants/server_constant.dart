@@ -101,21 +101,21 @@ class ServerConstant {
 
   static String connectionHelpText({String? action}) {
     final prefix = action == null || action.trim().isEmpty
-        ? 'Khong the ket noi toi server $serverURL.'
-        : 'Khong the $action vi app khong ket noi duoc toi server $serverURL.';
+        ? 'Không thể kết nối tới server $serverURL.'
+        : 'Không thể $action vì app không kết nối được tới server $serverURL.';
 
     if (hasExplicitServerUrl) {
-      return '$prefix Kiem tra backend da chay va thiet bi co truy cap duoc dia chi nay.';
+      return '$prefix Kiểm tra backend đã chạy và thiết bị có truy cập được địa chỉ này.';
     }
 
     if (kIsWeb) {
-      return '$prefix Neu backend khong chay cung may, hay truyen --dart-define=SERVER_URL=http://<SERVER_IP>:8000.';
+      return '$prefix Nếu backend không chạy cùng máy, hãy truyền --dart-define=SERVER_URL=http://<SERVER_IP>:8000.';
     }
 
     if (defaultTargetPlatform == TargetPlatform.android) {
-      return '$prefix Android emulator mac dinh dung 10.0.2.2. Neu ban dang chay tren may that, hay truyen --dart-define=SERVER_URL=http://<LAN_IP>:8000.';
+      return '$prefix Android emulator mặc định dùng 10.0.2.2. Nếu bạn đang chạy trên máy thật, hãy truyền --dart-define=SERVER_URL=http://<LAN_IP>:8000.';
     }
 
-    return '$prefix Neu ban dang chay tren thiet bi khac may dev, hay truyen --dart-define=SERVER_URL=http://<LAN_IP>:8000.';
+    return '$prefix Nếu bạn đang chạy trên thiết bị khác máy dev, hãy truyền --dart-define=SERVER_URL=http://<LAN_IP>:8000.';
   }
 }

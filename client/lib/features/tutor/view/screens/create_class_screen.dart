@@ -246,6 +246,17 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
       return;
     }
 
+    if (!_startTime!.isAfter(DateTime.now())) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Giá» báº¯t Ä‘áº§u pháº£i sau thá»i Ä‘iá»ƒm hiá»‡n táº¡i',
+          ),
+        ),
+      );
+      return;
+    }
+
     final minParticipants = int.tryParse(_minParticipantsController.text) ?? 1;
     final maxParticipants = int.tryParse(_maxParticipantsController.text) ?? 0;
     if (maxParticipants < minParticipants) {
@@ -290,7 +301,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
     final redirectUrl = payment.redirectUrl;
     if (redirectUrl == null || redirectUrl.isEmpty) {
       _stopPolling();
-      _showMessage('Khong nhan duoc URL thanh toan phi tao lop tu he thong.');
+      _showMessage('Không nhận được URL thanh toán phí tạo lớp từ hệ thống.');
       return;
     }
 
@@ -302,7 +313,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
 
     if (!launched && mounted) {
       _stopPolling();
-      _showMessage('Khong mo duoc cong thanh toan. Vui long thu lai.');
+      _showMessage('Không mở được cổng thanh toán. Vui lòng thử lại.');
     }
     return;
   }
@@ -326,7 +337,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
       if (_pollAttempts > _maxPollAttempts) {
         _stopPolling();
         _showMessage(
-          'Da het thoi gian doi ket qua thanh toan. Ban hay mo lai trang thai giao dich sau.',
+          'Đã hết thời gian đợi kết quả thanh toán. Bạn hãy mở lại trạng thái giao dịch sau.',
         );
         return;
       }
@@ -358,13 +369,13 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
             if (!mounted) {
               return;
             }
-            _showMessage('Thanh toan thanh cong, buoi hoc da duoc tao.');
+            _showMessage('Thanh toán thành công, buổi học đã được tạo.');
             context.pop();
             return;
           }
 
           _showMessage(
-            status.message ?? 'Thanh toan phi tao lop khong thanh cong.',
+            status.message ?? 'Thanh toán phí tạo lớp không thành công.',
           );
         case Left(value: final failure):
           _consecutivePollErrors += 1;
@@ -555,8 +566,8 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
             const SizedBox(height: 12),
             _FormField(
               controller: _priceController,
-              label: 'Học phí (VNĐ) *',
-              hint: 'Ví dụ: 150000',
+              label: 'Tổng học phí buổi học (VNĐ) *',
+              hint: 'Ví dụ: 200000 cho cả lớp',
               keyboardType: TextInputType.number,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               validator: (value) {
@@ -583,8 +594,8 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                     )
                   : Text(
                       _pollingPayment
-                          ? 'Dang cho thanh toan phi tao lop...'
-                          : 'Tao buoi hoc va thanh toan',
+                          ? 'Đang chờ thanh toán phí tạo lớp...'
+                          : 'Tạo buổi học và thanh toán',
                       style: const TextStyle(fontSize: 16),
                     ),
             ),
@@ -809,15 +820,15 @@ class _PaymentStatusCard extends StatelessWidget {
   String _labelForStatus(String status) {
     switch (status) {
       case 'pending':
-        return 'Dang cho thanh toan';
+        return 'Đang chờ thanh toán';
       case 'paid':
-        return 'Da thanh toan';
+        return 'Đã thanh toán';
       case 'released':
-        return 'Da doi soat';
+        return 'Đã đối soát';
       case 'failed':
-        return 'Thanh toan that bai';
+        return 'Thanh toán thất bại';
       case 'refunded':
-        return 'Da hoan tien';
+        return 'Đã hoàn tiền';
       default:
         return status;
     }
@@ -839,17 +850,17 @@ class _PaymentStatusCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Trang thai thanh toan',
+            'Trạng thái thanh toán',
             style: Theme.of(
               context,
             ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 8),
-          Text('Ma giao dich: ${transaction.transactionRef}'),
+          Text('Mã giao dịch: ${transaction.transactionRef}'),
           const SizedBox(height: 4),
-          Text('Trang thai: ${_labelForStatus(transaction.status)}'),
+          Text('Trạng thái: ${_labelForStatus(transaction.status)}'),
           const SizedBox(height: 4),
-          Text('So tien: ${transaction.amount} VND'),
+          Text('Số tiền: ${transaction.amount} VND'),
           if (transaction.message != null &&
               transaction.message!.trim().isNotEmpty) ...[
             const SizedBox(height: 8),

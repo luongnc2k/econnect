@@ -22,8 +22,8 @@ void main() async {
   }
   final container = ProviderContainer();
 
-  // Giữ authViewModelProvider sống trong suốt quá trình init async
-  // Không có listener → provider bị auto-dispose giữa chừng → !ref.mounted = true
+  // Giữ authViewModelProvider sống trong suốt quá trình init async.
+  // Không có listener thì provider có thể auto-dispose giữa chừng.
   final sub = container.listen<AsyncValue<UserModel>?>(
     authViewModelProvider,
     (prev, next) {},
@@ -47,8 +47,8 @@ String? _releaseConfigurationError() {
     return null;
   }
   if (!ServerConstant.isReleaseReady) {
-    return 'Ban build release dang dung SERVER_URL khong an toan. '
-        'Hay dat --dart-define=SERVER_URL=https://api.your-domain.com truoc khi phat hanh.';
+    return 'Bản build release đang dùng SERVER_URL không an toàn. '
+        'Hãy đặt --dart-define=SERVER_URL=https://api.your-domain.com trước khi phát hành.';
   }
   return null;
 }
@@ -86,10 +86,7 @@ class _BootstrapErrorApp extends StatelessWidget {
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
-            child: Text(
-              message,
-              textAlign: TextAlign.center,
-            ),
+            child: Text(message, textAlign: TextAlign.center),
           ),
         ),
       ),

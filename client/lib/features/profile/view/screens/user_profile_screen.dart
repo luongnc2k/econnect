@@ -10,10 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 class UserProfileScreen extends ConsumerWidget {
   final String userId;
 
-  const UserProfileScreen({
-    super.key,
-    required this.userId,
-  });
+  const UserProfileScreen({super.key, required this.userId});
 
   String _formatDate(DateTime? date) {
     if (date == null) return '--';
@@ -25,11 +22,11 @@ class UserProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Thong tin ca nhan'),
-      ),
+      appBar: AppBar(title: const Text('Thông tin cá nhân')),
       body: FutureBuilder<UserModel>(
-        future: ref.read(userProfileRepositoryProvider).getUserProfileById(userId),
+        future: ref
+            .read(userProfileRepositoryProvider)
+            .getUserProfileById(userId),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -37,7 +34,7 @@ class UserProfileScreen extends ConsumerWidget {
 
           if (snapshot.hasError || !snapshot.hasData) {
             return const Center(
-              child: Text('Khong tai duoc thong tin nguoi dung'),
+              child: Text('Không tải được thông tin người dùng'),
             );
           }
 
@@ -45,31 +42,39 @@ class UserProfileScreen extends ConsumerWidget {
           final hasEmail = profile.email.trim().isNotEmpty;
           final hasPhone = (profile.phone ?? '').trim().isNotEmpty;
           final showPrivateMetadata =
-              hasEmail || hasPhone || profile.lastLoginAt != null || profile.createdAt != null;
+              hasEmail ||
+              hasPhone ||
+              profile.lastLoginAt != null ||
+              profile.createdAt != null;
           final personalItems = <ProfileInfoItem>[
-            ProfileInfoItem(label: 'Ho va ten', value: profile.fullName),
+            ProfileInfoItem(label: 'Họ và tên', value: profile.fullName),
           ];
 
           if (hasEmail) {
-            personalItems.add(ProfileInfoItem(label: 'Email', value: profile.email));
+            personalItems.add(
+              ProfileInfoItem(label: 'Email', value: profile.email),
+            );
           }
           if (hasPhone) {
             personalItems.add(
-              ProfileInfoItem(label: 'So dien thoai', value: profile.phone ?? '--'),
+              ProfileInfoItem(
+                label: 'Số điện thoại',
+                value: profile.phone ?? '--',
+              ),
             );
           }
           if (showPrivateMetadata) {
             personalItems.add(
               ProfileInfoItem(
-                label: 'Trang thai',
-                value: profile.isActive ? 'Dang hoat dong' : 'Ngung hoat dong',
+                label: 'Trạng thái',
+                value: profile.isActive ? 'Đang hoạt động' : 'Ngừng hoạt động',
               ),
             );
           }
           if (profile.lastLoginAt != null) {
             personalItems.add(
               ProfileInfoItem(
-                label: 'Lan dang nhap cuoi',
+                label: 'Lần đăng nhập cuối',
                 value: _formatDate(profile.lastLoginAt),
               ),
             );
@@ -77,7 +82,7 @@ class UserProfileScreen extends ConsumerWidget {
           if (profile.createdAt != null) {
             personalItems.add(
               ProfileInfoItem(
-                label: 'Ngay tao',
+                label: 'Ngày tạo',
                 value: _formatDate(profile.createdAt),
               ),
             );
@@ -87,22 +92,22 @@ class UserProfileScreen extends ConsumerWidget {
               ? <ProfileInfoItem>[
                   if ((profile.bankName ?? '').trim().isNotEmpty)
                     ProfileInfoItem(
-                      label: 'Ngan hang',
+                      label: 'Ngân hàng',
                       value: profile.bankName ?? '--',
                     ),
                   if ((profile.bankBin ?? '').trim().isNotEmpty)
                     ProfileInfoItem(
-                      label: 'Ma BIN',
+                      label: 'Mã BIN',
                       value: profile.bankBin ?? '--',
                     ),
                   if ((profile.bankAccountNumber ?? '').trim().isNotEmpty)
                     ProfileInfoItem(
-                      label: 'So tai khoan',
+                      label: 'Số tài khoản',
                       value: profile.bankAccountNumber ?? '--',
                     ),
                   if ((profile.bankAccountHolder ?? '').trim().isNotEmpty)
                     ProfileInfoItem(
-                      label: 'Chu tai khoan',
+                      label: 'Chủ tài khoản',
                       value: profile.bankAccountHolder ?? '--',
                     ),
                 ]
@@ -113,59 +118,56 @@ class UserProfileScreen extends ConsumerWidget {
             children: [
               MyProfileHeader(profile: profile),
               const SizedBox(height: 16),
-              ProfileInfoCard(
-                title: 'Thong tin ca nhan',
-                items: personalItems,
-              ),
+              ProfileInfoCard(title: 'Thông tin cá nhân', items: personalItems),
               const SizedBox(height: 16),
               if (profile is StudentMyProfileModel)
                 ProfileInfoCard(
-                  title: 'Thong tin hoc vien',
+                  title: 'Thông tin học viên',
                   items: [
                     ProfileInfoItem(
-                      label: 'Trinh do',
+                      label: 'Trình độ',
                       value: profile.englishLevel ?? '--',
                     ),
                     ProfileInfoItem(
-                      label: 'Muc tieu',
+                      label: 'Mục tiêu',
                       value: profile.learningGoal ?? '--',
                     ),
                     ProfileInfoItem(
-                      label: 'Tong buoi hoc',
+                      label: 'Tổng buổi học',
                       value: profile.totalLessons.toString(),
                     ),
                   ],
                 ),
               if (profile is TeacherMyProfileModel)
                 ProfileInfoCard(
-                  title: 'Thong tin giao vien',
+                  title: 'Thông tin giáo viên',
                   items: [
                     ProfileInfoItem(
-                      label: 'Chuyen mon',
+                      label: 'Chuyên môn',
                       value: profile.specialization ?? '--',
                     ),
                     ProfileInfoItem(
-                      label: 'Kinh nghiem',
-                      value: '${profile.yearsOfExperience} nam',
+                      label: 'Kinh nghiệm',
+                      value: '${profile.yearsOfExperience} năm',
                     ),
                     ProfileInfoItem(
-                      label: 'Danh gia',
+                      label: 'Đánh giá',
                       value: profile.rating.toStringAsFixed(1),
                     ),
                     ProfileInfoItem(
-                      label: 'So hoc vien',
+                      label: 'Số học viên',
                       value: profile.totalStudents.toString(),
                     ),
                     ProfileInfoItem(
-                      label: 'Hoc phi / buoi',
+                      label: 'Học phí / buổi',
                       value: profile.hourlyRate?.toStringAsFixed(0) ?? '--',
                     ),
                     ProfileInfoItem(
-                      label: 'Gioi thieu',
+                      label: 'Giới thiệu',
                       value: profile.bio ?? '--',
                     ),
                     ProfileInfoItem(
-                      label: 'Chung chi / bang cap',
+                      label: 'Chứng chỉ / bằng cấp',
                       value: profile.certifications.isEmpty
                           ? '--'
                           : profile.certifications.join(', '),
@@ -175,7 +177,7 @@ class UserProfileScreen extends ConsumerWidget {
               if (teacherBankItems.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 ProfileInfoCard(
-                  title: 'Tai khoan ngan hang',
+                  title: 'Tài khoản ngân hàng',
                   items: teacherBankItems,
                 ),
               ],

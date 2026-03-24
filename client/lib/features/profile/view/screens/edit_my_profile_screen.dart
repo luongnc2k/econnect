@@ -288,7 +288,7 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
                 children: [
                   const Expanded(
                     child: Text(
-                      'Anh chung chi',
+                      'Ảnh chứng chỉ',
                       style: TextStyle(fontWeight: FontWeight.w600),
                     ),
                   ),
@@ -306,7 +306,7 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
                   fit: BoxFit.contain,
                   errorBuilder: (_, error, stackTrace) => const Padding(
                     padding: EdgeInsets.all(24),
-                    child: Text('Khong tai duoc anh chung chi'),
+                    child: Text('Không tải được ảnh chứng chỉ'),
                   ),
                 ),
               ),
@@ -322,16 +322,16 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Xoa chung chi'),
-        content: Text('Ban co chac muon xoa chung chi #${index + 1}?'),
+        title: const Text('Xóa chứng chỉ'),
+        content: Text('Bạn có chắc muốn xóa chứng chỉ #${index + 1}?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Huy'),
+            child: const Text('Hủy'),
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Xoa'),
+            child: const Text('Xóa'),
           ),
         ],
       ),
@@ -356,7 +356,7 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          success ? 'Xoa chung chi thanh cong' : 'Xoa chung chi that bai',
+          success ? 'Xóa chứng chỉ thành công' : 'Xóa chứng chỉ thất bại',
         ),
       ),
     );
@@ -489,35 +489,35 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
               ],
               if (profile is TeacherMyProfileModel) ...[
                 _buildSectionCard(
-                  title: 'Thong tin giao vien',
+                  title: 'Thông tin giáo viên',
                   child: Column(
                     children: [
                       _buildField(
                         controller: _specializationController,
-                        label: 'Chuyen mon',
+                        label: 'Chuyên môn',
                       ),
                       const SizedBox(height: 12),
                       _buildField(
                         controller: _certificationsController,
-                        label: 'Chung chi, bang cap (phan tach bang dau phay)',
+                        label: 'Chứng chỉ, bằng cấp (phân tách bằng dấu phẩy)',
                         maxLines: 2,
                       ),
                       const SizedBox(height: 12),
                       _buildField(
                         controller: _yearsOfExperienceController,
-                        label: 'So nam kinh nghiem',
+                        label: 'Số năm kinh nghiệm',
                         keyboardType: TextInputType.number,
                       ),
                       const SizedBox(height: 12),
                       _buildField(
                         controller: _hourlyRateController,
-                        label: 'Hoc phi / buoi',
+                        label: 'Học phí / buổi',
                         keyboardType: TextInputType.number,
                       ),
                       const SizedBox(height: 12),
                       _buildField(
                         controller: _bioController,
-                        label: 'Gioi thieu',
+                        label: 'Giới thiệu',
                         maxLines: 4,
                       ),
                     ],
@@ -525,31 +525,31 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
                 ),
                 const SizedBox(height: 12),
                 _buildSectionCard(
-                  title: 'Tai khoan ngan hang',
+                  title: 'Tài khoản ngân hàng',
                   subtitle:
-                      'Thong tin thanh toan duoc tach rieng de de kiem tra va cap nhat.',
+                      'Thông tin thanh toán được tách riêng để dễ kiểm tra và cập nhật.',
                   child: Column(
                     children: [
                       _buildField(
                         controller: _bankNameController,
-                        label: 'Ngan hang',
+                        label: 'Ngân hàng',
                       ),
                       const SizedBox(height: 12),
                       _buildField(
                         controller: _bankBinController,
-                        label: 'Ma ngan hang (BIN)',
+                        label: 'Mã ngân hàng (BIN)',
                         keyboardType: TextInputType.number,
                       ),
                       const SizedBox(height: 12),
                       _buildField(
                         controller: _bankAccountNumberController,
-                        label: 'So tai khoan',
+                        label: 'Số tài khoản',
                         keyboardType: TextInputType.number,
                       ),
                       const SizedBox(height: 12),
                       _buildField(
                         controller: _bankAccountHolderController,
-                        label: 'Chu tai khoan',
+                        label: 'Chủ tài khoản',
                       ),
                     ],
                   ),
@@ -576,7 +576,7 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Chung chi da tai len',
+                            'Chứng chỉ đã tải lên',
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
                           const SizedBox(height: 8),
@@ -594,7 +594,7 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
                                     child: Align(
                                       alignment: Alignment.centerLeft,
                                       child: Text(
-                                        'Chung chi #${entry.key + 1}',
+                                        'Chứng chỉ #${entry.key + 1}',
                                       ),
                                     ),
                                   ),
@@ -606,7 +606,7 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
                                           entry.value,
                                           entry.key,
                                         ),
-                                  tooltip: 'Xoa chung chi',
+                                  tooltip: 'Xóa chứng chỉ',
                                   icon: isDeleting
                                       ? const SizedBox(
                                           width: 18,

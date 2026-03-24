@@ -15,6 +15,7 @@ class Class(Base):
     level = Column(TEXT, nullable=False)  # beginner | intermediate | advanced
     location_name = Column(VARCHAR(200), nullable=False)
     location_address = Column(TEXT, nullable=True)
+    location_notes = Column(TEXT, nullable=True)
     latitude = Column(Numeric(10, 8), nullable=True)
     longitude = Column(Numeric(10, 7), nullable=True)
     start_time = Column(DateTime(timezone=True), nullable=False)

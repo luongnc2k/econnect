@@ -27,15 +27,18 @@ class StudentRemoteRepository {
         queryParameters['q'] = query.trim();
       }
 
-      final uri = Uri.parse('${ServerConstant.serverURL}/classes/upcoming').replace(
-        queryParameters: queryParameters.isEmpty ? null : queryParameters,
-      );
+      final uri = Uri.parse('${ServerConstant.serverURL}/classes/upcoming')
+          .replace(
+            queryParameters: queryParameters.isEmpty ? null : queryParameters,
+          );
 
       final response = await http.get(uri, headers: {'x-auth-token': token});
 
       if (response.statusCode != 200) {
         final body = jsonDecode(response.body) as Map<String, dynamic>;
-        return Left(AppFailure(body['detail'] ?? 'Lỗi tải dữ liệu', response.statusCode));
+        return Left(
+          AppFailure(body['detail'] ?? 'Lỗi tải dữ liệu', response.statusCode),
+        );
       }
 
       final list = jsonDecode(response.body) as List<dynamic>;
@@ -63,7 +66,12 @@ class StudentRemoteRepository {
 
       if (response.statusCode != 200) {
         final body = jsonDecode(response.body) as Map<String, dynamic>;
-        return Left(AppFailure(body['detail'] ?? 'Khong tim thay lop hoc', response.statusCode));
+        return Left(
+          AppFailure(
+            body['detail'] ?? 'Không tìm thấy lớp học',
+            response.statusCode,
+          ),
+        );
       }
 
       final map = jsonDecode(response.body) as Map<String, dynamic>;

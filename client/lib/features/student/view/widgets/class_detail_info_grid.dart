@@ -13,41 +13,41 @@ class ClassDetailInfoGrid extends StatelessWidget {
       if (session.classCode != null)
         _InfoItem(
           icon: Icons.qr_code_2_rounded,
-          label: 'Ma lop',
+          label: 'Mã lớp',
           value: session.classCode!,
           copyable: true,
         ),
       _InfoItem(
         icon: Icons.location_on_outlined,
-        label: 'Dia diem',
+        label: 'Địa điểm',
         value: session.location,
       ),
       _InfoItem(
         icon: Icons.access_time_rounded,
-        label: 'Thoi gian',
+        label: 'Thời gian',
         value: session.timeText,
       ),
       if (session.dateText != null)
         _InfoItem(
           icon: Icons.calendar_today_outlined,
-          label: 'Ngay',
+          label: 'Ngày',
           value: session.dateText!,
         ),
       if (session.slotText != null)
         _InfoItem(
           icon: Icons.people_outline_rounded,
-          label: 'So luong',
+          label: 'Số lượng',
           value: session.slotText!,
         ),
       if (session.levelText != null)
         _InfoItem(
           icon: Icons.bar_chart_rounded,
-          label: 'Trinh do',
+          label: 'Trình độ',
           value: session.levelText!,
         ),
       _InfoItem(
         icon: Icons.payments_outlined,
-        label: 'Phi',
+        label: 'Phí',
         value: session.priceText,
       ),
     ];
@@ -120,11 +120,7 @@ class _InfoCell extends StatelessWidget {
                 ),
               ),
               if (item.copyable)
-                Icon(
-                  Icons.content_copy_rounded,
-                  size: 14,
-                  color: cs.primary,
-                ),
+                Icon(Icons.content_copy_rounded, size: 14, color: cs.primary),
             ],
           ),
           const SizedBox(height: 4),
@@ -152,9 +148,9 @@ class _InfoCell extends StatelessWidget {
       onTap: () async {
         await Clipboard.setData(ClipboardData(text: item.value));
         if (!context.mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Da copy ma lop ${item.value}')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Đã copy mã lớp ${item.value}')));
       },
       child: child,
     );

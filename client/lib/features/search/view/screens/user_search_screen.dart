@@ -50,17 +50,17 @@ class _UserSearchScreenState extends ConsumerState<UserSearchScreen> {
 
     if (_looksLikeClassCode(query)) {
       final token = ref.read(currentUserProvider)?.token ?? '';
-      final result = await ref.read(studentRemoteRepositoryProvider).getClassByCode(
-            token,
-            query,
-          );
+      final result = await ref
+          .read(studentRemoteRepositoryProvider)
+          .getClassByCode(token, query);
       if (!mounted) return;
 
       switch (result) {
         case Left(value: final _):
           final fallback = ManualTestMocks.enabled
               ? ManualTestMocks.mockClasses.where((item) {
-                  return (item.classCode ?? '').toUpperCase() == query.toUpperCase();
+                  return (item.classCode ?? '').toUpperCase() ==
+                      query.toUpperCase();
                 }).toList()
               : const <ClassSession>[];
           setState(() {
@@ -80,7 +80,9 @@ class _UserSearchScreenState extends ConsumerState<UserSearchScreen> {
       return;
     }
 
-    final results = await ref.read(userSearchRepositoryProvider).searchUsers(query);
+    final results = await ref
+        .read(userSearchRepositoryProvider)
+        .searchUsers(query);
     if (!mounted) return;
 
     setState(() {
@@ -100,61 +102,67 @@ class _UserSearchScreenState extends ConsumerState<UserSearchScreen> {
           children: [
             SearchBarWidget(
               controller: _controller,
-              hintText: 'Tim user hoac nhap ma lop',
+              hintText: 'Tìm người dùng hoặc nhập mã lớp',
               onChanged: _search,
             ),
             const SizedBox(height: 16),
             Expanded(
               child: _controller.text.trim().isEmpty
                   ? const Center(
-                      child: Text('Nhap ten, so dien thoai hoac ma lop de tim'),
+                      child: Text('Nhập tên, số điện thoại hoặc mã lớp để tìm'),
                     )
                   : _isLoading
-                      ? const Center(child: CircularProgressIndicator())
-                      : _activeMode == 'class'
-                          ? _classResults.isEmpty
-                              ? const Center(child: Text('Khong tim thay lop hoc'))
-                              : UpcomingClassListWidget(
-                                  classes: _classResults,
-                                  onClassTap: (session) => context.push(
-                                    AppRoutes.classDetail,
-                                    extra: session,
-                                  ),
-                                )
-                          : _results.isEmpty
-                              ? const Center(child: Text('Khong tim thay user'))
-                              : ListView.separated(
-                                  itemCount: _results.length,
-                                  separatorBuilder: (_, _) => const SizedBox(height: 12),
-                                  itemBuilder: (context, index) {
-                                    final user = _results[index];
-                                    return ListTile(
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(16),
-                                      ),
-                                      tileColor: Theme.of(context)
-                                          .colorScheme
-                                          .surfaceContainerHighest,
-                                      leading: CircleAvatar(
-                                        backgroundImage: user.avatarUrl != null &&
-                                                user.avatarUrl!.isNotEmpty
-                                            ? NetworkImage(user.avatarUrl!)
-                                            : null,
-                                        child: user.avatarUrl == null || user.avatarUrl!.isEmpty
-                                            ? const Icon(Icons.person)
-                                            : null,
-                                      ),
-                                      title: Text(user.fullName),
-                                      subtitle: Text(user.phone ?? user.email),
-                                      trailing: Text(
-                                        user.role == 'teacher' ? 'Tutor' : 'Student',
-                                      ),
-                                      onTap: () => context.push(
-                                        AppRoutes.userProfile.replaceFirst(':userId', user.id),
-                                      ),
-                                    );
-                                  },
-                                ),
+                  ? const Center(child: CircularProgressIndicator())
+                  : _activeMode == 'class'
+                  ? _classResults.isEmpty
+                        ? const Center(child: Text('Không tìm thấy lớp học'))
+                        : UpcomingClassListWidget(
+                            classes: _classResults,
+                            onClassTap: (session) => context.push(
+                              AppRoutes.classDetail,
+                              extra: session,
+                            ),
+                          )
+                  : _results.isEmpty
+                  ? const Center(child: Text('Không tìm thấy người dùng'))
+                  : ListView.separated(
+                      itemCount: _results.length,
+                      separatorBuilder: (_, _) => const SizedBox(height: 12),
+                      itemBuilder: (context, index) {
+                        final user = _results[index];
+                        return ListTile(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          tileColor: Theme.of(
+                            context,
+                          ).colorScheme.surfaceContainerHighest,
+                          leading: CircleAvatar(
+                            backgroundImage:
+                                user.avatarUrl != null &&
+                                    user.avatarUrl!.isNotEmpty
+                                ? NetworkImage(user.avatarUrl!)
+                                : null,
+                            child:
+                                user.avatarUrl == null ||
+                                    user.avatarUrl!.isEmpty
+                                ? const Icon(Icons.person)
+                                : null,
+                          ),
+                          title: Text(user.fullName),
+                          subtitle: Text(user.phone ?? user.email),
+                          trailing: Text(
+                            user.role == 'teacher' ? 'Tutor' : 'Student',
+                          ),
+                          onTap: () => context.push(
+                            AppRoutes.userProfile.replaceFirst(
+                              ':userId',
+                              user.id,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
             ),
           ],
         ),

@@ -115,7 +115,7 @@ class _ClassSearchScreenState extends ConsumerState<ClassSearchScreen> {
           children: [
             SearchBarWidget(
               controller: _controller,
-              hintText: 'Tim theo ma lop hoac ten lop',
+              hintText: 'Tìm theo mã lớp hoặc tên lớp',
               onChanged: _loadClasses,
             ),
             const SizedBox(height: 12),
@@ -131,7 +131,7 @@ class _ClassSearchScreenState extends ConsumerState<ClassSearchScreen> {
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : _classes.isEmpty
-                  ? const Center(child: Text('Khong tim thay lop hoc'))
+                  ? const Center(child: Text('Không tìm thấy lớp học'))
                   : UpcomingClassListWidget(
                       classes: _classes,
                       onClassTap: (session) =>

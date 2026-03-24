@@ -12,7 +12,10 @@ def calculate_creation_fee(session_price: Decimal) -> Decimal:
 
 
 def calculate_student_tuition(session_price: Decimal, max_participants: int) -> Decimal:
-    return (session_price / Decimal(max_participants)).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+    return (session_price / Decimal(max_participants)).quantize(
+        Decimal("1"),
+        rounding=ROUND_HALF_UP,
+    )
 
 
 class CreateClassPaymentRequest(BaseModel):

@@ -17,17 +17,11 @@ class MyProfileViewModel extends Notifier<MyProfileState> {
   IMyProfileRepository get repository => ref.read(myProfileRepositoryProvider);
 
   Future<void> fetchMyProfile() async {
-    state = state.copyWith(
-      isLoading: true,
-      clearError: true,
-    );
+    state = state.copyWith(isLoading: true, clearError: true);
 
     try {
       final profile = await repository.getMyProfile();
-      state = state.copyWith(
-        isLoading: false,
-        profile: profile,
-      );
+      state = state.copyWith(isLoading: false, profile: profile);
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
@@ -37,17 +31,11 @@ class MyProfileViewModel extends Notifier<MyProfileState> {
   }
 
   Future<bool> updateMyProfile(UserModel updatedProfile) async {
-    state = state.copyWith(
-      isSaving: true,
-      clearError: true,
-    );
+    state = state.copyWith(isSaving: true, clearError: true);
 
     try {
       final profile = await repository.updateMyProfile(updatedProfile);
-      state = state.copyWith(
-        isSaving: false,
-        profile: profile,
-      );
+      state = state.copyWith(isSaving: false, profile: profile);
       return true;
     } catch (e) {
       state = state.copyWith(
@@ -66,10 +54,7 @@ class MyProfileViewModel extends Notifier<MyProfileState> {
     final current = state.profile;
     if (current == null) return false;
 
-    state = state.copyWith(
-      isUploadingAvatar: true,
-      clearError: true,
-    );
+    state = state.copyWith(isUploadingAvatar: true, clearError: true);
 
     try {
       final uploadedUrl = await repository.uploadMyAvatar(
@@ -89,10 +74,7 @@ class MyProfileViewModel extends Notifier<MyProfileState> {
 
       await repository.updateMyProfile(updated);
 
-      state = state.copyWith(
-        isUploadingAvatar: false,
-        profile: updated,
-      );
+      state = state.copyWith(isUploadingAvatar: false, profile: updated);
       return true;
     } catch (e) {
       state = state.copyWith(
@@ -111,10 +93,7 @@ class MyProfileViewModel extends Notifier<MyProfileState> {
     final current = state.profile;
     if (current == null || current is! TeacherMyProfileModel) return false;
 
-    state = state.copyWith(
-      isUploadingAvatar: true,
-      clearError: true,
-    );
+    state = state.copyWith(isUploadingAvatar: true, clearError: true);
 
     try {
       final uploadedUrl = await repository.uploadTutorDocument(
@@ -129,15 +108,12 @@ class MyProfileViewModel extends Notifier<MyProfileState> {
       final updated = current.copyWith(verificationDocs: existing);
       await repository.updateMyProfile(updated);
 
-      state = state.copyWith(
-        isUploadingAvatar: false,
-        profile: updated,
-      );
+      state = state.copyWith(isUploadingAvatar: false, profile: updated);
       return true;
     } catch (e) {
       state = state.copyWith(
         isUploadingAvatar: false,
-        errorMessage: 'Cap nhat chung chi that bai',
+        errorMessage: 'Cập nhật chứng chỉ thất bại',
       );
       return false;
     }
@@ -154,25 +130,19 @@ class MyProfileViewModel extends Notifier<MyProfileState> {
       return false;
     }
 
-    state = state.copyWith(
-      isSaving: true,
-      clearError: true,
-    );
+    state = state.copyWith(isSaving: true, clearError: true);
 
     try {
       final updated = await repository.updateMyProfile(
         current.copyWith(verificationDocs: updatedDocs),
       );
 
-      state = state.copyWith(
-        isSaving: false,
-        profile: updated,
-      );
+      state = state.copyWith(isSaving: false, profile: updated);
       return true;
     } catch (e) {
       state = state.copyWith(
         isSaving: false,
-        errorMessage: 'Xoa chung chi that bai',
+        errorMessage: 'Xóa chứng chỉ thất bại',
       );
       return false;
     }
@@ -181,5 +151,5 @@ class MyProfileViewModel extends Notifier<MyProfileState> {
 
 final myProfileViewModelProvider =
     NotifierProvider<MyProfileViewModel, MyProfileState>(
-  MyProfileViewModel.new,
-);
+      MyProfileViewModel.new,
+    );

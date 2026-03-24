@@ -282,8 +282,8 @@ class _InfoGrid extends StatelessWidget {
           const SizedBox(height: 12),
           _InfoRow(
             icon: Icons.payments_outlined,
-            label: 'Học phí',
-            value: session.priceText,
+            label: 'Tổng học phí',
+            value: session.totalPriceText ?? session.priceText,
             cs: cs,
           ),
         ],

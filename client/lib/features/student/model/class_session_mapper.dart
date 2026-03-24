@@ -8,6 +8,8 @@ class ClassSessionMapper {
     final maxSlots = (m['max_participants'] as num).toInt();
     final current = (m['current_participants'] as num).toInt();
     final remaining = maxSlots - current;
+    final totalPrice = _toWholeVnd(m['price']);
+    final studentPrice = ((totalPrice / maxSlots).round()).toInt();
     final rawTopic = m['topic'];
     final topic = switch (rawTopic) {
       final Map<String, dynamic> topicMap =>
@@ -21,13 +23,16 @@ class ClassSessionMapper {
       classCode: m['class_code'] as String?,
       title: m['title'] as String,
       location: m['location_name'] as String,
+      locationAddress: m['location_address'] as String?,
+      locationNotes: m['location_notes'] as String?,
       teacherId: teacher['id'] as String?,
       teacherName: teacher['full_name'] as String,
       teacherAvatarUrl: teacher['avatar_url'] as String?,
       startDateTime: startTime,
       endDateTime: endTime,
       timeText: formatTime(startTime),
-      priceText: formatPrice(m['price']),
+      priceText: formatPrice(studentPrice),
+      totalPriceText: formatPrice(totalPrice),
       imageUrl: normalizeBackendAssetUrl(m['thumbnail_url'] as String?),
       statusText: mapStatus(m['status'] as String),
       countdownText: remaining > 0 ? 'Còn $remaining chỗ' : 'Hết chỗ',
@@ -62,13 +67,20 @@ class ClassSessionMapper {
   }
 
   static String formatPrice(dynamic price) {
-    final str = double.parse(price.toString()).toInt().toString();
+    final str = _toWholeVnd(price).toString();
     final buf = StringBuffer();
     for (int i = 0; i < str.length; i++) {
-      if (i > 0 && (str.length - i) % 3 == 0) buf.write('.');
+      if (i > 0 && (str.length - i) % 3 == 0) {
+        buf.write('.');
+      }
       buf.write(str[i]);
     }
     return '${buf.toString()}đ';
+  }
+
+  static int _toWholeVnd(dynamic price) {
+    final parsed = num.parse(price.toString());
+    return parsed.round();
   }
 
   static String mapStatus(String status) => switch (status) {

@@ -9,7 +9,6 @@ import 'package:client/features/student/model/class_session.dart';
 import 'package:client/features/student/model/class_session_mapper.dart';
 import 'package:client/features/tutor/model/enrolled_student.dart';
 import 'package:client/features/tutor/model/learning_location.dart';
-import 'package:client/features/tutor/model/teacher_income_model.dart';
 import 'package:dio/dio.dart';
 import 'package:fpdart/fpdart.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -38,7 +37,7 @@ class TutorRemoteRepository {
       if (response.statusCode != 200) {
         final body = jsonDecode(response.body) as Map<String, dynamic>;
         return Left(
-          AppFailure(body['detail'] ?? 'Lỗi tải dữ liệu', response.statusCode),
+          AppFailure(body['detail'] ?? 'Loi tai du lieu', response.statusCode),
         );
       }
 
@@ -47,30 +46,6 @@ class TutorRemoteRepository {
           .map((e) => ClassSessionMapper.fromMap(e as Map<String, dynamic>))
           .toList();
       return Right(classes);
-    } catch (e) {
-      return Left(AppFailure(e.toString()));
-    }
-  }
-
-  Future<Either<AppFailure, TeacherIncomeModel>> getIncomeStats(
-    String token,
-  ) async {
-    try {
-      final uri = Uri.parse('${ServerConstant.serverURL}/classes/income');
-      final response = await http.get(uri, headers: {'x-auth-token': token});
-
-      if (response.statusCode != 200) {
-        final body = jsonDecode(response.body) as Map<String, dynamic>;
-        return Left(
-          AppFailure(
-            body['detail'] ?? 'Lỗi tải dữ liệu thu nhập',
-            response.statusCode,
-          ),
-        );
-      }
-
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
-      return Right(TeacherIncomeModel.fromMap(data));
     } catch (e) {
       return Left(AppFailure(e.toString()));
     }
@@ -93,7 +68,7 @@ class TutorRemoteRepository {
       if (response.statusCode != 201) {
         return Left(
           AppFailure(
-            decoded['detail'] ?? 'Tạo buổi học thất bại',
+            decoded['detail'] ?? 'Tao buoi hoc that bai',
             response.statusCode,
           ),
         );
@@ -116,7 +91,7 @@ class TutorRemoteRepository {
         final body = jsonDecode(response.body) as Map<String, dynamic>;
         return Left(
           AppFailure(
-            body['detail'] ?? 'Lỗi tải danh sách địa điểm học',
+            body['detail'] ?? 'Loi tai danh sach dia diem hoc',
             response.statusCode,
           ),
         );
@@ -148,7 +123,7 @@ class TutorRemoteRepository {
         final body = jsonDecode(response.body) as Map<String, dynamic>;
         return Left(
           AppFailure(
-            body['detail'] ?? 'Lỗi tải chi tiết lớp',
+            body['detail'] ?? 'Loi tai chi tiet lop',
             response.statusCode,
           ),
         );
@@ -193,11 +168,11 @@ class TutorRemoteRepository {
         return Right(data['url'].toString());
       }
 
-      return Left(AppFailure('Upload ảnh thất bại'));
+      return Left(AppFailure('Upload anh that bai'));
     } on DioException catch (e) {
       final detail = (e.response?.data as Map<String, dynamic>?)?['detail'];
       return Left(
-        AppFailure(detail?.toString() ?? e.message ?? 'Upload ảnh thất bại'),
+        AppFailure(detail?.toString() ?? e.message ?? 'Upload anh that bai'),
       );
     } catch (e) {
       return Left(AppFailure(e.toString()));

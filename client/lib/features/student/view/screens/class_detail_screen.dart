@@ -11,6 +11,7 @@ import 'package:client/features/payments/repositories/payments_remote_repository
 import 'package:client/features/student/model/class_session.dart';
 import 'package:client/features/student/view/widgets/class_detail_enrolled_avatars.dart';
 import 'package:client/features/student/view/widgets/class_detail_info_grid.dart';
+import 'package:client/features/student/view/widgets/class_detail_location_card.dart';
 import 'package:client/features/student/view/widgets/class_detail_teacher_card.dart';
 import 'package:fpdart/fpdart.dart';
 import 'package:flutter/material.dart';
@@ -51,15 +52,14 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen> {
     final user = ref.read(currentUserProvider);
     final classId = widget.session.id;
     if (user == null || classId == null || classId.isEmpty) {
-      _showMessage('Khong tim thay thong tin lop hoc de thanh toan.');
+      _showMessage('Không tìm thấy thông tin lớp học để thanh toán.');
       return;
     }
 
     setState(() => _submitting = true);
-    final result = await ref.read(paymentsRemoteRepositoryProvider).createJoinPayment(
-          token: user.token,
-          classId: classId,
-        );
+    final result = await ref
+        .read(paymentsRemoteRepositoryProvider)
+        .createJoinPayment(token: user.token, classId: classId);
 
     if (!mounted) return;
     setState(() => _submitting = false);
@@ -78,7 +78,7 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen> {
     _beginPolling(payment.transactionRef);
     final redirectUrl = payment.redirectUrl;
     if (redirectUrl == null || redirectUrl.isEmpty) {
-      _showMessage('Khong nhan duoc URL thanh toan tu he thong.');
+      _showMessage('Không nhận được URL thanh toán từ hệ thống.');
       return;
     }
 
@@ -88,7 +88,9 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen> {
     );
     if (!launched && mounted) {
       _stopPolling();
-      _showMessage('Khong mo duoc cong thanh toan. Ban co the copy URL tu log backend de test.');
+      _showMessage(
+        'Không mở được cổng thanh toán. Bạn có thể copy URL từ log backend để test.',
+      );
     }
   }
 
@@ -109,11 +111,15 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen> {
       _pollAttempts += 1;
       if (_pollAttempts > _maxPollAttempts) {
         _stopPolling();
-        _showMessage('Da het thoi gian doi ket qua thanh toan. Ban hay thu tai lai trang thai sau.');
+        _showMessage(
+          'Đã hết thời gian đợi kết quả thanh toán. Bạn hãy thử tải lại trạng thái sau.',
+        );
         return;
       }
 
-      final result = await ref.read(paymentsRemoteRepositoryProvider).getTransactionStatus(
+      final result = await ref
+          .read(paymentsRemoteRepositoryProvider)
+          .getTransactionStatus(
             token: user.token,
             transactionRef: transactionRef,
           );
@@ -146,9 +152,9 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen> {
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -186,7 +192,7 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen> {
                   onPressed: () => Navigator.of(context).pop(),
                   icon: Icon(Icons.chevron_left, color: cs.primary),
                   label: Text(
-                    'Quay lai',
+                    'Quay lại',
                     style: TextStyle(color: cs.primary, fontSize: 16),
                   ),
                   style: TextButton.styleFrom(padding: EdgeInsets.zero),
@@ -210,18 +216,24 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen> {
                         spacing: 8,
                         runSpacing: 8,
                         children: session.tags
-                            .map((t) => AppTagChip(
-                                  label: t,
-                                  fontSize: 13,
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                                ))
+                            .map(
+                              (t) => AppTagChip(
+                                label: t,
+                                fontSize: 13,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 5,
+                                ),
+                              ),
+                            )
                             .toList(),
                       ),
                       const SizedBox(height: 12),
                     ],
                     Text(
                       session.title,
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(
                             fontWeight: FontWeight.w800,
                             color: cs.onSurface,
                             height: 1.2,
@@ -240,16 +252,18 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen> {
                     ],
                     const SizedBox(height: 20),
                     ClassDetailInfoGrid(session: session),
+                    const SizedBox(height: 16),
+                    ClassDetailLocationCard(session: session),
                     const SizedBox(height: 20),
                     if (_transaction != null)
                       _StudentPaymentStatusCard(transaction: _transaction!),
                     const SizedBox(height: 24),
                     Text(
-                      'Giang vien',
+                      'Giảng viên',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: cs.onSurface,
-                          ),
+                        fontWeight: FontWeight.w700,
+                        color: cs.onSurface,
+                      ),
                     ),
                     const SizedBox(height: 12),
                     ClassDetailTeacherCard(
@@ -260,14 +274,18 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen> {
                       onTap: session.teacherId == null
                           ? null
                           : () => context.push(
-                                AppRoutes.userProfile.replaceFirst(':userId', session.teacherId!),
+                              AppRoutes.userProfile.replaceFirst(
+                                ':userId',
+                                session.teacherId!,
                               ),
+                            ),
                     ),
                     if (session.enrolledInitials.isNotEmpty) ...[
                       const SizedBox(height: 24),
                       Text(
-                        'Hoc vien da dang ky (${session.slotText?.split(' ').first ?? ''})',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        'Học viên đã đăng ký (${session.slotText?.split(' ').first ?? ''})',
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
                               fontWeight: FontWeight.w700,
                               color: cs.onSurface,
                             ),
@@ -278,7 +296,10 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen> {
                         initials: session.enrolledInitials,
                         extra: session.extraEnrolled ?? 0,
                         onAvatarTap: (student) => context.push(
-                          AppRoutes.userProfile.replaceFirst(':userId', student.id),
+                          AppRoutes.userProfile.replaceFirst(
+                            ':userId',
+                            student.id,
+                          ),
                         ),
                       ),
                     ],
@@ -323,12 +344,14 @@ class _PaymentActionCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Thanh toan hoc phi',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+            'Thanh toán học phí',
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 6),
           Text(
-            'Thanh toan se duoc mo bang payOS trong browser, app se tu dong poll trang thai giao dich.',
+            'Thanh toán sẽ được mở bằng payOS trong browser, app sẽ tự động poll trạng thái giao dịch.',
             style: TextStyle(color: cs.onSurfaceVariant, height: 1.4),
           ),
           const SizedBox(height: 12),
@@ -344,7 +367,7 @@ class _PaymentActionCard extends StatelessWidget {
                 Icon(Icons.account_balance_wallet_rounded, color: cs.primary),
                 const SizedBox(width: 10),
                 Text(
-                  'Cong thanh toan: payOS',
+                  'Cổng thanh toán: payOS',
                   style: TextStyle(
                     color: cs.onSurface,
                     fontWeight: FontWeight.w700,
@@ -358,8 +381,11 @@ class _PaymentActionCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  'Hoc phi hien tai: $sessionPriceText',
-                  style: TextStyle(color: cs.onSurfaceVariant, fontWeight: FontWeight.w600),
+                  'Học phí hiện tại: $sessionPriceText',
+                  style: TextStyle(
+                    color: cs.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
               if (polling)
@@ -375,14 +401,18 @@ class _PaymentActionCard extends StatelessWidget {
             onPressed: submitting || polling ? null : onSubmit,
             style: FilledButton.styleFrom(
               minimumSize: const Size.fromHeight(52),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
-            child: Text(submitting ? 'Dang tao giao dich...' : 'Dang ky va thanh toan'),
+            child: Text(
+              submitting ? 'Đang tạo giao dịch...' : 'Đăng ký và thanh toán',
+            ),
           ),
           if (transaction != null) ...[
             const SizedBox(height: 10),
             Text(
-              'Transaction: ${transaction!.transactionRef}',
+              'Mã giao dịch: ${transaction!.transactionRef}',
               style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12),
             ),
           ],
@@ -418,8 +448,10 @@ class _StudentPaymentStatusCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Trang thai thanh toan',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+            'Trạng thái thanh toán',
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 8),
           Wrap(
@@ -428,14 +460,17 @@ class _StudentPaymentStatusCard extends StatelessWidget {
             children: [
               StatusBadge(label: transaction.status.toUpperCase()),
               if ((transaction.escrowStatus ?? '').isNotEmpty)
-                StatusBadge(label: 'ESCROW ${transaction.escrowStatus!.toUpperCase()}'),
+                StatusBadge(
+                  label: 'ESCROW ${transaction.escrowStatus!.toUpperCase()}',
+                ),
             ],
           ),
           const SizedBox(height: 10),
-          Text(transaction.message ?? 'Dang cap nhat ket qua giao dich'),
+          Text(transaction.message ?? 'Đang cập nhật kết quả giao dịch'),
           const SizedBox(height: 8),
-          Text('So tien: ${transaction.amount} VND'),
-          if (transaction.bookingStatus != null) Text('Booking: ${transaction.bookingStatus}'),
+          Text('Số tiền: ${transaction.amount} VND'),
+          if (transaction.bookingStatus != null)
+            Text('Booking: ${transaction.bookingStatus}'),
         ],
       ),
     );

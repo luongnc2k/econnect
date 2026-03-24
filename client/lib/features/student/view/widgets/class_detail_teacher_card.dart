@@ -78,7 +78,10 @@ class ClassDetailTeacherCard extends StatelessWidget {
                       Text(
                         '${rating ?? ''}'
                         '${sessionCount != null ? ' · $sessionCount buổi' : ''}',
-                        style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: cs.onSurfaceVariant,
+                        ),
                       ),
                     ],
                   ),

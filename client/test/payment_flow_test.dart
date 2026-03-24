@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
-import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/core/failure/failure.dart';
+import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/core/theme/theme.dart';
 import 'package:client/features/auth/model/user_model.dart';
 import 'package:client/features/payments/model/payment_summary.dart';
@@ -14,8 +14,8 @@ import 'package:client/features/student/model/class_session.dart';
 import 'package:client/features/student/view/screens/class_detail_screen.dart';
 import 'package:client/features/tutor/view/screens/tutor_home_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:fpdart/fpdart.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:url_launcher_platform_interface/link.dart';
@@ -49,7 +49,7 @@ void main() {
       bookingStatus: 'payment_pending',
       escrowStatus: 'pending',
       classStatus: 'scheduled',
-      message: 'Dang cho ket qua thanh toan',
+      message: 'Đang chờ kết quả thanh toán',
     );
     fakeRepo.transactionStatuses = [
       const PaymentTransactionStatus(
@@ -64,7 +64,7 @@ void main() {
         bookingStatus: 'confirmed',
         escrowStatus: 'held',
         classStatus: 'scheduled',
-        message: 'Thanh toan thanh cong',
+        message: 'Thanh toán thành công',
       ),
     ];
 
@@ -76,7 +76,11 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('Dang ky va thanh toan'));
+    expect(find.text('Cafe A'), findsNWidgets(2));
+    expect(find.text('123 Main Street'), findsOneWidget);
+    expect(find.text('Mang theo tai nghe.'), findsOneWidget);
+
+    await tester.tap(find.text('Đăng ký và thanh toán'));
     await tester.pump();
     await tester.pump(const Duration(seconds: 2));
     await tester.pump();
@@ -87,9 +91,9 @@ void main() {
       fakeUrlLauncher.launchedUrls.single,
       'http://localhost:8000/payments/mock/checkout/TUI-123',
     );
-    expect(find.text('Trang thai thanh toan'), findsOneWidget);
-    expect(find.textContaining('Thanh toan thanh cong'), findsOneWidget);
-    expect(find.text('So tien: 50000 VND'), findsOneWidget);
+    expect(find.text('Trạng thái thanh toán'), findsOneWidget);
+    expect(find.textContaining('Thanh toán thành công'), findsOneWidget);
+    expect(find.text('Số tiền: 50000 VND'), findsOneWidget);
   });
 
   testWidgets('tutor payment tab loads class summary by class code', (
@@ -123,11 +127,11 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextField), 'CLS-260316-ABCD');
-    await tester.tap(find.text('Xem trang thai'));
+    await tester.tap(find.text('Xem trạng thái'));
     await tester.pump();
 
     expect(fakeRepo.lastRequestedClassCode, 'CLS-260316-ABCD');
-    expect(find.text('Tong quan doi soat'), findsOneWidget);
+    expect(find.text('Tổng quan đối soát'), findsOneWidget);
     expect(find.text('12000 VND'), findsOneWidget);
     expect(find.text('60000 VND'), findsOneWidget);
   });
@@ -189,6 +193,8 @@ ClassSession _sampleClassSession() {
     classCode: 'CLS-260316-ABCD',
     title: 'English Mock Class',
     location: 'Cafe A',
+    locationAddress: '123 Main Street',
+    locationNotes: 'Mang theo tai nghe.',
     teacherId: 'teacher-1',
     teacherName: 'Tutor Demo',
     timeText: '18:00 - 20:00',

@@ -59,6 +59,7 @@ def _ensure_class_payment_columns(engine: Engine) -> None:
         engine,
         "classes",
         {
+            "location_notes": "TEXT",
             "creation_fee_amount": "NUMERIC(10, 0) NOT NULL DEFAULT 0",
             "creation_payment_status": "TEXT NOT NULL DEFAULT 'unpaid'",
             "creation_payment_reference": "TEXT",

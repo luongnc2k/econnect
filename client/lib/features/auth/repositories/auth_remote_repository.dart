@@ -45,7 +45,7 @@ class AuthRemoteRepository {
       if (response.statusCode != 201) {
         return Left(
           AppFailure(
-            resBodyMap['detail']?.toString() ?? 'Dang ky that bai',
+            resBodyMap['detail']?.toString() ?? 'Đăng ký thất bại',
             response.statusCode,
           ),
         );
@@ -54,11 +54,11 @@ class AuthRemoteRepository {
       return Right(UserModel.fromMap(resBodyMap));
     } on TimeoutException {
       return Left(
-        AppFailure(ServerConstant.connectionHelpText(action: 'dang ky')),
+        AppFailure(ServerConstant.connectionHelpText(action: 'đăng ký')),
       );
     } catch (e) {
       return Left(
-        AppFailure(_networkFailureMessage(action: 'dang ky', error: e)),
+        AppFailure(_networkFailureMessage(action: 'đăng ký', error: e)),
       );
     }
   }
@@ -81,7 +81,7 @@ class AuthRemoteRepository {
       if (response.statusCode != 200) {
         return Left(
           AppFailure(
-            resBodyMap['detail']?.toString() ?? 'Dang nhap that bai',
+            resBodyMap['detail']?.toString() ?? 'Đăng nhập thất bại',
             response.statusCode,
           ),
         );
@@ -93,11 +93,11 @@ class AuthRemoteRepository {
       );
     } on TimeoutException {
       return Left(
-        AppFailure(ServerConstant.connectionHelpText(action: 'dang nhap')),
+        AppFailure(ServerConstant.connectionHelpText(action: 'đăng nhập')),
       );
     } catch (e) {
       return Left(
-        AppFailure(_networkFailureMessage(action: 'dang nhap', error: e)),
+        AppFailure(_networkFailureMessage(action: 'đăng nhập', error: e)),
       );
     }
   }
@@ -120,7 +120,7 @@ class AuthRemoteRepository {
         return Left(
           AppFailure(
             resBodyMap['detail']?.toString() ??
-                'Khong the tai thong tin nguoi dung',
+                'Không thể tải thông tin người dùng',
             response.statusCode,
           ),
         );
@@ -129,13 +129,13 @@ class AuthRemoteRepository {
     } on TimeoutException {
       return Left(
         AppFailure(
-          ServerConstant.connectionHelpText(action: 'tai phien dang nhap'),
+          ServerConstant.connectionHelpText(action: 'tải phiên đăng nhập'),
         ),
       );
     } catch (e) {
       return Left(
         AppFailure(
-          _networkFailureMessage(action: 'tai phien dang nhap', error: e),
+          _networkFailureMessage(action: 'tải phiên đăng nhập', error: e),
         ),
       );
     }
@@ -165,6 +165,6 @@ class AuthRemoteRepository {
         raw.contains('failed host lookup')) {
       return ServerConstant.connectionHelpText(action: action);
     }
-    return 'Khong the $action. $error';
+    return 'Không thể $action. $error';
   }
 }

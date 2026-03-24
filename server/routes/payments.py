@@ -633,6 +633,7 @@ def create_class_payment_request(
         level=class_data.level,
         location_name=selected_location.name,
         location_address=selected_location.address,
+        location_notes=selected_location.notes,
         latitude=selected_location.latitude,
         longitude=selected_location.longitude,
         start_time=class_data.start_time,
@@ -1305,7 +1306,7 @@ def _build_payout_payment(
     payout_payment = Payment(
         id=str(uuid.uuid4()),
         class_id=cls.id,
-        payer_user_id="system",
+        payer_user_id=cls.teacher_id,
         payee_user_id=cls.teacher_id,
         booking_id=None,
         payment_type="payout",

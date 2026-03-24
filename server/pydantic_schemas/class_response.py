@@ -25,6 +25,7 @@ class ClassResponse(BaseModel):
     level: str
     location_name: str
     location_address: Optional[str] = None
+    location_notes: Optional[str] = None
     start_time: datetime
     end_time: datetime
     min_participants: int

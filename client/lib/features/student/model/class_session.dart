@@ -5,21 +5,22 @@ class ClassSession {
   final String? classCode;
   final String title;
   final String location;
+  final String? locationAddress;
+  final String? locationNotes;
   final String? teacherId;
   final String teacherName;
   final String? teacherAvatarUrl;
   final String timeText;
   final String priceText;
+  final String? totalPriceText;
   final String? imageUrl;
   final String statusText;
   final String? countdownText;
   final List<String> tags;
 
-  // Raw datetimes for calendar filtering and timeline
   final DateTime? startDateTime;
   final DateTime? endDateTime;
 
-  // Detail screen fields
   final String? description;
   final String? dateText;
   final String? slotText;
@@ -35,11 +36,14 @@ class ClassSession {
     this.classCode,
     required this.title,
     required this.location,
+    this.locationAddress,
+    this.locationNotes,
     this.teacherId,
     required this.teacherName,
     this.teacherAvatarUrl,
     required this.timeText,
     required this.priceText,
+    this.totalPriceText,
     this.imageUrl,
     this.statusText = 'OPEN',
     this.countdownText,

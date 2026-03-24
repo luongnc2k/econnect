@@ -35,7 +35,7 @@ class CreateClassViewModel extends Notifier<CreateClassState> {
   }) async {
     final token = ref.read(currentUserProvider)?.token;
     if (token == null) {
-      state = state.copyWith(error: 'Vui long dang nhap lai');
+      state = state.copyWith(error: 'Vui lòng đăng nhập lại');
       return null;
     }
 

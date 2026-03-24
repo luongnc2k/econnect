@@ -404,7 +404,8 @@ student_tuition = round_half_up(class.price / class.max_participants)
 ```
 
 - Đây là mức học phí mỗi học viên trả cho EConnect khi join lớp.
-- Công thức này chia theo `max_participants`, không chia theo số học viên đang có tại thời điểm thanh toán.
+- Student app nên hiển thị đúng mức này ở card/detail/payment CTA.
+- Tutor app vẫn nên hiển thị `class.price` là tổng học phí của cả buổi.
 - Các booking trong cùng một lớp sẽ có cùng `tuition_amount` nếu `class.price` và `max_participants` không đổi.
 - Payment này là giao dịch `payment_type = tuition`.
 

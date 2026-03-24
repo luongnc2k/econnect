@@ -57,7 +57,9 @@ class ClassCardWidget extends StatelessWidget {
                     Wrap(
                       spacing: 6,
                       runSpacing: 6,
-                      children: tags.map((tag) => AppTagChip(label: tag)).toList(),
+                      children: tags
+                          .map((tag) => AppTagChip(label: tag))
+                          .toList(),
                     ),
                     const SizedBox(height: 10),
                   ],
@@ -77,10 +79,12 @@ class ClassCardWidget extends StatelessWidget {
                     InkWell(
                       borderRadius: BorderRadius.circular(8),
                       onTap: () async {
-                        await Clipboard.setData(ClipboardData(text: classCode!));
+                        await Clipboard.setData(
+                          ClipboardData(text: classCode!),
+                        );
                         if (!context.mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Da copy ma lop $classCode')),
+                          SnackBar(content: Text('Đã copy mã lớp $classCode')),
                         );
                       },
                       child: Padding(
@@ -151,7 +155,10 @@ class ClassCardWidget extends StatelessWidget {
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: _InfoColumn(label: 'Phí tham gia', value: priceText),
+                        child: _InfoColumn(
+                          label: 'Phí tham gia',
+                          value: priceText,
+                        ),
                       ),
                     ],
                   ),
@@ -211,10 +218,7 @@ class _InfoColumn extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
-        ),
+        Text(label, style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant)),
         const SizedBox(height: 4),
         Text(
           value,
@@ -231,7 +235,6 @@ class _InfoColumn extends StatelessWidget {
     );
   }
 }
-
 
 class _OutlineBadge extends StatelessWidget {
   final String label;

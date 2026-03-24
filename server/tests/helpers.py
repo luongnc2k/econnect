@@ -116,11 +116,13 @@ def create_learning_location(
     *,
     name: str = "Online",
     address: str = "Google Meet",
+    notes: str | None = None,
 ) -> LearningLocation:
     location = LearningLocation(
         id=str(uuid.uuid4()),
         name=name,
         address=address,
+        notes=notes,
         is_active=True,
     )
     db.add(location)
@@ -395,7 +397,7 @@ def seed_processing_payout(db: Session) -> dict[str, object]:
     payout_payment = Payment(
         id=str(uuid.uuid4()),
         class_id=cls.id,
-        payer_user_id="system",
+        payer_user_id=teacher.id,
         payee_user_id=teacher.id,
         booking_id=None,
         payment_type="payout",

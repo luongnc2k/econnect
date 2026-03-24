@@ -13,6 +13,7 @@ from learning_location_service import get_active_learning_location_or_400
 from middleware.auth_middleware import auth_middleware
 from models.booking import Booking
 from models.class_ import Class
+from models.learning_location import LearningLocation
 from models.teacher_profile import TeacherProfile
 from models.topic import Topic
 from models.user import User
@@ -48,7 +49,14 @@ def _to_class_response(
     teacher_profile: Optional[TeacherProfile],
     *,
     topic_name: str,
+    location_notes_lookup: Optional[dict[tuple[str, str], str]] = None,
 ) -> ClassResponse:
+    location_notes = cls.location_notes
+    if (location_notes is None or not location_notes.strip()) and location_notes_lookup:
+        location_notes = location_notes_lookup.get(
+            _location_lookup_key(cls.location_name, cls.location_address)
+        )
+
     return ClassResponse(
         id=cls.id,
         class_code=_build_class_code(cls),
@@ -57,6 +65,7 @@ def _to_class_response(
         level=cls.level,
         location_name=cls.location_name,
         location_address=cls.location_address,
+        location_notes=location_notes,
         start_time=cls.start_time,
         end_time=cls.end_time,
         min_participants=cls.min_participants,
@@ -85,6 +94,44 @@ def _topic_filter_expression(raw_topic: str):
         func.lower(Class.topic).contains(normalized),
         func.lower(func.coalesce(Topic.name, "")).contains(normalized),
     )
+
+
+def _location_lookup_key(
+    location_name: Optional[str],
+    location_address: Optional[str],
+) -> tuple[str, str]:
+    return (
+        (location_name or "").strip().lower(),
+        (location_address or "").strip().lower(),
+    )
+
+
+def _build_location_notes_lookup(
+    db: Session,
+    classes: list[Class],
+) -> Optional[dict[tuple[str, str], str]]:
+    needs_fallback = any(not (cls.location_notes or "").strip() for cls in classes)
+    if not needs_fallback:
+        return None
+
+    lookup: dict[tuple[str, str], str] = {}
+    rows = (
+        db.query(LearningLocation)
+        .filter(
+            LearningLocation.is_active.is_(True),
+            LearningLocation.notes.is_not(None),
+        )
+        .all()
+    )
+    for location in rows:
+        notes = (location.notes or "").strip()
+        if not notes:
+            continue
+        lookup.setdefault(
+            _location_lookup_key(location.name, location.address),
+            location.notes,
+        )
+    return lookup or None
 
 
 @router.get("/income")
@@ -118,17 +165,17 @@ def get_income_stats(
     monthly: dict[str, float] = defaultdict(float)
 
     for booking, cls in rows:
-        price = float(cls.price)
-        total_income += price
+        income_amount = float(booking.tuition_amount)
+        total_income += income_amount
 
         booked_at = booking.booked_at
         key = f"{booked_at.year}-{str(booked_at.month).zfill(2)}"
-        monthly[key] += price
+        monthly[key] += income_amount
 
         if booked_at.year == this_year and booked_at.month == this_month:
-            this_month_income += price
+            this_month_income += income_amount
         if booked_at.year == last_month_year and booked_at.month == last_month:
-            last_month_income += price
+            last_month_income += income_amount
 
     breakdown = []
     for i in range(5, -1, -1):
@@ -183,12 +230,17 @@ def get_my_classes(
         ).order_by(Class.start_time.asc())
 
     rows = query.all()
+    location_notes_lookup = _build_location_notes_lookup(
+        db,
+        [cls for cls, _ in rows],
+    )
     return [
         _to_class_response(
             cls,
             teacher,
             teacher_profile,
             topic_name=resolve_class_topic_label(cls, topic=tp),
+            location_notes_lookup=location_notes_lookup,
         )
         for cls, tp in rows
     ]
@@ -221,6 +273,10 @@ def get_upcoming_classes(
 
     rows = query.order_by(Class.start_time.asc()).all()
     keyword = (q or "").strip().lower()
+    location_notes_lookup = _build_location_notes_lookup(
+        db,
+        [cls for cls, *_ in rows],
+    )
 
     results = []
     for cls, tp, teacher_user, teacher_profile in rows:
@@ -240,6 +296,7 @@ def get_upcoming_classes(
                 teacher_user,
                 teacher_profile,
                 topic_name=topic_name_display,
+                location_notes_lookup=location_notes_lookup,
             )
         )
 
@@ -275,11 +332,13 @@ def get_class_by_code(
 
     for cls, tp, teacher_user, teacher_profile in rows:
         if _build_class_code(cls).upper() == normalized_code:
+            location_notes_lookup = _build_location_notes_lookup(db, [cls])
             return _to_class_response(
                 cls,
                 teacher_user,
                 teacher_profile,
                 topic_name=resolve_class_topic_label(cls, topic=tp),
+                location_notes_lookup=location_notes_lookup,
             )
 
     raise HTTPException(status_code=404, detail="Khong tim thay lop hoc voi ma nay")
@@ -331,6 +390,7 @@ def get_class_detail(
         teacher,
         teacher_profile,
         topic_name=resolve_class_topic_label(cls, topic=topic),
+        location_notes_lookup=_build_location_notes_lookup(db, [cls]),
     )
     return ClassDetailResponse(**base.model_dump(), enrolled_students=enrolled)
 
@@ -365,6 +425,7 @@ def create_class(
         level=body.level,
         location_name=selected_location.name,
         location_address=selected_location.address,
+        location_notes=selected_location.notes,
         latitude=selected_location.latitude,
         longitude=selected_location.longitude,
         start_time=body.start_time,
