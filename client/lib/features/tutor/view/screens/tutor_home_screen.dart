@@ -228,7 +228,7 @@ class _SummaryCard extends StatelessWidget {
           ),
           _SummaryRow(
             label: 'Thanh toán phí tạo lớp',
-            value: summary.creationPaymentStatus,
+            value: summary.creationPaymentStatusLabel,
           ),
           _SummaryRow(
             label: 'Học viên hiện tại',

@@ -24,6 +24,7 @@ from notification_service import (
     notify_refund_issued,
     notify_student_tutor_already_confirmed,
     notify_students_tutor_confirmed,
+    notify_tutor_creation_fee_refund_updated,
     notify_tutor_payout_updated,
     notify_tutor_minimum_reached,
 )
@@ -58,10 +59,12 @@ from pydantic_schemas.payment import (
     calculate_creation_fee,
     calculate_student_tuition,
 )
+from runtime_checks import cancel_underfilled_classes_hours
 from topic_service import ensure_topic_record
 
 router = APIRouter()
 JOB_SECRET = (os.getenv("JOB_SECRET", "") or "").strip()
+CREATION_FEE_REFUND_PAYOUT_PAYMENT_TYPE = "creation_fee_refund_payout"
 
 
 def _now() -> datetime:
@@ -77,6 +80,16 @@ def _build_class_code(cls: Class) -> str:
 
 def _generate_transaction_ref(prefix: str) -> str:
     return f"{prefix}-{uuid.uuid4().hex[:16].upper()}"
+
+
+def _format_cancel_underfilled_reason(hours: float) -> str:
+    display = int(hours) if float(hours).is_integer() else hours
+    return f"Không đủ học viên tối thiểu trước {display} giờ"
+
+
+def _is_underfilled_cancellation_reason(reason: Optional[str]) -> bool:
+    normalized = (reason or "").strip().lower()
+    return "hoc vien toi thieu" in normalized or "học viên tối thiểu" in normalized
 
 
 def _get_user_or_404(db: Session, user_id: str) -> User:
@@ -1097,6 +1110,71 @@ def retry_class_payout(
     }
 
 
+@router.post("/classes/{class_id}/retry-creation-fee-refund")
+def retry_creation_fee_refund(
+    class_id: str,
+    db: Session = Depends(get_db),
+    user_dict: dict = Depends(auth_middleware),
+):
+    admin = _get_user_or_404(db, user_dict["uid"])
+    _require_role(admin, {"admin"})
+
+    now = _now()
+    cls = _get_class_or_404(db, class_id, for_update=True)
+    if cls.status != "cancelled":
+        raise HTTPException(status_code=400, detail="Chi co the retry hoan phi tao lop cho lop da bi huy")
+    if not _is_underfilled_cancellation_reason(cls.cancellation_reason):
+        raise HTTPException(
+            status_code=400,
+            detail="Chi ho tro retry hoan phi tao lop cho lop bi huy do khong du hoc vien",
+        )
+    if Decimal(cls.creation_fee_amount) <= 0:
+        raise HTTPException(status_code=400, detail="Lop hoc nay khong co phi tao lop de hoan")
+
+    existing_refund = _active_creation_fee_refund_payout_for_class(db, cls.id)
+    if existing_refund and existing_refund.status == "processing":
+        payout_result = _sync_existing_creation_fee_refund_payout(
+            db=db,
+            cls=cls,
+            refund_payment=existing_refund,
+            processed_at=now,
+        )
+        db.commit()
+        return {
+            "class_id": cls.id,
+            "status": cls.creation_payment_status,
+            "amount": str(cls.creation_fee_amount),
+            "provider_order_id": existing_refund.provider_order_id,
+            "provider_status": payout_result.provider_status,
+            "message": "Da dong bo lai trang thai hoan phi tao lop dang xu ly",
+        }
+
+    if existing_refund and existing_refund.status == "released":
+        db.commit()
+        return {
+            "class_id": cls.id,
+            "status": cls.creation_payment_status,
+            "amount": str(cls.creation_fee_amount),
+            "provider_order_id": existing_refund.provider_order_id,
+            "message": "Hoan phi tao lop da hoan tat truoc do",
+        }
+
+    refund_payment = _create_creation_fee_refund_payout_attempt(
+        db=db,
+        cls=cls,
+        processed_at=now,
+    )
+    db.commit()
+
+    return {
+        "class_id": cls.id,
+        "status": cls.creation_payment_status,
+        "amount": str(cls.creation_fee_amount),
+        "provider_order_id": refund_payment.provider_order_id,
+        "message": "Da tao lai lenh chuyen khoan hoan phi tao lop qua payOS",
+    }
+
+
 @router.post("/classes/{class_id}/cancel", response_model=PaymentSummaryResponse)
 def cancel_class_by_tutor(
     class_id: str,
@@ -1115,7 +1193,7 @@ def cancel_class_by_tutor(
 
     cls.status = "cancelled"
     cls.cancelled_at = _now()
-    cls.cancellation_reason = body.reason or "Tutor chu dong huy lop"
+    cls.cancellation_reason = body.reason or "Tutor chủ động hủy lớp"
 
     booking_rows = (
         db.query(Booking, Payment)
@@ -1448,6 +1526,171 @@ def _sync_existing_payout(
     return payout_result
 
 
+def _active_creation_fee_refund_payout_for_class(
+    db: Session,
+    class_id: str,
+) -> Optional[Payment]:
+    return (
+        db.query(Payment)
+        .filter(
+            Payment.class_id == class_id,
+            Payment.payment_type == CREATION_FEE_REFUND_PAYOUT_PAYMENT_TYPE,
+            Payment.provider == PAYOS_PROVIDER,
+            Payment.status.in_(["pending", "processing", "released"]),
+        )
+        .order_by(Payment.created_at.desc())
+        .first()
+    )
+
+
+def _processing_creation_fee_refund_payout_rows(db: Session) -> list[tuple[Payment, Class]]:
+    return (
+        db.query(Payment, Class)
+        .join(Class, Class.id == Payment.class_id)
+        .filter(
+            Payment.payment_type == CREATION_FEE_REFUND_PAYOUT_PAYMENT_TYPE,
+            Payment.provider == PAYOS_PROVIDER,
+            Payment.status == "processing",
+        )
+        .all()
+    )
+
+
+def _build_creation_fee_refund_description(cls: Class) -> str:
+    return f"Refund {_build_class_code(cls)}"[:25]
+
+
+def _build_creation_fee_refund_payout_payment(
+    *,
+    cls: Class,
+    transaction_ref: str,
+    amount: Decimal,
+    payout_result: ProviderPayoutResult,
+    processed_at: datetime,
+) -> Payment:
+    refund_payment = Payment(
+        id=str(uuid.uuid4()),
+        class_id=cls.id,
+        payer_user_id=cls.teacher_id,
+        payee_user_id=cls.teacher_id,
+        booking_id=None,
+        payment_type=CREATION_FEE_REFUND_PAYOUT_PAYMENT_TYPE,
+        provider=PAYOS_PROVIDER,
+        amount=amount,
+        status=payout_result.local_status,
+        transaction_ref=transaction_ref,
+        provider_order_id=payout_result.provider_order_id,
+        provider_payload=payout_result.raw_payload,
+        failure_reason=payout_result.message if payout_result.local_status == "failed" else None,
+    )
+    if payout_result.local_status == "released":
+        refund_payment.released_at = processed_at
+    return refund_payment
+
+
+def _apply_creation_fee_refund_payout_state(
+    *,
+    cls: Class,
+    refund_payment: Payment,
+    payout_result: ProviderPayoutResult,
+    processed_at: datetime,
+) -> None:
+    if payout_result.local_status == "released":
+        cls.creation_payment_status = "refunded"
+        refund_payment.released_at = processed_at
+        refund_payment.failure_reason = None
+    elif payout_result.local_status == "failed":
+        cls.creation_payment_status = "refund_failed"
+        refund_payment.failure_reason = payout_result.message
+    else:
+        cls.creation_payment_status = "refund_processing"
+        refund_payment.failure_reason = None
+
+
+def _create_creation_fee_refund_payout_attempt(
+    *,
+    db: Session,
+    cls: Class,
+    processed_at: datetime,
+) -> Payment:
+    teacher_profile = _get_teacher_profile_or_404(db, cls.teacher_id)
+    bank_bin, bank_account_number = _require_teacher_payout_destination(teacher_profile)
+    refund_amount = Decimal(cls.creation_fee_amount)
+    transaction_ref = _generate_transaction_ref("RFC")
+
+    payout_result = create_provider_payout(
+        provider=PAYOS_PROVIDER,
+        reference_id=transaction_ref,
+        amount=refund_amount,
+        description=_build_creation_fee_refund_description(cls),
+        to_bin=bank_bin,
+        to_account_number=bank_account_number,
+    )
+
+    refund_payment = _build_creation_fee_refund_payout_payment(
+        cls=cls,
+        transaction_ref=transaction_ref,
+        amount=refund_amount,
+        payout_result=payout_result,
+        processed_at=processed_at,
+    )
+    _apply_creation_fee_refund_payout_state(
+        cls=cls,
+        refund_payment=refund_payment,
+        payout_result=payout_result,
+        processed_at=processed_at,
+    )
+    db.add(refund_payment)
+    notify_tutor_creation_fee_refund_updated(
+        db,
+        cls=cls,
+        amount=refund_amount,
+        reason=cls.cancellation_reason or "Lớp học bị hủy",
+        refund_status=cls.creation_payment_status,
+        transaction_ref=transaction_ref,
+        provider_order_id=payout_result.provider_order_id,
+        message=payout_result.message,
+    )
+    return refund_payment
+
+
+def _sync_existing_creation_fee_refund_payout(
+    *,
+    db: Session,
+    cls: Class,
+    refund_payment: Payment,
+    processed_at: datetime,
+) -> ProviderPayoutResult:
+    if not refund_payment.provider_order_id:
+        raise PaymentGatewayError("Lenh chi hoan phi tao lop khong co provider_order_id de dong bo")
+
+    previous_status = refund_payment.status
+    payout_result = fetch_provider_payout_status(PAYOS_PROVIDER, refund_payment.provider_order_id)
+    refund_payment.provider_payload = payout_result.raw_payload
+    refund_payment.failure_reason = payout_result.message if payout_result.local_status == "failed" else None
+    refund_payment.status = payout_result.local_status
+    _apply_creation_fee_refund_payout_state(
+        cls=cls,
+        refund_payment=refund_payment,
+        payout_result=payout_result,
+        processed_at=processed_at,
+    )
+
+    if payout_result.local_status != previous_status:
+        notify_tutor_creation_fee_refund_updated(
+            db,
+            cls=cls,
+            amount=Decimal(refund_payment.amount),
+            reason=cls.cancellation_reason or "Lớp học bị hủy",
+            refund_status=cls.creation_payment_status,
+            transaction_ref=refund_payment.transaction_ref,
+            provider_order_id=refund_payment.provider_order_id,
+            message=payout_result.message,
+        )
+
+    return payout_result
+
+
 def _build_class_payment_summary(db: Session, class_id: str) -> PaymentSummaryResponse:
     cls = _get_class_or_404(db, class_id)
     total_escrow_held = (
@@ -1577,7 +1820,8 @@ def cancel_underfilled_classes(
 ):
     _require_admin_or_job_secret(db, user_dict=user_dict, x_job_secret=x_job_secret)
     now = _now()
-    deadline = now + timedelta(hours=4)
+    hours_before_start = cancel_underfilled_classes_hours()
+    deadline = now + timedelta(hours=hours_before_start)
     classes = (
         db.query(Class)
         .filter(Class.status == "scheduled", Class.start_time <= deadline, Class.start_time > now)
@@ -1592,7 +1836,7 @@ def cancel_underfilled_classes(
 
         cls.status = "cancelled"
         cls.cancelled_at = now
-        cls.cancellation_reason = "Khong du hoc vien toi thieu truoc 4 gio"
+        cls.cancellation_reason = _format_cancel_underfilled_reason(hours_before_start)
 
         booking_rows = (
             db.query(Booking, Payment)
@@ -1604,20 +1848,28 @@ def cancel_underfilled_classes(
         for booking, payment in booking_rows:
             _refund_booking(db, booking, payment, cls.cancellation_reason, cls=cls)
 
-        if cls.current_participants == 0 and cls.creation_payment_status == "paid":
-            cls.creation_payment_status = "refunded"
-            _create_refund_payment(
-                db,
-                payer_user_id=cls.teacher_id,
-                payee_user_id=cls.teacher_id,
-                class_id=cls.id,
-                booking_id=None,
-                amount=cls.creation_fee_amount,
-                provider="system",
-                reason="Hoan phi tao nhom do lop bi huy va chua co hoc vien",
-            )
+        # Recompute after refunding bookings so creation fee refunds use
+        # the final participant state instead of the stale pre-refund count.
+        remaining_active_count = _sync_class_participants(db, cls.id)
+        if remaining_active_count == 0 and cls.creation_payment_status == "paid":
+            try:
+                _create_creation_fee_refund_payout_attempt(
+                    db=db,
+                    cls=cls,
+                    processed_at=now,
+                )
+            except (HTTPException, PaymentGatewayError) as exc:
+                cls.creation_payment_status = "refund_failed"
+                notify_tutor_creation_fee_refund_updated(
+                    db,
+                    cls=cls,
+                    amount=Decimal(cls.creation_fee_amount),
+                    reason=cls.cancellation_reason,
+                    refund_status=cls.creation_payment_status,
+                    message=exc.detail if isinstance(exc, HTTPException) else str(exc),
+                )
 
-        cls.current_participants = 0
+        cls.current_participants = remaining_active_count
         cls.tutor_payout_status = "withheld"
         notify_class_cancelled(
             db,
@@ -1749,6 +2001,34 @@ def sync_payout_statuses(
                     "class_id": cls.id,
                     "payout_id": payout_payment.id,
                     "status": "error",
+                    "error": str(exc),
+                }
+            )
+
+    for refund_payment, cls in _processing_creation_fee_refund_payout_rows(db):
+        try:
+            payout_result = _sync_existing_creation_fee_refund_payout(
+                db=db,
+                cls=cls,
+                refund_payment=refund_payment,
+                processed_at=now,
+            )
+            synced.append(
+                {
+                    "class_id": cls.id,
+                    "payout_id": refund_payment.id,
+                    "status": cls.creation_payment_status,
+                    "kind": "creation_fee_refund",
+                    "provider_status": payout_result.provider_status,
+                }
+            )
+        except PaymentGatewayError as exc:
+            synced.append(
+                {
+                    "class_id": cls.id,
+                    "payout_id": refund_payment.id,
+                    "status": "error",
+                    "kind": "creation_fee_refund",
                     "error": str(exc),
                 }
             )

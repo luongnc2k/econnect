@@ -294,6 +294,68 @@ def notify_refund_issued(
     )
 
 
+def notify_tutor_creation_fee_refund_updated(
+    db: Session,
+    *,
+    cls: Class,
+    amount: Decimal,
+    reason: str,
+    refund_status: str,
+    transaction_ref: str | None = None,
+    provider_order_id: str | None = None,
+    message: str | None = None,
+) -> Notification:
+    data = _class_notification_data(cls)
+    data.update(
+        {
+            "recipient_role": "teacher",
+            "refund_scope": "class_creation_fee",
+            "refund_amount": str(amount),
+            "refund_reason": reason,
+            "refund_status": refund_status,
+            "transaction_ref": transaction_ref,
+            "provider_order_id": provider_order_id,
+            "message": message,
+        }
+    )
+
+    title_map = {
+        "refund_processing": "Hoàn phí tạo lớp đang được xử lý",
+        "refunded": "Hoàn phí tạo lớp đã hoàn tất",
+        "refund_failed": "Hoàn phí tạo lớp thất bại",
+    }
+    title = title_map.get(refund_status, "Cập nhật hoàn phí tạo lớp")
+
+    if refund_status == "refunded":
+        body = (
+            f"Hệ thống đã hoàn tất lệnh chuyển khoản hoàn phí tạo lớp "
+            f"{_format_vnd_amount(amount)} cho lớp '{cls.title}'."
+        )
+    elif refund_status == "refund_failed":
+        detail = message or "payOS chưa thể hoàn tất lệnh chi hoàn phí này."
+        body = (
+            f"Hệ thống chưa thể hoàn tất lệnh chuyển khoản hoàn phí tạo lớp "
+            f"{_format_vnd_amount(amount)} cho lớp '{cls.title}'. "
+            f"Lý do: {detail}"
+        )
+    else:
+        detail = message or "payOS đang xử lý lệnh chuyển khoản hoàn phí này."
+        body = (
+            f"Hệ thống đã tạo lệnh chuyển khoản hoàn phí tạo lớp "
+            f"{_format_vnd_amount(amount)} cho lớp '{cls.title}'. "
+            f"{detail}"
+        )
+
+    return create_notification(
+        db,
+        user_id=cls.teacher_id,
+        notification_type=NOTIFICATION_TYPE_REFUND_ISSUED,
+        title=title,
+        body=body,
+        data=data,
+    )
+
+
 def notify_tutor_payout_updated(
     db: Session,
     *,

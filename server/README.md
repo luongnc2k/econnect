@@ -105,6 +105,7 @@ STRICT_STARTUP_VALIDATION=false
 AUTO_INIT_SCHEMA=true
 INTERNAL_JOB_RUNNER_ENABLED=true
 INTERNAL_JOB_RUNNER_INTERVAL_SECONDS=60
+CANCEL_UNDERFILLED_CLASSES_HOURS=4
 ALLOW_DIRECT_CLASS_CREATION=false
 CORS_ALLOW_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
 CORS_ALLOW_ORIGIN_REGEX=
@@ -157,6 +158,7 @@ FCM_SERVICE_ACCOUNT_JSON=
 - Nếu payout fail vì thông tin ngân hàng hoặc lỗi tạm thời, admin có thể sửa dữ liệu rồi gọi `POST /payments/classes/{class_id}/retry-payout`.
 - Các job endpoint nên được gọi bằng token admin hoặc header `x-job-secret` trùng với `JOB_SECRET`.
 - Khi `INTERNAL_JOB_RUNNER_ENABLED=true`, backend sẽ tự chạy các job `notify-classes-starting-soon`, `cancel-underfilled-classes`, `release-eligible-payouts`, và `sync-payout-statuses` theo chu kỳ `INTERNAL_JOB_RUNNER_INTERVAL_SECONDS`. Cơ chế này phù hợp cho local/dev hoặc môi trường chỉ chạy một instance backend.
+- `CANCEL_UNDERFILLED_CLASSES_HOURS` quyết định mốc hủy lớp thiếu học viên trước giờ bắt đầu. Mặc định là `4`.
 - Trong local dev, nên giữ `PAYMENT_GATEWAY_MODE=mock` nếu chưa có HTTPS/public callback URL.
 - Khi cấu hình `FCM_SERVICE_ACCOUNT_*`, backend sẽ tự thử gửi FCM sau mỗi lần tạo notification và tự bỏ qua bước này nếu Firebase chưa sẵn sàng.
 

@@ -1,8 +1,10 @@
 import asyncio
 import base64
 import os
+import re
 import uuid
 from datetime import datetime, timezone
+from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
 from sqlalchemy import and_, func, or_
@@ -36,6 +38,9 @@ _NOTIFICATION_WS_HEARTBEAT_SECONDS = max(
     _NOTIFICATION_WS_POLL_SECONDS,
     float((os.getenv("NOTIFICATION_WS_HEARTBEAT_SECONDS", "") or "25").strip() or "25"),
 )
+_LEGACY_UNDERFILLED_REASON_PATTERN = re.compile(
+    r"Khong du hoc vien toi thieu truoc ([0-9]+(?:\.[0-9]+)?) gio"
+)
 
 
 def _now() -> datetime:
@@ -54,6 +59,72 @@ def _build_class_code(cls: Class) -> str:
     raw_id = "".join(char for char in str(cls.id).upper() if char.isalnum())
     suffix = raw_id[:4].ljust(4, "0")
     return f"CLS-{date_part}-{suffix}"
+
+
+def _format_vnd_amount(amount: Any) -> str:
+    try:
+        decimal_value = Decimal(str(amount or 0))
+        whole_amount = int(decimal_value.quantize(Decimal("1")))
+    except (ArithmeticError, TypeError, ValueError):
+        return f"{amount or 0} VND"
+    return f"{whole_amount:,} VND".replace(",", ".")
+
+
+def _normalize_notification_text(text: str | None) -> str:
+    normalized = (text or "").strip()
+    if not normalized:
+        return ""
+
+    normalized = _LEGACY_UNDERFILLED_REASON_PATTERN.sub(
+        lambda match: f"Không đủ học viên tối thiểu trước {match.group(1)} giờ",
+        normalized,
+    )
+
+    replacements = {
+        "Tutor chua cap nhat day du thong tin payout payOS: bank_bin": (
+            "Tutor chưa cập nhật đầy đủ thông tin payout payOS: bank_bin"
+        ),
+        "Tutor chu dong huy lop": "Tutor chủ động hủy lớp",
+        "Lop hoc bi huy": "Lớp học bị hủy",
+    }
+
+    for legacy, clean in replacements.items():
+        normalized = normalized.replace(legacy, clean)
+
+    return normalized
+
+
+def _normalize_notification_payload(
+    notification: Notification,
+    data: dict[str, Any],
+) -> tuple[str, str, dict[str, Any]]:
+    normalized_data = dict(data)
+    for key in ("cancellation_reason", "refund_reason", "message"):
+        value = normalized_data.get(key)
+        if isinstance(value, str):
+            normalized_data[key] = _normalize_notification_text(value)
+
+    if (
+        notification.type == "refund_issued"
+        and normalized_data.get("refund_scope") == "class_creation_fee"
+        and normalized_data.get("refund_status") == "legacy_recorded"
+    ):
+        class_title = str(normalized_data.get("class_title") or "").strip()
+        class_segment = f" cho lớp '{class_title}'" if class_title else ""
+        title = "Đã ghi nhận hoàn phí tạo lớp"
+        body = (
+            "Hệ thống đã ghi nhận khoản hoàn phí tạo lớp "
+            f"{_format_vnd_amount(normalized_data.get('refund_amount'))}"
+            f"{class_segment}. "
+            "Khoản này chưa đồng nghĩa tiền đã về tài khoản ngân hàng của tutor."
+        )
+        return title, body, normalized_data
+
+    return (
+        _normalize_notification_text(notification.title),
+        _normalize_notification_text(notification.body),
+        normalized_data,
+    )
 
 
 def _notification_class_codes(db: Session, notifications: list[Notification]) -> dict[str, str]:
@@ -87,11 +158,13 @@ def _serialize_notification(
     ):
         data = {**data, "class_code": class_codes[class_id]}
 
+    title, body, data = _normalize_notification_payload(notification, data)
+
     return NotificationResponse(
         id=notification.id,
         type=notification.type,
-        title=notification.title,
-        body=notification.body,
+        title=title,
+        body=body,
         data=data,
         is_read=notification.is_read,
         created_at=notification.created_at,

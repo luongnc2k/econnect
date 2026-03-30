@@ -25,7 +25,11 @@ class Class(Base):
     current_participants = Column(SmallInteger, default=0, nullable=False)
     price = Column(Numeric(10, 0), nullable=False)
     creation_fee_amount = Column(Numeric(10, 0), nullable=False)
-    creation_payment_status = Column(TEXT, default="unpaid", nullable=False)  # unpaid | pending | paid | refunded
+    creation_payment_status = Column(
+        TEXT,
+        default="unpaid",
+        nullable=False,
+    )  # unpaid | pending | paid | refund_processing | refunded | refund_failed
     creation_payment_reference = Column(TEXT, nullable=True)
     creation_paid_at = Column(DateTime(timezone=True), nullable=True)
     thumbnail_url = Column(TEXT, nullable=True)

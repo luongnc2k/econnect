@@ -6,6 +6,7 @@ def test_health_live_and_ready_endpoints_return_ok(client):
     assert "app_env" in live_body
     assert "payos_payout_mock_mode" in live_body
     assert "payos_payout_force_ipv4" in live_body
+    assert "cancel_underfilled_classes_hours" in live_body
 
     ready_response = client.get("/health/ready")
     assert ready_response.status_code == 200

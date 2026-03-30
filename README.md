@@ -77,6 +77,14 @@ Trên Windows, nếu local web/Chrome bị treo vì còn `uvicorn` cũ chiếm c
 
 Server sẵn sàng tại `http://localhost:8000`, Swagger UI tại `http://localhost:8000/docs`.
 
+Một vài cấu hình backend quan trọng bạn sẽ hay chỉnh trong `server/.env`:
+
+- `INTERNAL_JOB_RUNNER_ENABLED` và `INTERNAL_JOB_RUNNER_INTERVAL_SECONDS`: bật và điều chỉnh chu kỳ chạy các job nền.
+- `CANCEL_UNDERFILLED_CLASSES_HOURS`: mốc hệ thống tự hủy lớp thiếu học viên trước giờ bắt đầu. Mặc định là `4`.
+- `ALLOW_DIRECT_CLASS_CREATION`: mặc định `false` để tránh bypass luồng thu creation fee.
+
+Chi tiết đầy đủ hơn xem ở [server/README.md](server/README.md) và [Hướng dẫn setup local với payOS](docs/setup_guide.md).
+
 **Reset database** (xóa toàn bộ bảng và tạo lại schema):
 
 ```bash

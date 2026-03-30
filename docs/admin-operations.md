@@ -645,7 +645,9 @@ Invoke-RestMethod `
   -Headers $authHeader
 ```
 
-### Hủy lớp thiếu người trước 4 giờ
+### Hủy lớp thiếu người trước mốc cấu hình
+
+Mốc này lấy từ `CANCEL_UNDERFILLED_CLASSES_HOURS` trong `server/.env`. Mặc định là `4` giờ.
 
 ```powershell
 Invoke-RestMethod `
@@ -926,4 +928,3 @@ Với admin, 4 kỹ năng quan trọng nhất là:
 Nếu bạn chỉ cần nhớ một quy trình cơ bản, hãy nhớ chuỗi này:
 
 `tạo admin -> đăng nhập -> lấy token -> confirm webhook nếu cần -> xem summary / xử lý vận hành`
-

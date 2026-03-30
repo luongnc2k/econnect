@@ -42,6 +42,7 @@ APP_ENV=development
 PAYMENT_GATEWAY_MODE=payos
 PAYOS_MOCK_MODE=false
 PAYOS_PAYOUT_MOCK_MODE=true
+CANCEL_UNDERFILLED_CLASSES_HOURS=4
 ALLOW_DIRECT_CLASS_CREATION=false
 SERVER_PUBLIC_URL=https://<NGROK_URL>
 PAYMENT_PUBLIC_BASE_URL=https://<NGROK_URL>
@@ -58,6 +59,7 @@ Lưu ý:
 - `SERVER_PUBLIC_URL` và `PAYMENT_PUBLIC_BASE_URL` phải là URL HTTPS public thật.
 - `STATIC_PUBLIC_URL` nên là địa chỉ mà client thực tế dùng để tải `/static/...`.
 - nếu mới test payment flow, hãy giữ `PAYOS_PAYOUT_MOCK_MODE=true`.
+- `CANCEL_UNDERFILLED_CLASSES_HOURS` quyết định mốc hệ thống tự hủy lớp thiếu học viên trước giờ bắt đầu. Mặc định là `4`.
 
 ## 4. Khởi động hạ tầng local
 

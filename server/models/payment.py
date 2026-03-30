@@ -12,7 +12,10 @@ class Payment(Base):
     class_id = Column(TEXT, ForeignKey("classes.id"), nullable=True)
     payer_user_id = Column(TEXT, ForeignKey("users.id"), nullable=False)
     payee_user_id = Column(TEXT, ForeignKey("users.id"), nullable=True)
-    payment_type = Column(TEXT, nullable=False)  # class_creation | tuition | refund | payout
+    payment_type = Column(
+        TEXT,
+        nullable=False,
+    )  # class_creation | tuition | refund | payout | creation_fee_refund_payout
     provider = Column(TEXT, nullable=False)  # payos | system
     method = Column(TEXT, nullable=True)
     amount = Column(Numeric(10, 0), nullable=False)

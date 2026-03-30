@@ -8,6 +8,7 @@ from sqlalchemy.engine import Engine
 
 logger = logging.getLogger(__name__)
 DEFAULT_DEV_JWT_SECRET = "dev_jwt_secret_change_me_please_32bytes"
+DEFAULT_CANCEL_UNDERFILLED_CLASSES_HOURS = 4.0
 LOCAL_HOSTS = {"localhost", "127.0.0.1", "0.0.0.0"}
 PLACEHOLDER_PREFIXES = (
     "change_this",
@@ -57,6 +58,32 @@ def payos_payout_force_ipv4_enabled() -> bool:
     return _env_flag("PAYOS_PAYOUT_FORCE_IPV4", _env_flag("PAYOS_FORCE_IPV4", False))
 
 
+def cancel_underfilled_classes_hours() -> float:
+    raw_value = _env(
+        "CANCEL_UNDERFILLED_CLASSES_HOURS",
+        str(DEFAULT_CANCEL_UNDERFILLED_CLASSES_HOURS),
+    )
+    try:
+        parsed = float(raw_value)
+    except ValueError:
+        logger.warning(
+            "Invalid CANCEL_UNDERFILLED_CLASSES_HOURS=%r. Falling back to %s hours.",
+            raw_value,
+            DEFAULT_CANCEL_UNDERFILLED_CLASSES_HOURS,
+        )
+        return DEFAULT_CANCEL_UNDERFILLED_CLASSES_HOURS
+
+    if parsed <= 0:
+        logger.warning(
+            "CANCEL_UNDERFILLED_CLASSES_HOURS=%r must be > 0. Falling back to %s hours.",
+            raw_value,
+            DEFAULT_CANCEL_UNDERFILLED_CLASSES_HOURS,
+        )
+        return DEFAULT_CANCEL_UNDERFILLED_CLASSES_HOURS
+
+    return parsed
+
+
 def payos_payout_real_mode_startup_notice() -> str | None:
     if _payment_gateway_mode() == "mock" or payos_payout_mock_mode_enabled():
         return None
@@ -101,6 +128,7 @@ def runtime_summary() -> dict[str, object]:
             "INTERNAL_JOB_RUNNER_INTERVAL_SECONDS",
             "60",
         ),
+        "cancel_underfilled_classes_hours": cancel_underfilled_classes_hours(),
     }
 
 

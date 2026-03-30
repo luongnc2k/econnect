@@ -53,6 +53,25 @@ class PaymentSummary {
       activeDisputes: (map['active_disputes'] as num?)?.toInt() ?? 0,
     );
   }
+
+  String get creationPaymentStatusLabel {
+    switch (creationPaymentStatus) {
+      case 'unpaid':
+        return 'Chưa thanh toán';
+      case 'pending':
+        return 'Đang chờ thanh toán';
+      case 'paid':
+        return 'Đã thanh toán';
+      case 'refund_processing':
+        return 'Hoàn phí đang được xử lý';
+      case 'refund_failed':
+        return 'Hoàn phí thất bại';
+      case 'refunded':
+        return 'Đã ghi nhận hoàn phí';
+      default:
+        return creationPaymentStatus;
+    }
+  }
 }
 
 int _toInt(dynamic value) {

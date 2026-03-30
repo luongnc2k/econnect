@@ -1,7 +1,12 @@
+import json
+import uuid
 from notification_service import serialize_notification_data
+from payment_gateways import ProviderPayoutResult
 from models.class_ import Class
 from models.notification import Notification
+from models.payment import Payment
 from models.push_device_token import PushDeviceToken
+from routes import payments as payments_routes
 from datetime import datetime, timedelta, timezone
 
 from tests.helpers import (
@@ -379,6 +384,7 @@ def test_tutor_cancel_class_creates_cancelled_and_refund_notifications(client, d
 def test_cancel_underfilled_classes_uses_active_bookings_instead_of_stale_cached_count(
     client,
     db_session,
+    monkeypatch,
 ):
     now = datetime.now(timezone.utc)
     seeded = seed_paid_class_with_held_bookings(
@@ -400,6 +406,36 @@ def test_cancel_underfilled_classes_uses_active_bookings_instead_of_stale_cached
     payments[1].status = "refunded"
     db_session.commit()
 
+    def _fake_create_provider_payout(
+        *,
+        provider: str,
+        reference_id: str,
+        amount,
+        description: str,
+        to_bin: str,
+        to_account_number: str,
+    ):
+        assert provider == "payos"
+        assert description.startswith("Refund CLS-")
+        assert to_bin
+        assert to_account_number
+        return ProviderPayoutResult(
+            provider="payos",
+            provider_order_id=f"refund-order-{reference_id}",
+            provider_transaction_id=f"refund-txn-{reference_id}",
+            local_status="released",
+            payout_status="paid",
+            provider_status="COMPLETED:SUCCEEDED",
+            raw_payload='{"status":"SUCCEEDED"}',
+            message="payOS da chuyen khoan hoan phi tao lop thanh cong",
+        )
+
+    monkeypatch.setattr(
+        payments_routes,
+        "create_provider_payout",
+        _fake_create_provider_payout,
+    )
+
     response = client.post(
         "/payments/jobs/cancel-underfilled-classes",
         headers={"x-job-secret": "test-job-secret"},
@@ -411,9 +447,73 @@ def test_cancel_underfilled_classes_uses_active_bookings_instead_of_stale_cached
 
     db_session.expire_all()
     refreshed_class = db_session.query(Class).filter(Class.id == cls.id).first()
+    creation_fee_refund = (
+        db_session.query(Payment)
+        .filter(
+            Payment.class_id == cls.id,
+            Payment.booking_id.is_(None),
+            Payment.payment_type == payments_routes.CREATION_FEE_REFUND_PAYOUT_PAYMENT_TYPE,
+            Payment.status == "released",
+        )
+        .first()
+    )
+    tutor_refund_notification = (
+        db_session.query(Notification)
+        .filter(
+            Notification.user_id == cls.teacher_id,
+            Notification.type == "refund_issued",
+        )
+        .order_by(Notification.created_at.desc())
+        .first()
+    )
     assert refreshed_class is not None
     assert refreshed_class.status == "cancelled"
     assert refreshed_class.current_participants == 0
+    assert refreshed_class.creation_payment_status == "refunded"
+    assert creation_fee_refund is not None
+    assert creation_fee_refund.payer_user_id == cls.teacher_id
+    assert creation_fee_refund.payee_user_id == cls.teacher_id
+    assert creation_fee_refund.amount == refreshed_class.creation_fee_amount
+    assert tutor_refund_notification is not None
+    tutor_refund_data = serialize_notification_data(tutor_refund_notification.data)
+    assert tutor_refund_data["class_id"] == cls.id
+    assert tutor_refund_data["recipient_role"] == "teacher"
+    assert tutor_refund_data["refund_scope"] == "class_creation_fee"
+    assert tutor_refund_data["refund_amount"] == str(refreshed_class.creation_fee_amount)
+    assert tutor_refund_data["refund_status"] == "refunded"
+
+
+def test_cancel_underfilled_classes_uses_env_configured_deadline(
+    client,
+    db_session,
+    monkeypatch,
+):
+    monkeypatch.setenv("CANCEL_UNDERFILLED_CLASSES_HOURS", "1")
+    now = datetime.now(timezone.utc)
+    seeded = seed_paid_class_with_held_bookings(
+        db_session,
+        student_count=1,
+        start_time=now + timedelta(hours=2),
+        end_time=now + timedelta(hours=4),
+    )
+
+    cls = seeded["class"]
+    cls.min_participants = 2
+    cls.current_participants = 1
+    db_session.commit()
+
+    response = client.post(
+        "/payments/jobs/cancel-underfilled-classes",
+        headers={"x-job-secret": "test-job-secret"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["count"] == 0
+
+    db_session.expire_all()
+    refreshed_class = db_session.query(Class).filter(Class.id == cls.id).first()
+    assert refreshed_class is not None
+    assert refreshed_class.status == "scheduled"
 
 
 def test_notifications_cursor_endpoint_returns_stable_pages(client, db_session):
@@ -545,6 +645,79 @@ def test_notifications_read_routes_dispatch_due_starting_soon_reminders_without_
     cls = db_session.query(Class).filter(Class.id == seeded["class"].id).first()
     assert cls is not None
     assert cls.starting_soon_notified_at is not None
+
+
+def test_notifications_endpoint_normalizes_legacy_notification_text(client, db_session):
+    teacher = seed_user(db_session, role="teacher", full_name="Teacher Legacy Notification")
+    login_response = login_user(client, email=teacher.email)
+    assert login_response.status_code == 200
+    token = login_response.json()["token"]
+
+    legacy_refund_notification = Notification(
+        id=str(uuid.uuid4()),
+        user_id=teacher.id,
+        type="refund_issued",
+        title="?? ghi nh?n ho?n ph? t?o l?p",
+        body=(
+            "H? th?ng ?? ghi nh?n kho?n ho?n ph? t?o l?p 2.000 VND cho l?p 'Legacy'. "
+            "Kho?n n?y ch?a ??ng ngh?a ti?n ?? v? t?i kho?n ng?n h?ng c?a tutor."
+        ),
+        data=json.dumps(
+            {
+                "class_title": "Legacy",
+                "refund_scope": "class_creation_fee",
+                "refund_status": "legacy_recorded",
+                "refund_amount": "2000",
+                "refund_reason": "Khong du hoc vien toi thieu truoc 4 gio",
+            },
+            ensure_ascii=False,
+        ),
+        is_read=False,
+        created_at=datetime.now(timezone.utc) - timedelta(minutes=1),
+    )
+    legacy_cancelled_notification = Notification(
+        id=str(uuid.uuid4()),
+        user_id=teacher.id,
+        type="class_cancelled",
+        title="Lớp học đã bị hủy",
+        body="Lớp 'Legacy' đã bị hủy. Lý do: Khong du hoc vien toi thieu truoc 4 gio.",
+        data=json.dumps(
+            {
+                "class_title": "Legacy",
+                "cancellation_reason": "Khong du hoc vien toi thieu truoc 4 gio",
+            },
+            ensure_ascii=False,
+        ),
+        is_read=False,
+        created_at=datetime.now(timezone.utc),
+    )
+    db_session.add_all([legacy_refund_notification, legacy_cancelled_notification])
+    db_session.commit()
+
+    response = client.get("/notifications", headers=auth_headers(token))
+    assert response.status_code == 200
+    items = response.json()
+
+    refund_item = next(item for item in items if item["id"] == legacy_refund_notification.id)
+    assert refund_item["title"] == "Đã ghi nhận hoàn phí tạo lớp"
+    assert (
+        refund_item["body"]
+        == "Hệ thống đã ghi nhận khoản hoàn phí tạo lớp 2.000 VND cho lớp 'Legacy'. "
+        "Khoản này chưa đồng nghĩa tiền đã về tài khoản ngân hàng của tutor."
+    )
+    assert refund_item["data"]["refund_reason"] == "Không đủ học viên tối thiểu trước 4 giờ"
+
+    cancelled_item = next(
+        item for item in items if item["id"] == legacy_cancelled_notification.id
+    )
+    assert (
+        cancelled_item["body"]
+        == "Lớp 'Legacy' đã bị hủy. Lý do: Không đủ học viên tối thiểu trước 4 giờ."
+    )
+    assert (
+        cancelled_item["data"]["cancellation_reason"]
+        == "Không đủ học viên tối thiểu trước 4 giờ"
+    )
 
 
 def test_notifications_websocket_emits_change_event(client, db_session):

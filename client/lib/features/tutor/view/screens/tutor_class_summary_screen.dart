@@ -154,7 +154,7 @@ class _TutorSummaryCard extends StatelessWidget {
           ),
           _TutorSummaryRow(
             label: 'Creation payment',
-            value: summary.creationPaymentStatus,
+            value: summary.creationPaymentStatusLabel,
           ),
           _TutorSummaryRow(
             label: 'Học viên hiện tại',
