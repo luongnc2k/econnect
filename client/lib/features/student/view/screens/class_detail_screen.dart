@@ -488,6 +488,13 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen>
       _showMessage('Không tải được trạng thái đánh giá tutor.');
       return;
     }
+    if (reviewStatus.alreadyReviewed) {
+      _showMessage(
+        reviewStatus.reason ??
+            'Bạn đã gửi đánh giá cho tutor của buổi học này.',
+      );
+      return;
+    }
     if (!reviewStatus.canReview) {
       _showMessage(
         reviewStatus.reason ??
@@ -521,11 +528,7 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen>
         _selectedReviewRating =
             result.value.review?.rating ?? _selectedReviewRating;
       });
-      _showMessage(
-        result.value.alreadyReviewed
-            ? 'Đánh giá tutor đã được lưu thành công.'
-            : 'Đã gửi đánh giá tutor thành công.',
-      );
+      _showMessage('Đã gửi đánh giá tutor thành công.');
       return;
     }
 
@@ -989,6 +992,9 @@ class _TutorReviewSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final reviewStatus = status;
+    final submittedReview = reviewStatus?.review;
+    final hasSubmittedReview =
+        reviewStatus?.alreadyReviewed == true && submittedReview != null;
 
     return Container(
       width: double.infinity,
@@ -1085,9 +1091,7 @@ class _TutorReviewSection extends StatelessWidget {
                   Expanded(
                     child: Text(
                       validationMessage ??
-                          (reviewStatus.alreadyReviewed
-                              ? 'Bạn có thể cập nhật lại đánh giá này bất cứ lúc nào.'
-                              : 'Nhận xét không bắt buộc, nhưng sẽ giúp tutor cải thiện chất lượng dạy.'),
+                          'Nhận xét không bắt buộc, nhưng sẽ giúp tutor cải thiện chất lượng dạy.',
                       style: TextStyle(
                         fontSize: 12,
                         color: validationMessage == null
@@ -1124,11 +1128,63 @@ class _TutorReviewSection extends StatelessWidget {
                         height: 18,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : Text(
-                        reviewStatus.alreadyReviewed
-                            ? 'Cập nhật đánh giá'
-                            : 'Gửi đánh giá',
+                    : const Text('Gửi đánh giá'),
+              ),
+            ] else if (hasSubmittedReview) ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: cs.surface,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: cs.outlineVariant),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        ...List.generate(5, (index) {
+                          final filled = index < submittedReview.rating;
+                          return Icon(
+                            filled
+                                ? Icons.star_rounded
+                                : Icons.star_outline_rounded,
+                            color: const Color(0xFFFCC419),
+                          );
+                        }),
+                        const SizedBox(width: 10),
+                        Text(
+                          '${submittedReview.rating}/5 sao',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: cs.onSurface,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if ((submittedReview.comment ?? '').trim().isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        'Nhận xét của bạn',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: cs.onSurfaceVariant,
+                        ),
                       ),
+                      const SizedBox(height: 6),
+                      Text(
+                        submittedReview.comment!.trim(),
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: cs.onSurface,
+                          height: 1.45,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
             ],
             if ((reviewStatus.reason ?? '').isNotEmpty) ...[

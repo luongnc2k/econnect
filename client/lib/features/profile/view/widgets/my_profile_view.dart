@@ -230,10 +230,6 @@ class _MyProfileViewState extends ConsumerState<MyProfileView> {
                   value: profile.totalStudents.toString(),
                 ),
                 ProfileInfoItem(
-                  label: 'Học phí / buổi',
-                  value: profile.hourlyRate?.toStringAsFixed(0) ?? '--',
-                ),
-                ProfileInfoItem(
                   label: 'Giới thiệu',
                   value: profile.bio ?? '--',
                 ),

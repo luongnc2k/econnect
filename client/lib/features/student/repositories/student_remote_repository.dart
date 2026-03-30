@@ -88,13 +88,14 @@ class StudentRemoteRepository {
 
   Future<Either<AppFailure, ClassSession>> getClassByCode(
     String token,
-    String classCode,
-  ) async {
+    String classCode, {
+    bool includePast = false,
+  }) async {
     try {
       final normalizedCode = classCode.trim().toUpperCase();
       final uri = Uri.parse(
         '${ServerConstant.serverURL}/classes/by-code/$normalizedCode',
-      );
+      ).replace(queryParameters: includePast ? {'include_past': 'true'} : null);
 
       final response = await http.get(uri, headers: {'x-auth-token': token});
 

@@ -251,7 +251,7 @@ void main() {
       );
       fakeStudentRepo.submitReviewResult = StudentTutorReviewStatus(
         classId: 'class-1',
-        canReview: true,
+        canReview: false,
         alreadyReviewed: true,
         hotline: '0335837165',
         review: _sampleTutorReview(rating: 5, comment: 'Tutor rất nhiệt tình.'),
@@ -287,7 +287,10 @@ void main() {
       expect(fakeStudentRepo.submitTutorReviewCalls, 1);
       expect(fakeStudentRepo.lastSubmittedRating, 5);
       expect(fakeStudentRepo.lastSubmittedComment, 'Tutor rất nhiệt tình.');
-      expect(find.text('Cập nhật đánh giá'), findsOneWidget);
+      expect(find.byKey(const Key('tutorReviewSubmitButton')), findsNothing);
+      expect(find.byKey(const Key('tutorReviewCommentField')), findsNothing);
+      expect(find.text('Nhận xét của bạn'), findsOneWidget);
+      expect(find.text('5/5 sao'), findsOneWidget);
     },
   );
 
@@ -364,6 +367,7 @@ void main() {
     expect(fakeProfileRepo.getMyProfileCalls, 1);
     expect(find.byType(MyProfileView), findsOneWidget);
     expect(find.text('Tutor Profile'), findsNWidgets(2));
+    expect(find.text('Học phí / buổi'), findsNothing);
   });
 }
 

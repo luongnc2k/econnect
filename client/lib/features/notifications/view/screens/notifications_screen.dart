@@ -139,7 +139,7 @@ class NotificationsScreen extends ConsumerWidget {
 
     final result = await ref
         .read(studentRemoteRepositoryProvider)
-        .getClassByCode(user.token, classCode);
+        .getClassByCode(user.token, classCode, includePast: true);
 
     if (!context.mounted) {
       return;

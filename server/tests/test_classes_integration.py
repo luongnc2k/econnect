@@ -164,6 +164,90 @@ def test_get_class_by_code_fills_legacy_location_notes_from_learning_locations(
     assert body["location_notes"] == "Len tang 2, bao le tan ma lop de duoc huong dan."
 
 
+def test_student_can_reopen_past_class_by_code_when_include_past_is_enabled(
+    client,
+    db_session,
+):
+    teacher = seed_user(db_session, role="teacher", full_name="Teacher Past Class")
+    student = seed_user(db_session, role="student", full_name="Student Past Class")
+    login_response = login_user(client, email=student.email)
+    assert login_response.status_code == 200
+    student_token = login_response.json()["token"]
+
+    topic = create_topic(db_session, name="Past Review Topic")
+    location = create_learning_location(
+        db_session,
+        name="Past Review Room",
+        address="99 Nguyen Dinh Chieu, TP.HCM",
+    )
+
+    start_time = datetime.now(timezone.utc) - timedelta(days=1, hours=2)
+    end_time = datetime.now(timezone.utc) - timedelta(days=1)
+    cls = Class(
+        id=str(uuid.uuid4()),
+        teacher_id=teacher.id,
+        topic_id=topic.id,
+        topic=topic.name,
+        title="Past Review Class",
+        description="Ended class that can still be reopened for review",
+        level="intermediate",
+        location_name=location.name,
+        location_address=location.address,
+        location_notes=location.notes,
+        start_time=start_time,
+        end_time=end_time,
+        min_participants=1,
+        max_participants=4,
+        current_participants=1,
+        price=Decimal("240000"),
+        creation_fee_amount=Decimal("24000"),
+        creation_payment_status="paid",
+        creation_payment_reference=f"CRF-{uuid.uuid4().hex[:10].upper()}",
+        status="completed",
+        tutor_payout_status="pending",
+        tutor_payout_amount=Decimal("0"),
+        has_active_dispute=False,
+    )
+    db_session.add(cls)
+    db_session.flush()
+
+    booking = Booking(
+        id=str(uuid.uuid4()),
+        class_id=cls.id,
+        student_id=student.id,
+        status="completed",
+        payment_status="paid",
+        payment_method="payos",
+        payment_reference=f"TUI-{uuid.uuid4().hex[:10].upper()}",
+        tuition_amount=Decimal("60000"),
+        escrow_status="released",
+    )
+    db_session.add(booking)
+    db_session.commit()
+
+    class_code = (
+        f"CLS-{cls.start_time.strftime('%y%m%d')}-"
+        f"{''.join(char for char in cls.id.upper() if char.isalnum())[:4].ljust(4, '0')}"
+    )
+
+    default_response = client.get(
+        f"/classes/by-code/{class_code}",
+        headers=auth_headers(student_token),
+    )
+    assert default_response.status_code == 404
+
+    include_past_response = client.get(
+        f"/classes/by-code/{class_code}?include_past=true",
+        headers=auth_headers(student_token),
+    )
+    assert include_past_response.status_code == 200
+    body = include_past_response.json()
+    assert body["id"] == cls.id
+    assert body["title"] == "Past Review Class"
+    assert body["status"] == "completed"
+    assert body["teacher"]["id"] == teacher.id
+
+
 def test_student_registered_classes_returns_upcoming_and_past_classes(
     client,
     db_session,
@@ -269,7 +353,7 @@ def test_student_can_submit_tutor_review_and_teacher_rating_is_updated(
     )
     assert create_response.status_code == 200
     body = create_response.json()
-    assert body["can_review"] is True
+    assert body["can_review"] is False
     assert body["already_reviewed"] is True
     assert body["hotline"] == "0335837165"
     assert body["review"]["rating"] == 5
@@ -300,10 +384,11 @@ def test_student_can_submit_tutor_review_and_teacher_rating_is_updated(
             "comment": "Đã cập nhật nhận xét sau khi học thêm.",
         },
     )
-    assert update_response.status_code == 200
-    updated_body = update_response.json()
-    assert updated_body["review"]["rating"] == 3
-    assert updated_body["review"]["comment"] == "Đã cập nhật nhận xét sau khi học thêm."
+    assert update_response.status_code == 400
+    assert (
+        update_response.json()["detail"]
+        == "Bạn đã gửi đánh giá cho tutor của buổi học này."
+    )
 
     db_session.expire_all()
     refreshed_profile = (
@@ -312,7 +397,7 @@ def test_student_can_submit_tutor_review_and_teacher_rating_is_updated(
         .first()
     )
     assert refreshed_profile is not None
-    assert float(refreshed_profile.rating_avg) == 3.0
+    assert float(refreshed_profile.rating_avg) == 5.0
     assert refreshed_profile.total_reviews == 1
 
 

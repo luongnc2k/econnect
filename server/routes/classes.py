@@ -132,6 +132,16 @@ def _build_student_tutor_review_status_response(
             review=_serialize_tutor_review(review) if review else None,
         )
 
+    if review is not None:
+        return StudentTutorReviewStatusResponse(
+            class_id=cls.id,
+            can_review=False,
+            already_reviewed=True,
+            hotline=ECONNECT_HOTLINE,
+            reason="Bạn đã gửi đánh giá cho tutor của buổi học này.",
+            review=_serialize_tutor_review(review),
+        )
+
     if cls.end_time > datetime.now(timezone.utc):
         return StudentTutorReviewStatusResponse(
             class_id=cls.id,
@@ -492,6 +502,10 @@ def get_registered_classes(
 @router.get("/by-code/{class_code}", response_model=ClassResponse)
 def get_class_by_code(
     class_code: str,
+    include_past: bool = Query(
+        default=False,
+        description="True = cho phep tim theo ma lop ca voi lop da ket thuc/da huy",
+    ),
     db: Session = Depends(get_db),
     user_dict: dict = Depends(auth_middleware),
 ):
@@ -505,16 +519,22 @@ def get_class_by_code(
     if not normalized_code:
         raise HTTPException(status_code=400, detail="Ma lop khong hop le")
 
-    now = datetime.now(timezone.utc)
-    rows = (
+    query = (
         db.query(Class, Topic, User, TeacherProfile)
         .outerjoin(Topic, Class.topic_id == Topic.id)
         .join(User, Class.teacher_id == User.id)
         .outerjoin(TeacherProfile, TeacherProfile.user_id == User.id)
-        .filter(Class.start_time > now, Class.status == "scheduled")
-        .order_by(Class.start_time.asc())
-        .all()
     )
+
+    if include_past:
+        rows = query.order_by(Class.start_time.desc()).all()
+    else:
+        now = datetime.now(timezone.utc)
+        rows = (
+            query.filter(Class.start_time > now, Class.status == "scheduled")
+            .order_by(Class.start_time.asc())
+            .all()
+        )
 
     for cls, tp, teacher_user, teacher_profile in rows:
         if _build_class_code(cls).upper() == normalized_code:
@@ -620,20 +640,22 @@ def upsert_my_tutor_review(
         .filter(TutorReview.booking_id == booking.id)
         .first()
     )
-    if not review:
-        review = TutorReview(
-            id=str(uuid.uuid4()),
-            class_id=cls.id,
-            booking_id=booking.id,
-            teacher_id=cls.teacher_id,
-            student_id=student.id,
-            rating=payload.rating,
-            comment=payload.comment,
+    if review:
+        raise HTTPException(
+            status_code=400,
+            detail="Bạn đã gửi đánh giá cho tutor của buổi học này.",
         )
-        db.add(review)
-    else:
-        review.rating = payload.rating
-        review.comment = payload.comment
+
+    review = TutorReview(
+        id=str(uuid.uuid4()),
+        class_id=cls.id,
+        booking_id=booking.id,
+        teacher_id=cls.teacher_id,
+        student_id=student.id,
+        rating=payload.rating,
+        comment=payload.comment,
+    )
+    db.add(review)
 
     db.flush()
     _refresh_teacher_review_stats(db, cls.teacher_id)
