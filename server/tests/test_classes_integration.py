@@ -4,6 +4,8 @@ import uuid
 
 from models.booking import Booking
 from models.class_ import Class
+from models.teacher_profile import TeacherProfile
+from models.tutor_review import TutorReview
 from tests.helpers import (
     auth_headers,
     create_learning_location,
@@ -220,3 +222,129 @@ def test_student_registered_classes_returns_upcoming_and_past_classes(
     assert past_body[0]["id"] == past_class.id
     assert past_body[0]["title"] == "Past Registered Class"
     assert past_body[0]["teacher"]["full_name"] == teacher.full_name
+
+
+def test_student_can_submit_tutor_review_and_teacher_rating_is_updated(
+    client,
+    db_session,
+):
+    teacher = seed_user(db_session, role="teacher", full_name="Teacher Review")
+    student = seed_user(db_session, role="student", full_name="Student Review")
+
+    seeded = seed_paid_class_with_held_booking(
+        db_session,
+        teacher=teacher,
+        student=student,
+        start_time=datetime.now(timezone.utc) - timedelta(days=1, hours=2),
+        end_time=datetime.now(timezone.utc) - timedelta(days=1),
+        class_status="completed",
+    )
+    cls = seeded["class"]
+
+    login_response = login_user(client, email=student.email)
+    assert login_response.status_code == 200
+    student_token = login_response.json()["token"]
+
+    status_response = client.get(
+        f"/classes/{cls.id}/my-tutor-review",
+        headers=auth_headers(student_token),
+    )
+    assert status_response.status_code == 200
+    assert status_response.json() == {
+        "class_id": cls.id,
+        "can_review": True,
+        "already_reviewed": False,
+        "hotline": "0335837165",
+        "reason": None,
+        "review": None,
+    }
+
+    create_response = client.put(
+        f"/classes/{cls.id}/my-tutor-review",
+        headers=auth_headers(student_token),
+        json={
+            "rating": 5,
+            "comment": "Tutor dạy rất dễ hiểu và hỗ trợ nhiệt tình.",
+        },
+    )
+    assert create_response.status_code == 200
+    body = create_response.json()
+    assert body["can_review"] is True
+    assert body["already_reviewed"] is True
+    assert body["hotline"] == "0335837165"
+    assert body["review"]["rating"] == 5
+    assert body["review"]["comment"] == "Tutor dạy rất dễ hiểu và hỗ trợ nhiệt tình."
+
+    review = (
+        db_session.query(TutorReview)
+        .filter(TutorReview.class_id == cls.id, TutorReview.student_id == student.id)
+        .first()
+    )
+    assert review is not None
+    assert review.rating == 5
+
+    teacher_profile = (
+        db_session.query(TeacherProfile)
+        .filter(TeacherProfile.user_id == teacher.id)
+        .first()
+    )
+    assert teacher_profile is not None
+    assert float(teacher_profile.rating_avg) == 5.0
+    assert teacher_profile.total_reviews == 1
+
+    update_response = client.put(
+        f"/classes/{cls.id}/my-tutor-review",
+        headers=auth_headers(student_token),
+        json={
+            "rating": 3,
+            "comment": "Đã cập nhật nhận xét sau khi học thêm.",
+        },
+    )
+    assert update_response.status_code == 200
+    updated_body = update_response.json()
+    assert updated_body["review"]["rating"] == 3
+    assert updated_body["review"]["comment"] == "Đã cập nhật nhận xét sau khi học thêm."
+
+    db_session.expire_all()
+    refreshed_profile = (
+        db_session.query(TeacherProfile)
+        .filter(TeacherProfile.user_id == teacher.id)
+        .first()
+    )
+    assert refreshed_profile is not None
+    assert float(refreshed_profile.rating_avg) == 3.0
+    assert refreshed_profile.total_reviews == 1
+
+
+def test_student_tutor_review_rejects_comment_longer_than_100_words(
+    client,
+    db_session,
+):
+    teacher = seed_user(db_session, role="teacher", full_name="Teacher Long Comment")
+    student = seed_user(db_session, role="student", full_name="Student Long Comment")
+    seeded = seed_paid_class_with_held_booking(
+        db_session,
+        teacher=teacher,
+        student=student,
+        start_time=datetime.now(timezone.utc) - timedelta(days=1, hours=2),
+        end_time=datetime.now(timezone.utc) - timedelta(days=1),
+        class_status="completed",
+    )
+    cls = seeded["class"]
+
+    login_response = login_user(client, email=student.email)
+    assert login_response.status_code == 200
+    student_token = login_response.json()["token"]
+
+    long_comment = " ".join(f"tu{i}" for i in range(101))
+    response = client.put(
+        f"/classes/{cls.id}/my-tutor-review",
+        headers=auth_headers(student_token),
+        json={"rating": 4, "comment": long_comment},
+    )
+
+    assert response.status_code == 422
+    assert any(
+        "comment khong duoc vuot qua 100 tu" in error["msg"]
+        for error in response.json()["detail"]
+    )

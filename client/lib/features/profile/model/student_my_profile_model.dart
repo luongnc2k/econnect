@@ -3,6 +3,10 @@ import 'package:client/features/auth/model/user_model.dart';
 class StudentMyProfileModel extends UserModel {
   final String? englishLevel;
   final String? learningGoal;
+  final String? bankName;
+  final String? bankBin;
+  final String? bankAccountNumber;
+  final String? bankAccountHolder;
   final int totalLessons;
   final double? averageScore;
 
@@ -20,6 +24,10 @@ class StudentMyProfileModel extends UserModel {
     required super.token,
     this.englishLevel,
     this.learningGoal,
+    this.bankName,
+    this.bankBin,
+    this.bankAccountNumber,
+    this.bankAccountHolder,
     this.totalLessons = 0,
     this.averageScore,
   });
@@ -45,6 +53,10 @@ class StudentMyProfileModel extends UserModel {
       token: map['token'] ?? '',
       englishLevel: map['english_level'] as String?,
       learningGoal: map['learning_goal'] as String?,
+      bankName: map['bank_name'] as String?,
+      bankBin: map['bank_bin'] as String?,
+      bankAccountNumber: map['bank_account_number'] as String?,
+      bankAccountHolder: map['bank_account_holder'] as String?,
       totalLessons: int.tryParse(map['total_lessons']?.toString() ?? '0') ?? 0,
       averageScore: map['average_score'] == null
           ? null
@@ -58,6 +70,10 @@ class StudentMyProfileModel extends UserModel {
     map.addAll({
       'english_level': englishLevel,
       'learning_goal': learningGoal,
+      'bank_name': bankName,
+      'bank_bin': bankBin,
+      'bank_account_number': bankAccountNumber,
+      'bank_account_holder': bankAccountHolder,
       'total_lessons': totalLessons,
       'average_score': averageScore,
     });
@@ -79,6 +95,10 @@ class StudentMyProfileModel extends UserModel {
     String? token,
     String? englishLevel,
     String? learningGoal,
+    String? bankName,
+    String? bankBin,
+    String? bankAccountNumber,
+    String? bankAccountHolder,
     int? totalLessons,
     double? averageScore,
   }) {
@@ -96,6 +116,10 @@ class StudentMyProfileModel extends UserModel {
       token: token ?? this.token,
       englishLevel: englishLevel ?? this.englishLevel,
       learningGoal: learningGoal ?? this.learningGoal,
+      bankName: bankName ?? this.bankName,
+      bankBin: bankBin ?? this.bankBin,
+      bankAccountNumber: bankAccountNumber ?? this.bankAccountNumber,
+      bankAccountHolder: bankAccountHolder ?? this.bankAccountHolder,
       totalLessons: totalLessons ?? this.totalLessons,
       averageScore: averageScore ?? this.averageScore,
     );

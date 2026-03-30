@@ -117,7 +117,8 @@ class StudentHomeViewModel extends Notifier<StudentHomeState> {
         name: session.teacherName,
         subtitle: session.tags.join(', '),
         rating: session.teacherRating ?? 0,
-        reviewCount: session.teacherSessionCount ?? 0,
+        reviewCount:
+            session.teacherReviewCount ?? session.teacherSessionCount ?? 0,
         specialties: session.tags,
         avatarUrl: session.teacherAvatarUrl,
       );

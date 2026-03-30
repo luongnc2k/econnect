@@ -40,6 +40,9 @@ void main() {
       expect(session.location, 'Cafe A');
       expect(session.locationAddress, '123 Main Street');
       expect(session.locationNotes, 'Vào cổng phụ tầng 2.');
+      expect(session.endTimeText, '19:00 24/3');
+      expect(session.displayStartTimeText, '17:00 24/3');
+      expect(session.displayEndTimeText, '19:00 24/3');
       expect(session.priceText, '30.000đ');
       expect(session.totalPriceText, '120.000đ');
     },

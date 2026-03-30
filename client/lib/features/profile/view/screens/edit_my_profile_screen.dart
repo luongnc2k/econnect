@@ -111,6 +111,13 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
     if (profile is StudentMyProfileModel) {
       _englishLevelController.text = profile.englishLevel ?? '';
       _learningGoalController.text = profile.learningGoal ?? '';
+      _bankNameController.text = profile.bankName ?? '';
+      _bankBinController.text = profile.bankBin ?? '';
+      _bankAccountNumberController.text = profile.bankAccountNumber ?? '';
+      _bankAccountHolderController.text = _normalizeBankAccountHolderForStorage(
+        profile.bankAccountHolder ?? '',
+      );
+      _selectedPayoutBankId = _resolveInitialPayoutBankId();
     }
 
     if (profile is TeacherMyProfileModel) {
@@ -129,6 +136,45 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
     }
 
     _didInitForm = true;
+  }
+
+  bool _supportsBankAccount(UserModel profile) {
+    return profile is TeacherMyProfileModel || profile is StudentMyProfileModel;
+  }
+
+  bool _shouldRequireBankFields(UserModel profile) {
+    if (!_supportsBankAccount(profile)) {
+      return false;
+    }
+    if (widget.requireBankSetup && profile is TeacherMyProfileModel) {
+      return true;
+    }
+
+    return _selectedPayoutBankId != null ||
+        _bankNameController.text.trim().isNotEmpty ||
+        _bankBinController.text.trim().isNotEmpty ||
+        _bankAccountNumberController.text.trim().isNotEmpty ||
+        _bankAccountHolderController.text.trim().isNotEmpty;
+  }
+
+  String _profileBankBin(UserModel profile) {
+    if (profile is TeacherMyProfileModel) {
+      return (profile.bankBin ?? '').trim();
+    }
+    if (profile is StudentMyProfileModel) {
+      return (profile.bankBin ?? '').trim();
+    }
+    return '';
+  }
+
+  String _profileBankAccountNumber(UserModel profile) {
+    if (profile is TeacherMyProfileModel) {
+      return (profile.bankAccountNumber ?? '').trim();
+    }
+    if (profile is StudentMyProfileModel) {
+      return (profile.bankAccountNumber ?? '').trim();
+    }
+    return '';
   }
 
   @override
@@ -433,7 +479,7 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
   }
 
   String? _validateBankSelection(String? value, UserModel profile) {
-    if (!widget.requireBankSetup || profile is! TeacherMyProfileModel) {
+    if (!_shouldRequireBankFields(profile)) {
       return null;
     }
     if (value == null || value.isEmpty) {
@@ -447,7 +493,7 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
     String label,
     UserModel profile,
   ) {
-    if (!widget.requireBankSetup || profile is! TeacherMyProfileModel) {
+    if (!_shouldRequireBankFields(profile)) {
       return null;
     }
     if (value == null || value.trim().isEmpty) {
@@ -457,8 +503,8 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
   }
 
   String? _validateManualBankBin(String? value, UserModel profile) {
-    if (!widget.requireBankSetup ||
-        profile is! TeacherMyProfileModel ||
+    if (!_shouldRequireBankFields(profile) ||
+        !_supportsBankAccount(profile) ||
         _selectedPayoutBankId != PayoutBankCatalog.manual.id) {
       return null;
     }
@@ -512,8 +558,8 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
   }
 
   String? _bankVerificationInputError(UserModel profile) {
-    if (profile is! TeacherMyProfileModel) {
-      return 'Chỉ Tutor mới có thể kiểm tra tài khoản ngân hàng';
+    if (!_supportsBankAccount(profile)) {
+      return 'Loại tài khoản hiện tại không hỗ trợ kiểm tra tài khoản ngân hàng';
     }
 
     if (_selectedPayoutBankId == null || _selectedPayoutBankId!.isEmpty) {
@@ -550,19 +596,22 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
         _verifiedBankAccountNumber == _bankAccountNumberController.text.trim();
   }
 
-  bool _requiresBankDestinationVerification(TeacherMyProfileModel profile) {
+  bool _requiresBankDestinationVerification(UserModel profile) {
+    if (!_supportsBankAccount(profile)) {
+      return false;
+    }
     final currentBankBin = _bankBinController.text.trim();
     final currentAccountNumber = _bankAccountNumberController.text.trim();
     if (currentBankBin.isEmpty || currentAccountNumber.isEmpty) {
       return false;
     }
 
-    if (widget.requireBankSetup) {
+    if (widget.requireBankSetup && profile is TeacherMyProfileModel) {
       return true;
     }
 
-    return currentBankBin != (profile.bankBin ?? '').trim() ||
-        currentAccountNumber != (profile.bankAccountNumber ?? '').trim();
+    return currentBankBin != _profileBankBin(profile) ||
+        currentAccountNumber != _profileBankAccountNumber(profile);
   }
 
   Future<void> _verifyBankAccount(
@@ -629,7 +678,7 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
     final latestProfile =
         ref.read(myProfileViewModelProvider).profile ?? profile;
 
-    if (latestProfile is TeacherMyProfileModel &&
+    if (_supportsBankAccount(latestProfile) &&
         _requiresBankDestinationVerification(latestProfile) &&
         !_hasVerifiedCurrentBankDestination()) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -653,6 +702,12 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
         phone: _phoneController.text.trim(),
         learningGoal: _learningGoalController.text.trim(),
         englishLevel: _englishLevelController.text.trim(),
+        bankName: _bankNameController.text.trim(),
+        bankBin: _bankBinController.text.trim(),
+        bankAccountNumber: _bankAccountNumberController.text.trim(),
+        bankAccountHolder: _normalizeBankAccountHolderForStorage(
+          _bankAccountHolderController.text,
+        ),
       );
     } else if (latestProfile is TeacherMyProfileModel) {
       if (widget.requireBankSetup) {
@@ -816,6 +871,8 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
                     label: 'M\u1EE5c ti\u00EAu h\u1ECDc',
                     maxLines: 3,
                   ),
+                  const SizedBox(height: 12),
+                  _buildBankAccountSection(profile),
                 ],
                 if (profile is TeacherMyProfileModel) ...[
                   if (!isBankSetupOnly) ...[
@@ -1090,6 +1147,130 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildBankAccountSection(UserModel profile) {
+    final isTeacher = profile is TeacherMyProfileModel;
+    final dropdownLabel = isTeacher ? 'Ngân hàng nhận payout' : 'Ngân hàng';
+    final subtitle = widget.requireBankSetup && isTeacher
+        ? 'Thiết lập ngân hàng nhận payout. Nếu ngân hàng của bạn chưa có trong danh sách, hãy chuyển sang nhập thủ công.'
+        : 'Chọn ngân hàng để app tự điền tên ngân hàng và mã BIN. Nếu ngân hàng của bạn chưa có trong danh sách, hãy chuyển sang nhập thủ công.';
+
+    return _buildSectionCard(
+      title: 'Tài khoản ngân hàng',
+      subtitle: subtitle,
+      child: Column(
+        children: [
+          DropdownButtonFormField<String>(
+            initialValue: _selectedPayoutBankId,
+            isExpanded: true,
+            decoration: InputDecoration(
+              labelText: dropdownLabel,
+              helperText:
+                  'Danh sách đang ưu tiên các ngân hàng phổ biến mà app đã cấu hình sẵn.',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            items: PayoutBankCatalog.options
+                .map(
+                  (option) => DropdownMenuItem<String>(
+                    value: option.id,
+                    child: Text(option.label),
+                  ),
+                )
+                .toList(),
+            validator: (value) => _validateBankSelection(value, profile),
+            onChanged: (value) => _onPayoutBankChanged(value, profile),
+          ),
+          if (_selectedPayoutBankId == null) ...[
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Chọn một ngân hàng trong danh sách để app tự điền thông tin tài khoản.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+          ] else if (_selectedPayoutBankId == PayoutBankCatalog.manual.id) ...[
+            const SizedBox(height: 12),
+            _buildField(
+              controller: _bankNameController,
+              label: 'Ngân hàng',
+              validator: (value) =>
+                  _validateBankRequired(value, 'tên ngân hàng', profile),
+            ),
+            const SizedBox(height: 12),
+            _buildField(
+              controller: _bankBinController,
+              label: 'Mã ngân hàng (BIN)',
+              keyboardType: TextInputType.number,
+              onChanged: (_) => _scheduleBankVerification(profile),
+              validator: (value) => _validateManualBankBin(value, profile),
+            ),
+          ] else ...[
+            const SizedBox(height: 12),
+            _buildReadOnlyField(
+              label: 'Ngân hàng',
+              value: _bankNameController.text,
+            ),
+            const SizedBox(height: 12),
+            _buildReadOnlyField(
+              label: 'Mã ngân hàng (BIN)',
+              value: _bankBinController.text,
+            ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Thông tin ngân hàng đã được điền tự động theo ngân hàng bạn chọn.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          _buildField(
+            controller: _bankAccountNumberController,
+            label: 'Số tài khoản',
+            keyboardType: TextInputType.number,
+            onChanged: (_) => _scheduleBankVerification(profile),
+            validator: (value) =>
+                _validateBankRequired(value, 'số tài khoản', profile),
+          ),
+          const SizedBox(height: 12),
+          _buildField(
+            fieldKey: const Key('bankAccountHolderField'),
+            controller: _bankAccountHolderController,
+            label: 'Chủ tài khoản',
+            textCapitalization: TextCapitalization.characters,
+            inputFormatters: const [_BankAccountHolderInputFormatter()],
+            helperText: 'Nhập tên chủ tài khoản bằng CHỮ IN HOA, KHÔNG DẤU.',
+            validator: (value) =>
+                _validateBankRequired(value, 'chủ tài khoản', profile),
+          ),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'Hệ thống sẽ tự kiểm tra sơ bộ tài khoản ngân hàng với payOS sau khi bạn nhập đủ mã BIN và số tài khoản.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+          if (_isVerifyingBankAccount ||
+              (_bankVerificationDebounce?.isActive ?? false)) ...[
+            const SizedBox(height: 12),
+            _buildPendingVerificationBanner(),
+          ],
+          if (_bankVerificationMessage != null) ...[
+            const SizedBox(height: 12),
+            _buildVerificationBanner(
+              isSuccess: _isBankAccountVerified == true,
+              message: _bankVerificationMessage!,
+            ),
+          ],
+        ],
       ),
     );
   }

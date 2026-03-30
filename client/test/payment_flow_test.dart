@@ -13,6 +13,8 @@ import 'package:client/features/profile/repositories/my_profile_repository.dart'
 import 'package:client/features/profile/view/widgets/my_profile_view.dart';
 import 'package:client/features/student/model/class_session.dart';
 import 'package:client/features/student/model/student_class_booking_status.dart';
+import 'package:client/features/student/model/student_tutor_review.dart';
+import 'package:client/features/student/model/student_tutor_review_status.dart';
 import 'package:client/features/student/repositories/student_remote_repository.dart';
 import 'package:client/features/student/view/screens/class_detail_screen.dart';
 import 'package:client/features/tutor/view/screens/tutor_home_screen.dart';
@@ -92,6 +94,9 @@ void main() {
     expect(find.text('Giảng viên'), findsOneWidget);
     expect(find.text('Thanh toán học phí'), findsOneWidget);
     expect(find.text('Cafe A'), findsOneWidget);
+    expect(find.text('Bắt đầu'), findsOneWidget);
+    expect(find.text('Kết thúc'), findsOneWidget);
+    expect(find.text('20:00'), findsOneWidget);
     expect(find.text('123 Main Street'), findsOneWidget);
     expect(find.text('Mang theo tai nghe.'), findsNothing);
 
@@ -226,6 +231,66 @@ void main() {
     },
   );
 
+  testWidgets(
+    'student can submit tutor review after class ends and sees hotline',
+    (tester) async {
+      fakeStudentRepo.bookingStatusResult = const StudentClassBookingStatus(
+        classId: 'class-1',
+        hasBooking: true,
+        isRegistered: true,
+        bookingId: 'booking-1',
+        bookingStatus: 'completed',
+        paymentStatus: 'paid',
+        escrowStatus: 'released',
+      );
+      fakeStudentRepo.reviewStatusResult = const StudentTutorReviewStatus(
+        classId: 'class-1',
+        canReview: true,
+        alreadyReviewed: false,
+        hotline: '0335837165',
+      );
+      fakeStudentRepo.submitReviewResult = StudentTutorReviewStatus(
+        classId: 'class-1',
+        canReview: true,
+        alreadyReviewed: true,
+        hotline: '0335837165',
+        review: _sampleTutorReview(rating: 5, comment: 'Tutor rất nhiệt tình.'),
+      );
+
+      await tester.pumpWidget(
+        _buildApp(
+          child: ClassDetailScreen(session: _sampleClassSession()),
+          fakeRepo: fakeRepo,
+          fakeStudentRepo: fakeStudentRepo,
+          user: _sampleUser(role: 'student'),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Đánh giá tutor'), findsOneWidget);
+      expect(find.textContaining('0335837165'), findsOneWidget);
+
+      final starFinder = find.byKey(const Key('tutorReviewStar-5'));
+      await tester.ensureVisible(starFinder);
+      await tester.tap(starFinder, warnIfMissed: false);
+      await tester.pump();
+      final commentFinder = find.byKey(const Key('tutorReviewCommentField'));
+      await tester.ensureVisible(commentFinder);
+      await tester.enterText(commentFinder, 'Tutor rất nhiệt tình.');
+      await tester.pump();
+      final submitFinder = find.byKey(const Key('tutorReviewSubmitButton'));
+      await tester.ensureVisible(submitFinder);
+      await tester.tap(submitFinder, warnIfMissed: false);
+      await tester.pump();
+
+      expect(fakeStudentRepo.getMyTutorReviewCalls, 1);
+      expect(fakeStudentRepo.submitTutorReviewCalls, 1);
+      expect(fakeStudentRepo.lastSubmittedRating, 5);
+      expect(fakeStudentRepo.lastSubmittedComment, 'Tutor rất nhiệt tình.');
+      expect(find.text('Cập nhật đánh giá'), findsOneWidget);
+    },
+  );
+
   testWidgets('tutor payment tab loads class summary by class code', (
     tester,
   ) async {
@@ -352,6 +417,18 @@ UserModel _sampleUser({required String role}) {
   );
 }
 
+StudentTutorReview _sampleTutorReview({required int rating, String? comment}) {
+  return StudentTutorReview(
+    id: 'review-1',
+    classId: 'class-1',
+    bookingId: 'booking-1',
+    teacherId: 'teacher-1',
+    studentId: 'user-1',
+    rating: rating,
+    comment: comment,
+  );
+}
+
 class _FakePaymentsRemoteRepository extends PaymentsRemoteRepository {
   PaymentTransactionStatus? createJoinPaymentResult;
   List<PaymentTransactionStatus> transactionStatuses = [];
@@ -396,7 +473,18 @@ class _FakeStudentRemoteRepository extends StudentRemoteRepository {
         hasBooking: false,
         isRegistered: false,
       );
+  StudentTutorReviewStatus reviewStatusResult = const StudentTutorReviewStatus(
+    classId: 'class-1',
+    canReview: false,
+    alreadyReviewed: false,
+    hotline: '0335837165',
+  );
+  StudentTutorReviewStatus? submitReviewResult;
   int getMyBookingStatusCalls = 0;
+  int getMyTutorReviewCalls = 0;
+  int submitTutorReviewCalls = 0;
+  int? lastSubmittedRating;
+  String? lastSubmittedComment;
 
   @override
   Future<Either<AppFailure, StudentClassBookingStatus>> getMyBookingStatus({
@@ -405,6 +493,28 @@ class _FakeStudentRemoteRepository extends StudentRemoteRepository {
   }) async {
     getMyBookingStatusCalls += 1;
     return Right(bookingStatusResult);
+  }
+
+  @override
+  Future<Either<AppFailure, StudentTutorReviewStatus>> getMyTutorReview({
+    required String token,
+    required String classId,
+  }) async {
+    getMyTutorReviewCalls += 1;
+    return Right(reviewStatusResult);
+  }
+
+  @override
+  Future<Either<AppFailure, StudentTutorReviewStatus>> submitTutorReview({
+    required String token,
+    required String classId,
+    required int rating,
+    String? comment,
+  }) async {
+    submitTutorReviewCalls += 1;
+    lastSubmittedRating = rating;
+    lastSubmittedComment = comment;
+    return Right(submitReviewResult ?? reviewStatusResult);
   }
 }
 
@@ -449,8 +559,7 @@ class _FakeMyProfileRepository implements IMyProfileRepository {
     return const PayoutBankAccountVerificationResult(
       provider: 'payos',
       isValid: true,
-      message:
-          'payOS không trả lỗi khi kiểm tra sơ bộ tài khoản nhận tiền này',
+      message: 'payOS không trả lỗi khi kiểm tra sơ bộ tài khoản nhận tiền này',
       estimateCredit: 0,
     );
   }

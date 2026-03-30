@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 
 import 'package:client/core/failure/failure.dart';
 import 'package:client/core/providers/current_user_notifier.dart';
@@ -10,6 +10,7 @@ import 'package:client/features/payments/model/payment_transaction_status.dart';
 import 'package:client/features/payments/repositories/payments_remote_repository.dart';
 import 'package:client/features/student/model/class_session.dart';
 import 'package:client/features/student/model/student_class_booking_status.dart';
+import 'package:client/features/student/model/student_tutor_review_status.dart';
 import 'package:client/features/student/repositories/student_remote_repository.dart';
 import 'package:client/features/student/view/widgets/class_detail_enrolled_avatars.dart';
 import 'package:client/features/student/view/widgets/class_detail_info_grid.dart';
@@ -33,31 +34,39 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen>
     with WidgetsBindingObserver {
   static const int _maxPollAttempts = 60;
   static const int _maxConsecutivePollErrors = 3;
+  static const String _fallbackHotline = '0335837165';
 
   bool _submitting = false;
   bool _polling = false;
   PaymentTransactionStatus? _transaction;
   StudentClassBookingStatus? _bookingStatus;
+  StudentTutorReviewStatus? _reviewStatus;
   Timer? _pollTimer;
   int _pollAttempts = 0;
   int _consecutivePollErrors = 0;
   bool _loadingBookingStatus = false;
+  bool _loadingReviewStatus = false;
+  bool _savingReview = false;
   bool _pollRequestInFlight = false;
   bool _awaitingExternalPaymentReturn = false;
   bool _paymentAppWasBackgrounded = false;
   bool _resumeStatusCheckInFlight = false;
+  int _selectedReviewRating = 0;
+  final _reviewCommentController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _loadBookingStatus();
+    _loadTutorReviewStatus();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _pollTimer?.cancel();
+    _reviewCommentController.dispose();
     super.dispose();
   }
 
@@ -239,6 +248,36 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen>
     });
   }
 
+  Future<void> _loadTutorReviewStatus() async {
+    final user = ref.read(currentUserProvider);
+    final classId = widget.session.id;
+    if (user == null || classId == null || classId.isEmpty) {
+      return;
+    }
+
+    setState(() => _loadingReviewStatus = true);
+    final result = await ref
+        .read(studentRemoteRepositoryProvider)
+        .getMyTutorReview(token: user.token, classId: classId);
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _loadingReviewStatus = false;
+      if (result is Right<AppFailure, StudentTutorReviewStatus>) {
+        _reviewStatus = result.value;
+        _selectedReviewRating = result.value.review?.rating ?? 0;
+        final comment = result.value.review?.comment ?? '';
+        _reviewCommentController.value = TextEditingValue(
+          text: comment,
+          selection: TextSelection.collapsed(offset: comment.length),
+        );
+      }
+    });
+  }
+
   Future<void> _handleExternalPaymentReturn() async {
     final transactionRef = _transaction?.transactionRef;
     final user = ref.read(currentUserProvider);
@@ -282,10 +321,9 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen>
     required String token,
     required String transactionRef,
   }) {
-    return ref.read(paymentsRemoteRepositoryProvider).getTransactionStatus(
-          token: token,
-          transactionRef: transactionRef,
-        );
+    return ref
+        .read(paymentsRemoteRepositoryProvider)
+        .getTransactionStatus(token: token, transactionRef: transactionRef);
   }
 
   void _handleTransactionStatusUpdate(PaymentTransactionStatus status) {
@@ -419,6 +457,101 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen>
           ? _StudentRegistrationCardKind.pending
           : _StudentRegistrationCardKind.neutral,
     );
+  }
+
+  int get _reviewCommentWordCount => _countWords(_reviewCommentController.text);
+
+  String get _reviewHotline {
+    final hotline = _reviewStatus?.hotline.trim() ?? '';
+    return hotline.isEmpty ? _fallbackHotline : hotline;
+  }
+
+  String? get _reviewValidationMessage {
+    if ((_reviewStatus?.canReview ?? false) == false) {
+      return _reviewStatus?.reason;
+    }
+    if (_reviewCommentWordCount > 100) {
+      return 'Nhận xét không được vượt quá 100 từ.';
+    }
+    return null;
+  }
+
+  Future<void> _submitTutorReview() async {
+    final user = ref.read(currentUserProvider);
+    final classId = widget.session.id;
+    final reviewStatus = _reviewStatus;
+    if (user == null || classId == null || classId.isEmpty) {
+      _showMessage('Không tìm thấy buổi học để gửi đánh giá.');
+      return;
+    }
+    if (reviewStatus == null) {
+      _showMessage('Không tải được trạng thái đánh giá tutor.');
+      return;
+    }
+    if (!reviewStatus.canReview) {
+      _showMessage(
+        reviewStatus.reason ??
+            'Bạn chưa thể gửi đánh giá cho tutor vào lúc này.',
+      );
+      return;
+    }
+    if (_reviewCommentWordCount > 100) {
+      _showMessage('Nhận xét không được vượt quá 100 từ.');
+      return;
+    }
+
+    setState(() => _savingReview = true);
+    final result = await ref
+        .read(studentRemoteRepositoryProvider)
+        .submitTutorReview(
+          token: user.token,
+          classId: classId,
+          rating: _selectedReviewRating,
+          comment: _reviewCommentController.text.trim(),
+        );
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() => _savingReview = false);
+    if (result is Right<AppFailure, StudentTutorReviewStatus>) {
+      setState(() {
+        _reviewStatus = result.value;
+        _selectedReviewRating =
+            result.value.review?.rating ?? _selectedReviewRating;
+      });
+      _showMessage(
+        result.value.alreadyReviewed
+            ? 'Đánh giá tutor đã được lưu thành công.'
+            : 'Đã gửi đánh giá tutor thành công.',
+      );
+      return;
+    }
+
+    if (result is Left<AppFailure, StudentTutorReviewStatus>) {
+      _showMessage(result.value.message);
+    }
+  }
+
+  Future<void> _callReviewHotline() async {
+    final launched = await launchUrl(Uri.parse('tel:$_reviewHotline'));
+    if (!launched && mounted) {
+      _showMessage(
+        'Không mở được trình gọi điện. Hotline EConnect: $_reviewHotline',
+      );
+    }
+  }
+
+  int _countWords(String value) {
+    final normalized = value.trim();
+    if (normalized.isEmpty) {
+      return 0;
+    }
+    return normalized
+        .split(RegExp(r'\s+'))
+        .where((word) => word.isNotEmpty)
+        .length;
   }
 
   @override
@@ -562,6 +695,23 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen>
                               ),
                             ),
                     ),
+                    const SizedBox(height: 18),
+                    if (_loadingReviewStatus || _reviewStatus != null)
+                      _TutorReviewSection(
+                        loading: _loadingReviewStatus,
+                        saving: _savingReview,
+                        status: _reviewStatus,
+                        selectedRating: _selectedReviewRating,
+                        wordCount: _reviewCommentWordCount,
+                        validationMessage: _reviewValidationMessage,
+                        commentController: _reviewCommentController,
+                        onSelectRating: (rating) {
+                          setState(() => _selectedReviewRating = rating);
+                        },
+                        onCommentChanged: (_) => setState(() {}),
+                        onSubmit: _submitTutorReview,
+                        onCallHotline: _callReviewHotline,
+                      ),
                     if (session.enrolledInitials.isNotEmpty) ...[
                       const SizedBox(height: 18),
                       Text(
@@ -689,9 +839,7 @@ class _PaymentActionCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(10),
               ),
             ),
-            child: Text(
-              submitting ? 'Đang tạo giao dịch...' : submitLabel,
-            ),
+            child: Text(submitting ? 'Đang tạo giao dịch...' : submitLabel),
           ),
           if (transaction != null) ...[
             const SizedBox(height: 10),
@@ -810,6 +958,228 @@ class _StudentRegistrationCardData {
   });
 }
 
+class _TutorReviewSection extends StatelessWidget {
+  final bool loading;
+  final bool saving;
+  final StudentTutorReviewStatus? status;
+  final int selectedRating;
+  final int wordCount;
+  final String? validationMessage;
+  final TextEditingController commentController;
+  final ValueChanged<int> onSelectRating;
+  final ValueChanged<String> onCommentChanged;
+  final VoidCallback onSubmit;
+  final VoidCallback onCallHotline;
+
+  const _TutorReviewSection({
+    required this.loading,
+    required this.saving,
+    required this.status,
+    required this.selectedRating,
+    required this.wordCount,
+    required this.validationMessage,
+    required this.commentController,
+    required this.onSelectRating,
+    required this.onCommentChanged,
+    required this.onSubmit,
+    required this.onCallHotline,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final reviewStatus = status;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: cs.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Đánh giá tutor',
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Sau mỗi buổi học đã kết thúc, bạn có thể chấm từ 0 đến 5 sao và để lại nhận xét ngắn cho tutor.',
+            style: TextStyle(color: cs.onSurfaceVariant, height: 1.4),
+          ),
+          if (loading && reviewStatus == null) ...[
+            const SizedBox(height: 12),
+            const Row(
+              children: [
+                SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                SizedBox(width: 10),
+                Expanded(child: Text('Đang tải trạng thái đánh giá...')),
+              ],
+            ),
+          ] else if (reviewStatus != null) ...[
+            const SizedBox(height: 14),
+            if (reviewStatus.canReview) ...[
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  OutlinedButton(
+                    key: const Key('tutorReviewStar-0'),
+                    onPressed: () => onSelectRating(0),
+                    child: const Text('0 sao'),
+                  ),
+                  ...List.generate(5, (index) {
+                    final rating = index + 1;
+                    return IconButton(
+                      key: Key('tutorReviewStar-$rating'),
+                      onPressed: () => onSelectRating(rating),
+                      icon: Icon(
+                        rating <= selectedRating
+                            ? Icons.star_rounded
+                            : Icons.star_outline_rounded,
+                        color: const Color(0xFFFCC419),
+                      ),
+                      tooltip: '$rating sao',
+                    );
+                  }),
+                ],
+              ),
+              Text(
+                'Mức đánh giá hiện tại: $selectedRating/5 sao',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: cs.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                key: const Key('tutorReviewCommentField'),
+                controller: commentController,
+                minLines: 3,
+                maxLines: 4,
+                enabled: !saving,
+                onChanged: onCommentChanged,
+                decoration: InputDecoration(
+                  labelText: 'Nhận xét của bạn',
+                  hintText: 'Nhập nhận xét ngắn, tối đa 100 từ.',
+                  alignLabelWithHint: true,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      validationMessage ??
+                          (reviewStatus.alreadyReviewed
+                              ? 'Bạn có thể cập nhật lại đánh giá này bất cứ lúc nào.'
+                              : 'Nhận xét không bắt buộc, nhưng sẽ giúp tutor cải thiện chất lượng dạy.'),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: validationMessage == null
+                            ? cs.onSurfaceVariant
+                            : cs.error,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    '$wordCount/100 từ',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: wordCount > 100 ? cs.error : cs.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              FilledButton(
+                key: const Key('tutorReviewSubmitButton'),
+                onPressed: !saving ? onSubmit : null,
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(46),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                child: saving
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(
+                        reviewStatus.alreadyReviewed
+                            ? 'Cập nhật đánh giá'
+                            : 'Gửi đánh giá',
+                      ),
+              ),
+            ],
+            if ((reviewStatus.reason ?? '').isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                reviewStatus.reason!,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: cs.onSurfaceVariant,
+                  height: 1.4,
+                ),
+              ),
+            ],
+          ],
+          const SizedBox(height: 14),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: cs.surface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: cs.outlineVariant),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.support_agent_rounded, color: cs.primary),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Nếu cần khiếu nại trực tiếp với admin, vui lòng gọi hotline EConnect ${reviewStatus?.hotline ?? '0335837165'}.',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: cs.onSurface,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                OutlinedButton(
+                  onPressed: onCallHotline,
+                  child: const Text('Gọi'),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _HeroCard extends StatelessWidget {
   final String? imageUrl;
   final String statusText;
@@ -863,4 +1233,3 @@ class _GradientPlaceholder extends StatelessWidget {
     );
   }
 }
-

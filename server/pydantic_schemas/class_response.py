@@ -13,6 +13,7 @@ class TeacherBrief(BaseModel):
     avatar_url: Optional[str] = None
     rating_avg: Optional[Decimal] = None
     total_sessions: Optional[int] = None
+    total_reviews: Optional[int] = None
 
 
 class ClassResponse(BaseModel):

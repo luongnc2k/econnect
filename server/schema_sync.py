@@ -8,6 +8,8 @@ def sync_schema(engine: Engine) -> None:
     _ensure_learning_locations_table(engine)
     _ensure_default_learning_locations(engine)
     _ensure_teacher_profile_bank_columns(engine)
+    _ensure_student_profile_bank_columns(engine)
+    _ensure_tutor_reviews_table(engine)
     _ensure_class_topic_column(engine)
     _ensure_class_payment_columns(engine)
     _ensure_booking_payment_columns(engine)
@@ -25,6 +27,55 @@ def _ensure_teacher_profile_bank_columns(engine: Engine) -> None:
         "bank_account_holder": "VARCHAR(100)",
     }
     _ensure_columns(engine, table_name, missing_columns)
+
+
+def _ensure_student_profile_bank_columns(engine: Engine) -> None:
+    table_name = "student_profiles"
+    missing_columns = {
+        "bank_name": "VARCHAR(100)",
+        "bank_bin": "VARCHAR(20)",
+        "bank_account_number": "VARCHAR(50)",
+        "bank_account_holder": "VARCHAR(100)",
+    }
+    _ensure_columns(engine, table_name, missing_columns)
+
+
+def _ensure_tutor_reviews_table(engine: Engine) -> None:
+    inspector = inspect(engine)
+    if "tutor_reviews" in inspector.get_table_names():
+        _ensure_columns(
+            engine,
+            "tutor_reviews",
+            {
+                "class_id": "TEXT",
+                "booking_id": "TEXT",
+                "teacher_id": "TEXT",
+                "student_id": "TEXT",
+                "rating": "SMALLINT NOT NULL DEFAULT 0",
+                "comment": "TEXT",
+                "created_at": "TIMESTAMPTZ NOT NULL DEFAULT NOW()",
+                "updated_at": "TIMESTAMPTZ NOT NULL DEFAULT NOW()",
+            },
+        )
+        return
+
+    create_table_statement = """
+    CREATE TABLE tutor_reviews (
+        id TEXT PRIMARY KEY,
+        class_id TEXT NOT NULL REFERENCES classes(id),
+        booking_id TEXT NOT NULL UNIQUE REFERENCES bookings(id),
+        teacher_id TEXT NOT NULL REFERENCES users(id),
+        student_id TEXT NOT NULL REFERENCES users(id),
+        rating SMALLINT NOT NULL,
+        comment TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        CONSTRAINT uq_tutor_reviews_class_student UNIQUE (class_id, student_id)
+    )
+    """
+
+    with engine.begin() as connection:
+        connection.execute(text(create_table_statement))
 
 
 def _ensure_class_topic_column(engine: Engine) -> None:

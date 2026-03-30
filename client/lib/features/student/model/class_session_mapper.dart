@@ -31,6 +31,7 @@ class ClassSessionMapper {
       startDateTime: startTime,
       endDateTime: endTime,
       timeText: formatTime(startTime),
+      endTimeText: formatTime(endTime),
       priceText: formatPrice(studentPrice),
       totalPriceText: formatPrice(totalPrice),
       imageUrl: normalizeBackendAssetUrl(m['thumbnail_url'] as String?),
@@ -45,6 +46,7 @@ class ClassSessionMapper {
           ? double.tryParse(teacher['rating_avg'].toString())
           : null,
       teacherSessionCount: teacher['total_sessions'] as int?,
+      teacherReviewCount: teacher['total_reviews'] as int?,
     );
   }
 

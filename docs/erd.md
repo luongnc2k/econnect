@@ -172,9 +172,9 @@ erDiagram
 | native_language | VARCHAR(50) | |
 | certifications | TEXT[] | URL tài liệu chứng chỉ |
 | years_experience | SMALLINT | |
-| rating_avg | DECIMAL(2,1) | denormalized — đồng bộ với reviews |
+| rating_avg | DECIMAL(2,1) | denormalized — đồng bộ với tutor_reviews, làm tròn 1 chữ số thập phân |
 | total_sessions | INT | denormalized |
-| total_reviews | INT | denormalized |
+| total_reviews | INT | denormalized — COUNT(tutor_reviews) |
 | is_verified | BOOLEAN | |
 | verification_docs | TEXT[] | URL tài liệu đã upload |
 | created_at | TIMESTAMP | |
@@ -288,19 +288,24 @@ pending → (payment success) → confirmed → (class ends) → completed
 
 ---
 
-### reviews
+### tutor_reviews
 | Cột | Kiểu | Ghi chú |
 |---|---|---|
 | id | UUID | PK |
+| class_id | UUID | FK → classes.id |
 | booking_id | UUID | FK → bookings.id |
-| rating | SMALLINT | 1–5 |
-| comment | TEXT | |
+| teacher_id | UUID | FK → users.id |
+| student_id | UUID | FK → users.id |
+| rating | SMALLINT | 0–5 |
+| comment | TEXT | tối đa 100 từ ở application layer |
 | created_at | TIMESTAMP | |
+| updated_at | TIMESTAMP | |
 
-> `student_id`, `teacher_id`, `class_id` được bỏ vì đều có thể suy ra từ `booking_id`, giúp tránh inconsistency.
+> Implementation hiện tại giữ thêm `class_id`, `teacher_id`, `student_id` để query nhanh hơn khi lấy rating/review theo tutor hoặc theo buổi học.
 
 **Ràng buộc:**
 - UNIQUE (`booking_id`) để mỗi booking chỉ có một review
+- UNIQUE (`class_id`, `student_id`) để mỗi học viên chỉ đánh giá một lần cho mỗi buổi học
 
 ---
 
@@ -333,7 +338,7 @@ classes 1──< bookings
 users (student) 1──< bookings
 
 bookings 1──1 payments
-bookings 1──1 reviews
+bookings 1──1 tutor_reviews
 
 users 1──< notifications
 ```
@@ -354,8 +359,17 @@ Cần đồng bộ bằng application logic hoặc DB trigger:
 
 | Bảng | Trường | Nguồn dữ liệu gốc |
 |---|---|---|
-| teacher_profiles | rating_avg | AVG(reviews.rating) |
+| teacher_profiles | rating_avg | ROUND(AVG(tutor_reviews.rating), 1) |
 | teacher_profiles | total_sessions | COUNT(bookings) với status = completed |
-| teacher_profiles | total_reviews | COUNT(reviews) |
+| teacher_profiles | total_reviews | COUNT(tutor_reviews) |
 | student_profiles | total_classes_attended | COUNT(bookings) với status = completed |
 | classes | current_participants | COUNT(bookings) với status != cancelled |
+
+### Quy tắc tính rating tutor
+
+- Mỗi học viên chỉ có tối đa `1` review cho mỗi buổi học đã đăng ký và thanh toán.
+- Review chỉ được gửi sau khi buổi học kết thúc.
+- Điểm rating của tutor dùng thang `0` đến `5` sao.
+- `teacher_profiles.rating_avg = ROUND(AVG(tutor_reviews.rating), 1)`.
+- `teacher_profiles.total_reviews = COUNT(tutor_reviews)` của tutor.
+- Khi học viên cập nhật review cũ, hệ thống tính lại toàn bộ `rating_avg` và `total_reviews` từ dữ liệu review hiện có.

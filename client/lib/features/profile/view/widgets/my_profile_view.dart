@@ -110,6 +110,34 @@ class _MyProfileViewState extends ConsumerState<MyProfileView> {
         '${date.year}';
   }
 
+  List<ProfileInfoItem> _buildBankItems(Object profile) {
+    String? bankName;
+    String? bankBin;
+    String? bankAccountNumber;
+    String? bankAccountHolder;
+
+    if (profile is TeacherMyProfileModel) {
+      bankName = profile.bankName;
+      bankBin = profile.bankBin;
+      bankAccountNumber = profile.bankAccountNumber;
+      bankAccountHolder = profile.bankAccountHolder;
+    } else if (profile is StudentMyProfileModel) {
+      bankName = profile.bankName;
+      bankBin = profile.bankBin;
+      bankAccountNumber = profile.bankAccountNumber;
+      bankAccountHolder = profile.bankAccountHolder;
+    } else {
+      return const [];
+    }
+
+    return [
+      ProfileInfoItem(label: 'Ngân hàng', value: bankName ?? '--'),
+      ProfileInfoItem(label: 'Mã BIN', value: bankBin ?? '--'),
+      ProfileInfoItem(label: 'Số tài khoản', value: bankAccountNumber ?? '--'),
+      ProfileInfoItem(label: 'Chủ tài khoản', value: bankAccountHolder ?? '--'),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(myProfileViewModelProvider);
@@ -217,28 +245,14 @@ class _MyProfileViewState extends ConsumerState<MyProfileView> {
                 ),
               ],
             ),
-          if (profile is TeacherMyProfileModel) const SizedBox(height: 16),
-          if (profile is TeacherMyProfileModel)
+          if (profile is TeacherMyProfileModel ||
+              profile is StudentMyProfileModel)
+            const SizedBox(height: 16),
+          if (profile is TeacherMyProfileModel ||
+              profile is StudentMyProfileModel)
             ProfileInfoCard(
               title: 'Tài khoản ngân hàng',
-              items: [
-                ProfileInfoItem(
-                  label: 'Ngân hàng',
-                  value: profile.bankName ?? '--',
-                ),
-                ProfileInfoItem(
-                  label: 'Mã BIN',
-                  value: profile.bankBin ?? '--',
-                ),
-                ProfileInfoItem(
-                  label: 'Số tài khoản',
-                  value: profile.bankAccountNumber ?? '--',
-                ),
-                ProfileInfoItem(
-                  label: 'Chủ tài khoản',
-                  value: profile.bankAccountHolder ?? '--',
-                ),
-              ],
+              items: _buildBankItems(profile),
             ),
           if (profile is TeacherMyProfileModel &&
               profile.verificationDocs.isNotEmpty) ...[

@@ -189,6 +189,14 @@ flutter run \
 | POST | `/upload/thumbnail` | ✓ | Upload thumbnail buổi học (≤ 5MB) và trả về URL |
 | POST | `/upload/avatar` | ✓ | Upload avatar người dùng (≤ 2MB) và lưu vào DB |
 
+### Cách tính rating tutor
+
+- Mỗi học viên có tối đa `1` đánh giá cho mỗi buổi học đã tham gia và đã thanh toán.
+- Điểm đánh giá dùng thang `0` đến `5` sao.
+- `teacher_profiles.rating_avg` được tính bằng trung bình cộng của toàn bộ `tutor_reviews.rating` của tutor và làm tròn `1` chữ số thập phân.
+- `teacher_profiles.total_reviews` được tính bằng tổng số đánh giá thực tế của tutor.
+- Khi học viên cập nhật lại đánh giá cũ, hệ thống tính lại `rating_avg` từ toàn bộ review hiện có, không cộng dồn kiểu incremental.
+
 ---
 
 ## Kiến trúc

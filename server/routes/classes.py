@@ -16,6 +16,7 @@ from models.class_ import Class
 from models.learning_location import LearningLocation
 from models.teacher_profile import TeacherProfile
 from models.topic import Topic
+from models.tutor_review import TutorReview
 from models.user import User
 from notification_service import dispatch_due_class_starting_soon_notifications
 from pydantic_schemas.class_create import ClassCreate
@@ -27,9 +28,15 @@ from pydantic_schemas.class_response import (
     TeacherBrief,
 )
 from pydantic_schemas.payment import calculate_creation_fee
+from pydantic_schemas.tutor_review import (
+    StudentTutorReviewStatusResponse,
+    TutorReviewRequest,
+    TutorReviewResponse,
+)
 from topic_service import ensure_topic_record, resolve_class_topic_label
 
 router = APIRouter()
+ECONNECT_HOTLINE = "0335837165"
 
 
 def _allow_direct_class_creation() -> bool:
@@ -42,6 +49,107 @@ def _build_class_code(cls: Class) -> str:
     raw_id = "".join(char for char in str(cls.id).upper() if char.isalnum())
     suffix = raw_id[:4].ljust(4, "0")
     return f"CLS-{date_part}-{suffix}"
+
+
+def _serialize_tutor_review(review: TutorReview) -> TutorReviewResponse:
+    return TutorReviewResponse(
+        id=review.id,
+        class_id=review.class_id,
+        booking_id=review.booking_id,
+        teacher_id=review.teacher_id,
+        student_id=review.student_id,
+        rating=review.rating,
+        comment=review.comment,
+        created_at=review.created_at,
+        updated_at=review.updated_at,
+    )
+
+
+def _refresh_teacher_review_stats(db: Session, teacher_id: str) -> None:
+    teacher_profile = (
+        db.query(TeacherProfile).filter(TeacherProfile.user_id == teacher_id).first()
+    )
+    if not teacher_profile:
+        return
+
+    count = (
+        db.query(func.count(TutorReview.id))
+        .filter(TutorReview.teacher_id == teacher_id)
+        .scalar()
+    ) or 0
+    average = (
+        db.query(func.avg(TutorReview.rating))
+        .filter(TutorReview.teacher_id == teacher_id)
+        .scalar()
+    )
+
+    teacher_profile.total_reviews = int(count)
+    teacher_profile.rating_avg = round(float(average or 0), 1)
+
+
+def _find_student_booking_for_review(
+    db: Session,
+    *,
+    class_id: str,
+    student_id: str,
+) -> Booking | None:
+    return (
+        db.query(Booking)
+        .filter(
+            Booking.class_id == class_id,
+            Booking.student_id == student_id,
+            Booking.status.in_(["confirmed", "completed"]),
+            Booking.payment_status == "paid",
+        )
+        .first()
+    )
+
+
+def _build_student_tutor_review_status_response(
+    db: Session,
+    *,
+    cls: Class,
+    student_id: str,
+) -> StudentTutorReviewStatusResponse:
+    booking = _find_student_booking_for_review(
+        db,
+        class_id=cls.id,
+        student_id=student_id,
+    )
+    review = (
+        db.query(TutorReview)
+        .filter(TutorReview.class_id == cls.id, TutorReview.student_id == student_id)
+        .first()
+    )
+
+    if booking is None:
+        return StudentTutorReviewStatusResponse(
+            class_id=cls.id,
+            can_review=False,
+            already_reviewed=review is not None,
+            hotline=ECONNECT_HOTLINE,
+            reason="Bạn cần đăng ký và thanh toán buổi học này trước khi đánh giá tutor.",
+            review=_serialize_tutor_review(review) if review else None,
+        )
+
+    if cls.end_time > datetime.now(timezone.utc):
+        return StudentTutorReviewStatusResponse(
+            class_id=cls.id,
+            can_review=False,
+            already_reviewed=review is not None,
+            hotline=ECONNECT_HOTLINE,
+            reason="Bạn chỉ có thể đánh giá tutor sau khi buổi học kết thúc.",
+            review=_serialize_tutor_review(review) if review else None,
+        )
+
+    return StudentTutorReviewStatusResponse(
+        class_id=cls.id,
+        can_review=True,
+        already_reviewed=review is not None,
+        hotline=ECONNECT_HOTLINE,
+        reason=None,
+        review=_serialize_tutor_review(review) if review else None,
+    )
 
 
 def _to_class_response(
@@ -85,6 +193,7 @@ def _to_class_response(
             avatar_url=teacher_user.avatar_url,
             rating_avg=teacher_profile.rating_avg if teacher_profile else None,
             total_sessions=teacher_profile.total_sessions if teacher_profile else None,
+            total_reviews=teacher_profile.total_reviews if teacher_profile else None,
         ),
     )
 
@@ -436,6 +545,108 @@ def get_my_class_booking_status(
         raise HTTPException(status_code=404, detail="Khong tim thay lop hoc")
 
     return _build_student_booking_status_response(
+        db,
+        cls=cls,
+        student_id=student.id,
+    )
+
+
+@router.get(
+    "/{class_id}/my-tutor-review",
+    response_model=StudentTutorReviewStatusResponse,
+)
+def get_my_tutor_review(
+    class_id: str,
+    db: Session = Depends(get_db),
+    user_dict: dict = Depends(auth_middleware),
+):
+    student = db.query(User).filter(User.id == user_dict["uid"]).first()
+    if not student or student.role != "student":
+        raise HTTPException(
+            status_code=403,
+            detail="Chi hoc vien moi co the xem trang thai danh gia tutor cua minh",
+        )
+
+    cls = db.query(Class).filter(Class.id == class_id).first()
+    if not cls:
+        raise HTTPException(status_code=404, detail="Khong tim thay lop hoc")
+
+    return _build_student_tutor_review_status_response(
+        db,
+        cls=cls,
+        student_id=student.id,
+    )
+
+
+@router.put(
+    "/{class_id}/my-tutor-review",
+    response_model=StudentTutorReviewStatusResponse,
+)
+def upsert_my_tutor_review(
+    class_id: str,
+    payload: TutorReviewRequest,
+    db: Session = Depends(get_db),
+    user_dict: dict = Depends(auth_middleware),
+):
+    student = db.query(User).filter(User.id == user_dict["uid"]).first()
+    if not student or student.role != "student":
+        raise HTTPException(
+            status_code=403,
+            detail="Chi hoc vien moi co the gui danh gia tutor",
+        )
+
+    cls = db.query(Class).filter(Class.id == class_id).first()
+    if not cls:
+        raise HTTPException(status_code=404, detail="Khong tim thay lop hoc")
+
+    booking = _find_student_booking_for_review(
+        db,
+        class_id=cls.id,
+        student_id=student.id,
+    )
+    if booking is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Ban chi co the danh gia tutor cho buoi hoc da dang ky va thanh toan",
+        )
+    if cls.end_time > datetime.now(timezone.utc):
+        raise HTTPException(
+            status_code=400,
+            detail="Buoi hoc chua ket thuc, chua the gui danh gia tutor",
+        )
+
+    review = (
+        db.query(TutorReview)
+        .filter(TutorReview.booking_id == booking.id)
+        .first()
+    )
+    if not review:
+        review = TutorReview(
+            id=str(uuid.uuid4()),
+            class_id=cls.id,
+            booking_id=booking.id,
+            teacher_id=cls.teacher_id,
+            student_id=student.id,
+            rating=payload.rating,
+            comment=payload.comment,
+        )
+        db.add(review)
+    else:
+        review.rating = payload.rating
+        review.comment = payload.comment
+
+    db.flush()
+    _refresh_teacher_review_stats(db, cls.teacher_id)
+    db.commit()
+    db.refresh(review)
+
+    teacher_profile = (
+        db.query(TeacherProfile).filter(TeacherProfile.user_id == cls.teacher_id).first()
+    )
+    if teacher_profile:
+        db.refresh(teacher_profile)
+
+    return _build_student_tutor_review_status_response(
         db,
         cls=cls,
         student_id=student.id,

@@ -95,6 +95,7 @@ from models.student_profile import StudentProfile  # noqa: F401
 from models.teacher_profile import TeacherProfile  # noqa: F401
 from models.teacher_specialty import TeacherSpecialty  # noqa: F401
 from models.topic import Topic  # noqa: F401
+from models.tutor_review import TutorReview  # noqa: F401
 from models.user import User  # noqa: F401
 
 

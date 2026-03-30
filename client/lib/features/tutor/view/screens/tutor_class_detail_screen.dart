@@ -261,10 +261,19 @@ class _InfoGrid extends StatelessWidget {
           const SizedBox(height: 12),
           _InfoRow(
             icon: Icons.schedule_rounded,
-            label: 'Giờ',
-            value: session.timeText,
+            label: 'Bắt đầu',
+            value: session.displayStartTimeText,
             cs: cs,
           ),
+          if (session.displayEndTimeText != null) ...[
+            const SizedBox(height: 12),
+            _InfoRow(
+              icon: Icons.timer_outlined,
+              label: 'Kết thúc',
+              value: session.displayEndTimeText!,
+              cs: cs,
+            ),
+          ],
           const SizedBox(height: 12),
           _InfoRow(
             icon: Icons.location_on_outlined,

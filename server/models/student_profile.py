@@ -1,4 +1,4 @@
-from sqlalchemy import Column, DateTime, Integer, TEXT
+from sqlalchemy import Column, DateTime, Integer, TEXT, VARCHAR
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.sql import func
 from models.base import Base
@@ -11,6 +11,10 @@ class StudentProfile(Base):
     english_level = Column(TEXT, nullable=True)  # beginner | intermediate | advanced
     learning_goals = Column(ARRAY(TEXT), nullable=True)
     bio = Column(TEXT, nullable=True)
+    bank_name = Column(VARCHAR(100), nullable=True)
+    bank_bin = Column(VARCHAR(20), nullable=True)
+    bank_account_number = Column(VARCHAR(50), nullable=True)
+    bank_account_holder = Column(VARCHAR(100), nullable=True)
     total_classes_attended = Column(Integer, default=0, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)

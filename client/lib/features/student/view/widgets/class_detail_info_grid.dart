@@ -31,9 +31,15 @@ class ClassDetailInfoGrid extends StatelessWidget {
       ),
       _InfoItem(
         icon: Icons.access_time_rounded,
-        label: 'Thời gian',
-        value: session.timeText,
+        label: 'Bắt đầu',
+        value: session.displayStartTimeText,
       ),
+      if (session.displayEndTimeText != null)
+        _InfoItem(
+          icon: Icons.timer_outlined,
+          label: 'Kết thúc',
+          value: session.displayEndTimeText!,
+        ),
       if (session.dateText != null)
         _InfoItem(
           icon: Icons.calendar_today_outlined,
@@ -175,9 +181,9 @@ class _InfoCell extends StatelessWidget {
       onTap: () async {
         await Clipboard.setData(ClipboardData(text: item.value));
         if (!context.mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Đã copy mã lớp ${item.value}')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Đã copy mã lớp ${item.value}')));
       },
       child: child,
     );

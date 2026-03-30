@@ -4,6 +4,7 @@ import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/core/theme/theme.dart';
 import 'package:client/features/auth/model/user_model.dart';
 import 'package:client/features/profile/model/payout_bank_account_verification_result.dart';
+import 'package:client/features/profile/model/student_my_profile_model.dart';
 import 'package:client/features/profile/model/teacher_my_profile_model.dart';
 import 'package:client/features/profile/repositories/my_profile_repository.dart';
 import 'package:client/features/profile/view/screens/edit_my_profile_screen.dart';
@@ -57,6 +58,54 @@ void main() {
     final saved = fakeRepo.updatedProfile;
     expect(saved, isA<TeacherMyProfileModel>());
     expect((saved as TeacherMyProfileModel).bankName, 'BIDV');
+    expect(saved.bankBin, '970418');
+    expect(fakeRepo.verifyCallCount, 1);
+  });
+
+  testWidgets('student can save bank account with the same bank picker flow', (
+    tester,
+  ) async {
+    final fakeRepo = _FakeMyProfileRepository();
+    final studentProfile = _sampleStudentProfile();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          currentUserProvider.overrideWithValue(
+            _sampleCurrentUser(role: 'student'),
+          ),
+          myProfileRepositoryProvider.overrideWithValue(fakeRepo),
+          myProfileViewModelProvider.overrideWith(
+            () => _TestMyProfileViewModel(studentProfile),
+          ),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.lightThemeMode,
+          home: const EditMyProfileScreen(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tài khoản ngân hàng'), findsOneWidget);
+
+    final dropdownFinder = find.byType(DropdownButtonFormField<String>);
+    await tester.ensureVisible(dropdownFinder);
+    await tester.tap(dropdownFinder, warnIfMissed: false);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('BIDV').last);
+    await tester.pumpAndSettle();
+
+    await _waitForAutoVerification(tester);
+
+    final saveButtonFinder = find.byKey(const Key('saveProfileButton'));
+    await tester.ensureVisible(saveButtonFinder);
+    await tester.tap(saveButtonFinder, warnIfMissed: false);
+    await tester.pumpAndSettle();
+
+    final saved = fakeRepo.updatedProfile;
+    expect(saved, isA<StudentMyProfileModel>());
+    expect((saved as StudentMyProfileModel).bankName, 'BIDV');
     expect(saved.bankBin, '970418');
     expect(fakeRepo.verifyCallCount, 1);
   });
@@ -179,42 +228,45 @@ void main() {
     },
   );
 
-  testWidgets('bank account holder input is normalized to uppercase without accents', (
-    tester,
-  ) async {
-    final fakeRepo = _FakeMyProfileRepository();
-    final teacherProfile = _sampleTeacherProfile();
+  testWidgets(
+    'bank account holder input is normalized to uppercase without accents',
+    (tester) async {
+      final fakeRepo = _FakeMyProfileRepository();
+      final teacherProfile = _sampleTeacherProfile();
 
-    await _pumpBankSetupApp(
-      tester,
-      fakeRepo: fakeRepo,
-      teacherProfile: teacherProfile,
-      router: _buildTeacherBankSetupRouter(),
-    );
+      await _pumpBankSetupApp(
+        tester,
+        fakeRepo: fakeRepo,
+        teacherProfile: teacherProfile,
+        router: _buildTeacherBankSetupRouter(),
+      );
 
-    final bankAccountHolderField = find.byKey(const Key('bankAccountHolderField'));
-    await tester.ensureVisible(bankAccountHolderField);
-    await tester.enterText(bankAccountHolderField, 'Trần Đăng Khoa');
-    await tester.pump();
+      final bankAccountHolderField = find.byKey(
+        const Key('bankAccountHolderField'),
+      );
+      await tester.ensureVisible(bankAccountHolderField);
+      await tester.enterText(bankAccountHolderField, 'Trần Đăng Khoa');
+      await tester.pump();
 
-    expect(find.text('TRAN DANG KHOA'), findsOneWidget);
+      expect(find.text('TRAN DANG KHOA'), findsOneWidget);
 
-    final dropdownFinder = find.byType(DropdownButtonFormField<String>);
-    await tester.ensureVisible(dropdownFinder);
-    await tester.tap(dropdownFinder, warnIfMissed: false);
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('BIDV').last);
-    await tester.pumpAndSettle();
-    await _waitForAutoVerification(tester);
+      final dropdownFinder = find.byType(DropdownButtonFormField<String>);
+      await tester.ensureVisible(dropdownFinder);
+      await tester.tap(dropdownFinder, warnIfMissed: false);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('BIDV').last);
+      await tester.pumpAndSettle();
+      await _waitForAutoVerification(tester);
 
-    final saveButtonFinder = find.byKey(const Key('saveProfileButton'));
-    await tester.ensureVisible(saveButtonFinder);
-    await tester.tap(saveButtonFinder, warnIfMissed: false);
-    await tester.pumpAndSettle();
+      final saveButtonFinder = find.byKey(const Key('saveProfileButton'));
+      await tester.ensureVisible(saveButtonFinder);
+      await tester.tap(saveButtonFinder, warnIfMissed: false);
+      await tester.pumpAndSettle();
 
-    final saved = fakeRepo.updatedProfile as TeacherMyProfileModel;
-    expect(saved.bankAccountHolder, 'TRAN DANG KHOA');
-  });
+      final saved = fakeRepo.updatedProfile as TeacherMyProfileModel;
+      expect(saved.bankAccountHolder, 'TRAN DANG KHOA');
+    },
+  );
 }
 
 Future<void> _pumpBankSetupApp(
@@ -265,7 +317,7 @@ Future<void> _waitForAutoVerification(WidgetTester tester) async {
 }
 
 class _TestMyProfileViewModel extends MyProfileViewModel {
-  final TeacherMyProfileModel profile;
+  final UserModel profile;
 
   _TestMyProfileViewModel(this.profile);
 
@@ -329,12 +381,12 @@ class _FakeMyProfileRepository implements IMyProfileRepository {
   }
 }
 
-UserModel _sampleCurrentUser() {
+UserModel _sampleCurrentUser({String role = 'teacher'}) {
   return UserModel(
     id: 'teacher-1',
     email: 'teacher@example.com',
     fullName: 'Teacher Demo',
-    role: 'teacher',
+    role: role,
     isActive: true,
     token: 'token-123',
   );
@@ -351,5 +403,20 @@ TeacherMyProfileModel _sampleTeacherProfile() {
     specialization: 'IELTS',
     bankAccountNumber: '1234567890',
     bankAccountHolder: 'Teacher Demo',
+  );
+}
+
+StudentMyProfileModel _sampleStudentProfile() {
+  return StudentMyProfileModel(
+    id: 'student-1',
+    email: 'student@example.com',
+    fullName: 'Student Demo',
+    role: 'student',
+    isActive: true,
+    token: 'token-123',
+    englishLevel: 'intermediate',
+    learningGoal: 'Giao tiếp tự tin',
+    bankAccountNumber: '1234567890',
+    bankAccountHolder: 'Student Demo',
   );
 }

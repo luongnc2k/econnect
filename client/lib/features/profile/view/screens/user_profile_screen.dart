@@ -19,6 +19,44 @@ class UserProfileScreen extends ConsumerWidget {
         '${date.year}';
   }
 
+  List<ProfileInfoItem> _buildBankItems(UserModel profile) {
+    String? bankName;
+    String? bankBin;
+    String? bankAccountNumber;
+    String? bankAccountHolder;
+
+    if (profile is TeacherMyProfileModel) {
+      bankName = profile.bankName;
+      bankBin = profile.bankBin;
+      bankAccountNumber = profile.bankAccountNumber;
+      bankAccountHolder = profile.bankAccountHolder;
+    } else if (profile is StudentMyProfileModel) {
+      bankName = profile.bankName;
+      bankBin = profile.bankBin;
+      bankAccountNumber = profile.bankAccountNumber;
+      bankAccountHolder = profile.bankAccountHolder;
+    } else {
+      return const [];
+    }
+
+    return <ProfileInfoItem>[
+      if ((bankName ?? '').trim().isNotEmpty)
+        ProfileInfoItem(label: 'Ngân hàng', value: bankName ?? '--'),
+      if ((bankBin ?? '').trim().isNotEmpty)
+        ProfileInfoItem(label: 'Mã BIN', value: bankBin ?? '--'),
+      if ((bankAccountNumber ?? '').trim().isNotEmpty)
+        ProfileInfoItem(
+          label: 'Số tài khoản',
+          value: bankAccountNumber ?? '--',
+        ),
+      if ((bankAccountHolder ?? '').trim().isNotEmpty)
+        ProfileInfoItem(
+          label: 'Chủ tài khoản',
+          value: bankAccountHolder ?? '--',
+        ),
+    ];
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
@@ -88,30 +126,7 @@ class UserProfileScreen extends ConsumerWidget {
             );
           }
 
-          final teacherBankItems = profile is TeacherMyProfileModel
-              ? <ProfileInfoItem>[
-                  if ((profile.bankName ?? '').trim().isNotEmpty)
-                    ProfileInfoItem(
-                      label: 'Ngân hàng',
-                      value: profile.bankName ?? '--',
-                    ),
-                  if ((profile.bankBin ?? '').trim().isNotEmpty)
-                    ProfileInfoItem(
-                      label: 'Mã BIN',
-                      value: profile.bankBin ?? '--',
-                    ),
-                  if ((profile.bankAccountNumber ?? '').trim().isNotEmpty)
-                    ProfileInfoItem(
-                      label: 'Số tài khoản',
-                      value: profile.bankAccountNumber ?? '--',
-                    ),
-                  if ((profile.bankAccountHolder ?? '').trim().isNotEmpty)
-                    ProfileInfoItem(
-                      label: 'Chủ tài khoản',
-                      value: profile.bankAccountHolder ?? '--',
-                    ),
-                ]
-              : const <ProfileInfoItem>[];
+          final bankItems = _buildBankItems(profile);
 
           return ListView(
             padding: const EdgeInsets.all(16),
@@ -174,12 +189,9 @@ class UserProfileScreen extends ConsumerWidget {
                     ),
                   ],
                 ),
-              if (teacherBankItems.isNotEmpty) ...[
+              if (bankItems.isNotEmpty) ...[
                 const SizedBox(height: 16),
-                ProfileInfoCard(
-                  title: 'Tài khoản ngân hàng',
-                  items: teacherBankItems,
-                ),
+                ProfileInfoCard(title: 'Tài khoản ngân hàng', items: bankItems),
               ],
             ],
           );

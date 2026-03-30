@@ -24,6 +24,7 @@ from models.booking import Booking
 from models.payment import Payment
 from models.notification import Notification
 from models.push_device_token import PushDeviceToken
+from models.tutor_review import TutorReview
 from runtime_checks import (
     app_environment,
     database_ready,

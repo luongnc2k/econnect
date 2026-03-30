@@ -162,6 +162,15 @@ FCM_SERVICE_ACCOUNT_JSON=
 - Trong local dev, nên giữ `PAYMENT_GATEWAY_MODE=mock` nếu chưa có HTTPS/public callback URL.
 - Khi cấu hình `FCM_SERVICE_ACCOUNT_*`, backend sẽ tự thử gửi FCM sau mỗi lần tạo notification và tự bỏ qua bước này nếu Firebase chưa sẵn sàng.
 
+### Quy tắc tính rating tutor
+
+- Dữ liệu đánh giá tutor hiện được lưu trong bảng `tutor_reviews`.
+- Mỗi học viên chỉ có tối đa `1` review cho mỗi buổi học đã đăng ký và thanh toán.
+- `rating` dùng thang `0` đến `5` sao.
+- `teacher_profiles.rating_avg` được đồng bộ bằng `AVG(tutor_reviews.rating)` của tutor và làm tròn `1` chữ số thập phân.
+- `teacher_profiles.total_reviews` được đồng bộ bằng `COUNT(tutor_reviews)` của tutor.
+- Khi review bị cập nhật, backend tính lại `rating_avg` và `total_reviews` từ toàn bộ review hiện có của tutor.
+
 ### Test local với payOS thật qua ngrok
 
 Mục tiêu của flow này là:
