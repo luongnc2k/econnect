@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/core/router/app_router.dart';
 import 'package:client/features/auth/model/user_model.dart';
@@ -20,14 +22,19 @@ class UserSearchScreen extends ConsumerStatefulWidget {
 }
 
 class _UserSearchScreenState extends ConsumerState<UserSearchScreen> {
+  static const _searchDebounceDuration = Duration(milliseconds: 350);
+
   final _controller = TextEditingController();
+  Timer? _searchDebounce;
   List<UserModel> _results = const [];
   List<ClassSession> _classResults = const [];
   bool _isLoading = false;
   String _activeMode = 'user';
+  int _activeSearchRequestId = 0;
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _controller.dispose();
     super.dispose();
   }
@@ -40,7 +47,27 @@ class _UserSearchScreenState extends ConsumerState<UserSearchScreen> {
     context.go(AppRoutes.studentHome);
   }
 
-  Future<void> _search(String value) async {
+  void _scheduleSearch(String value) {
+    _searchDebounce?.cancel();
+    final query = value.trim();
+    final requestId = ++_activeSearchRequestId;
+
+    if (query.isEmpty) {
+      setState(() {
+        _results = const [];
+        _classResults = const [];
+        _isLoading = false;
+        _activeMode = 'user';
+      });
+      return;
+    }
+
+    _searchDebounce = Timer(_searchDebounceDuration, () {
+      unawaited(_search(query, requestId));
+    });
+  }
+
+  Future<void> _search(String value, int requestId) async {
     final query = value.trim();
     if (query.isEmpty) {
       setState(() {
@@ -61,10 +88,10 @@ class _UserSearchScreenState extends ConsumerState<UserSearchScreen> {
       final result = await ref
           .read(studentRemoteRepositoryProvider)
           .getClassByCode(token, query);
-      if (!mounted) return;
+      if (!mounted || requestId != _activeSearchRequestId) return;
 
       switch (result) {
-        case Left(value: final _):
+        case Left():
           final fallback = ManualTestMocks.enabled
               ? ManualTestMocks.mockClasses.where((item) {
                   return (item.classCode ?? '').toUpperCase() ==
@@ -91,7 +118,7 @@ class _UserSearchScreenState extends ConsumerState<UserSearchScreen> {
     final results = await ref
         .read(userSearchRepositoryProvider)
         .searchUsers(query);
-    if (!mounted) return;
+    if (!mounted || requestId != _activeSearchRequestId) return;
 
     setState(() {
       _results = results;
@@ -118,22 +145,22 @@ class _UserSearchScreenState extends ConsumerState<UserSearchScreen> {
             children: [
               SearchBarWidget(
                 controller: _controller,
-                hintText: 'Tim nguoi dung hoac nhap ma lop',
-                onChanged: _search,
+                hintText: 'Tìm người dùng hoặc nhập mã lớp',
+                onChanged: _scheduleSearch,
               ),
               const SizedBox(height: 16),
               Expanded(
                 child: _controller.text.trim().isEmpty
                     ? const Center(
                         child: Text(
-                          'Nhap ten, so dien thoai hoac ma lop de tim',
+                          'Nhập tên, số điện thoại hoặc mã lớp để tìm',
                         ),
                       )
                     : _isLoading
                     ? const Center(child: CircularProgressIndicator())
                     : _activeMode == 'class'
                     ? _classResults.isEmpty
-                          ? const Center(child: Text('Khong tim thay lop hoc'))
+                          ? const Center(child: Text('Không tìm thấy lớp học'))
                           : UpcomingClassListWidget(
                               classes: _classResults,
                               onClassTap: (session) => context.push(
@@ -142,7 +169,7 @@ class _UserSearchScreenState extends ConsumerState<UserSearchScreen> {
                               ),
                             )
                     : _results.isEmpty
-                    ? const Center(child: Text('Khong tim thay nguoi dung'))
+                    ? const Center(child: Text('Không tìm thấy người dùng'))
                     : ListView.separated(
                         itemCount: _results.length,
                         separatorBuilder: (_, _) => const SizedBox(height: 12),

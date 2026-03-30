@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 
 import 'package:client/core/failure/failure.dart';
 import 'package:client/core/providers/current_user_notifier.dart';
@@ -29,7 +29,8 @@ class ClassDetailScreen extends ConsumerStatefulWidget {
   ConsumerState<ClassDetailScreen> createState() => _ClassDetailScreenState();
 }
 
-class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen> {
+class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen>
+    with WidgetsBindingObserver {
   static const int _maxPollAttempts = 60;
   static const int _maxConsecutivePollErrors = 3;
 
@@ -41,17 +42,46 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen> {
   int _pollAttempts = 0;
   int _consecutivePollErrors = 0;
   bool _loadingBookingStatus = false;
+  bool _pollRequestInFlight = false;
+  bool _awaitingExternalPaymentReturn = false;
+  bool _paymentAppWasBackgrounded = false;
+  bool _resumeStatusCheckInFlight = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadBookingStatus();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _pollTimer?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (!_awaitingExternalPaymentReturn) {
+      return;
+    }
+
+    switch (state) {
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.paused:
+        _paymentAppWasBackgrounded = true;
+        break;
+      case AppLifecycleState.resumed:
+        if (_paymentAppWasBackgrounded && !_resumeStatusCheckInFlight) {
+          _paymentAppWasBackgrounded = false;
+          unawaited(_handleExternalPaymentReturn());
+        }
+        break;
+      case AppLifecycleState.detached:
+      case AppLifecycleState.hidden:
+        break;
+    }
   }
 
   Future<void> _loadBookingStatus() async {
@@ -108,33 +138,67 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen> {
     }
 
     setState(() => _transaction = payment);
-    _beginPolling(payment.transactionRef);
     final redirectUrl = payment.redirectUrl;
     if (redirectUrl == null || redirectUrl.isEmpty) {
       _showMessage('Không nhận được URL thanh toán từ hệ thống.');
       return;
     }
 
+    await _launchPaymentWindow(
+      redirectUrl: redirectUrl,
+      transactionRef: payment.transactionRef,
+    );
+  }
+
+  Future<void> _launchPaymentWindow({
+    required String redirectUrl,
+    required String transactionRef,
+  }) async {
+    _beginPolling(transactionRef);
     final launched = await launchUrl(
       Uri.parse(redirectUrl),
       mode: LaunchMode.externalApplication,
     );
     if (!launched && mounted) {
       _stopPolling();
+      _awaitingExternalPaymentReturn = false;
       _showMessage(
-        'Không mở được cổng thanh toán. Bạn có thể copy URL từ log backend để test.',
+        'Không mở được cổng thanh toán. Bạn có thể thử mở lại giao dịch sau.',
       );
+      return;
     }
+
+    _awaitingExternalPaymentReturn = true;
+    _paymentAppWasBackgrounded = false;
+  }
+
+  Future<void> _resumePendingPayment() async {
+    final transaction = _transaction;
+    final redirectUrl = transaction?.redirectUrl;
+    if (transaction == null || redirectUrl == null || redirectUrl.isEmpty) {
+      _showMessage('Không tìm thấy link thanh toán để mở lại.');
+      return;
+    }
+
+    await _launchPaymentWindow(
+      redirectUrl: redirectUrl,
+      transactionRef: transaction.transactionRef,
+    );
   }
 
   void _beginPolling(String transactionRef) {
     _pollTimer?.cancel();
+    _pollRequestInFlight = false;
     setState(() {
       _polling = true;
       _pollAttempts = 0;
       _consecutivePollErrors = 0;
     });
     _pollTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
+      if (_pollRequestInFlight) {
+        return;
+      }
+
       final user = ref.read(currentUserProvider);
       if (user == null) {
         _stopPolling();
@@ -150,35 +214,99 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen> {
         return;
       }
 
-      final result = await ref
-          .read(paymentsRemoteRepositoryProvider)
-          .getTransactionStatus(
-            token: user.token,
-            transactionRef: transactionRef,
-          );
-      if (!mounted) return;
+      _pollRequestInFlight = true;
+      try {
+        final result = await _fetchTransactionStatus(
+          token: user.token,
+          transactionRef: transactionRef,
+        );
+        if (!mounted) return;
 
-      if (result is Right<AppFailure, PaymentTransactionStatus>) {
-        final status = result.value;
-        setState(() {
-          _transaction = status;
+        if (result is Right<AppFailure, PaymentTransactionStatus>) {
+          final status = result.value;
+          _handleTransactionStatusUpdate(status);
           _consecutivePollErrors = 0;
-        });
-        if (status.isTerminal) {
-          _stopPolling();
+        } else if (result is Left<AppFailure, PaymentTransactionStatus>) {
+          _consecutivePollErrors += 1;
+          if (_consecutivePollErrors >= _maxConsecutivePollErrors) {
+            _stopPolling();
+            _showMessage(result.value.message);
+          }
         }
-      } else if (result is Left<AppFailure, PaymentTransactionStatus>) {
-        _consecutivePollErrors += 1;
-        if (_consecutivePollErrors >= _maxConsecutivePollErrors) {
-          _stopPolling();
-          _showMessage(result.value.message);
-        }
+      } finally {
+        _pollRequestInFlight = false;
       }
     });
   }
 
+  Future<void> _handleExternalPaymentReturn() async {
+    final transactionRef = _transaction?.transactionRef;
+    final user = ref.read(currentUserProvider);
+    if (transactionRef == null || transactionRef.isEmpty || user == null) {
+      _awaitingExternalPaymentReturn = false;
+      return;
+    }
+
+    _resumeStatusCheckInFlight = true;
+    try {
+      final result = await _fetchTransactionStatus(
+        token: user.token,
+        transactionRef: transactionRef,
+      );
+      if (!mounted) {
+        return;
+      }
+
+      if (result is Right<AppFailure, PaymentTransactionStatus>) {
+        final status = result.value;
+        _handleTransactionStatusUpdate(status);
+        if (!status.isTerminal) {
+          _stopPolling();
+          _showMessage(
+            'Bạn đã đóng cửa sổ thanh toán. App sẽ dừng chờ thanh toán; bạn có thể bấm "Tiếp tục thanh toán" để mở lại QR.',
+          );
+        }
+      } else {
+        _stopPolling();
+        _showMessage(
+          'Bạn đã đóng cửa sổ thanh toán. App sẽ dừng chờ thanh toán; bạn có thể bấm "Tiếp tục thanh toán" để mở lại QR.',
+        );
+      }
+    } finally {
+      _awaitingExternalPaymentReturn = false;
+      _resumeStatusCheckInFlight = false;
+    }
+  }
+
+  Future<Either<AppFailure, PaymentTransactionStatus>> _fetchTransactionStatus({
+    required String token,
+    required String transactionRef,
+  }) {
+    return ref.read(paymentsRemoteRepositoryProvider).getTransactionStatus(
+          token: token,
+          transactionRef: transactionRef,
+        );
+  }
+
+  void _handleTransactionStatusUpdate(PaymentTransactionStatus status) {
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _transaction = status;
+    });
+
+    if (status.isTerminal) {
+      _awaitingExternalPaymentReturn = false;
+      _stopPolling();
+    }
+  }
+
   void _stopPolling() {
     _pollTimer?.cancel();
+    _pollTimer = null;
+    _pollRequestInFlight = false;
     if (mounted) {
       setState(() => _polling = false);
     }
@@ -202,6 +330,16 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen> {
             transaction.status == 'processing');
   }
 
+  bool get _canResumePendingTransaction {
+    final transaction = _transaction;
+    final redirectUrl = transaction?.redirectUrl;
+    return transaction != null &&
+        _transactionShowsPending(transaction) &&
+        !_polling &&
+        redirectUrl != null &&
+        redirectUrl.isNotEmpty;
+  }
+
   bool get _shouldHidePaymentAction {
     final transaction = _transaction;
     if (transaction != null) {
@@ -209,7 +347,7 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen> {
         return true;
       }
       if (_transactionShowsPending(transaction)) {
-        return true;
+        return !_canResumePendingTransaction;
       }
     }
 
@@ -291,6 +429,9 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen> {
     final statusCardData = _resolveStatusCardData();
     final shouldShowPaymentAction =
         !_loadingBookingStatus && !_shouldHidePaymentAction;
+    final paymentActionLabel = _canResumePendingTransaction
+        ? 'Tiếp tục thanh toán'
+        : 'Đăng ký và thanh toán';
 
     return Scaffold(
       bottomNavigationBar: _loadingBookingStatus && statusCardData == null
@@ -308,11 +449,16 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     _PaymentActionCard(
-                      onSubmit: _submitting ? null : _startPayment,
+                      onSubmit: _submitting
+                          ? null
+                          : _canResumePendingTransaction
+                          ? _resumePendingPayment
+                          : _startPayment,
                       submitting: _submitting,
                       polling: _polling,
                       transaction: _transaction,
                       sessionPriceText: session.priceText,
+                      submitLabel: paymentActionLabel,
                     ),
                   ],
                 ),
@@ -457,6 +603,7 @@ class _PaymentActionCard extends StatelessWidget {
   final bool polling;
   final PaymentTransactionStatus? transaction;
   final String sessionPriceText;
+  final String submitLabel;
 
   const _PaymentActionCard({
     required this.onSubmit,
@@ -464,6 +611,7 @@ class _PaymentActionCard extends StatelessWidget {
     required this.polling,
     required this.transaction,
     required this.sessionPriceText,
+    required this.submitLabel,
   });
 
   @override
@@ -487,7 +635,7 @@ class _PaymentActionCard extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            'Thanh toán sẽ được mở bằng payOS trong browser, app sẽ tự động poll trạng thái giao dịch.',
+            'Thanh toán sẽ được mở bằng payOS trong browser, app sẽ tự động kiểm tra trạng thái giao dịch.',
             style: TextStyle(color: cs.onSurfaceVariant, height: 1.4),
           ),
           const SizedBox(height: 10),
@@ -542,7 +690,7 @@ class _PaymentActionCard extends StatelessWidget {
               ),
             ),
             child: Text(
-              submitting ? 'Đang tạo giao dịch...' : 'Đăng ký và thanh toán',
+              submitting ? 'Đang tạo giao dịch...' : submitLabel,
             ),
           ),
           if (transaction != null) ...[
@@ -715,3 +863,4 @@ class _GradientPlaceholder extends StatelessWidget {
     );
   }
 }
+

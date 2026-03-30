@@ -147,6 +147,10 @@ class MyProfileViewModel extends Notifier<MyProfileState> {
       return false;
     }
   }
+
+  void clearProfile() {
+    state = const MyProfileState();
+  }
 }
 
 final myProfileViewModelProvider =

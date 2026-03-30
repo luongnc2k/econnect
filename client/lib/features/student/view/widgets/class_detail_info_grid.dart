@@ -175,9 +175,9 @@ class _InfoCell extends StatelessWidget {
       onTap: () async {
         await Clipboard.setData(ClipboardData(text: item.value));
         if (!context.mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Đã copy mã lớp ${item.value}')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Đã copy mã lớp ${item.value}')),
+        );
       },
       child: child,
     );

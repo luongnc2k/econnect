@@ -25,6 +25,10 @@ class AuthRemoteRepository {
     required String email,
     required String password,
     required String role,
+    String? bankName,
+    String? bankBin,
+    String? bankAccountNumber,
+    String? bankAccountHolder,
   }) async {
     try {
       final response = await http
@@ -36,6 +40,14 @@ class AuthRemoteRepository {
               'email': email,
               'password': password,
               'role': role,
+              ...?(bankName == null ? null : {'bank_name': bankName}),
+              ...?(bankBin == null ? null : {'bank_bin': bankBin}),
+              ...?(bankAccountNumber == null
+                  ? null
+                  : {'bank_account_number': bankAccountNumber}),
+              ...?(bankAccountHolder == null
+                  ? null
+                  : {'bank_account_holder': bankAccountHolder}),
             }),
           )
           .timeout(_requestTimeout);

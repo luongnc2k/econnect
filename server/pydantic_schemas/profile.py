@@ -1,3 +1,5 @@
+import re
+import unicodedata
 from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, field_validator
@@ -8,6 +10,20 @@ def _normalize_optional_string(value: object) -> Optional[str]:
         return None
     normalized = str(value).strip()
     return normalized or None
+
+
+def _normalize_bank_account_holder(value: object) -> Optional[str]:
+    normalized = _normalize_optional_string(value)
+    if normalized is None:
+        return None
+
+    no_accent = unicodedata.normalize("NFD", normalized)
+    no_accent = "".join(
+        char for char in no_accent if unicodedata.category(char) != "Mn"
+    )
+    no_accent = no_accent.replace("đ", "d").replace("Đ", "D")
+    collapsed = re.sub(r"\s+", " ", no_accent).strip()
+    return collapsed.upper() or None
 
 
 def _normalize_string_list(value: object) -> Optional[list[str]]:
@@ -65,12 +81,16 @@ class ProfileUpdateRequest(BaseModel):
         "bank_name",
         "bank_bin",
         "bank_account_number",
-        "bank_account_holder",
         mode="before",
     )
     @classmethod
     def normalize_optional_strings(cls, value: object) -> Optional[str]:
         return _normalize_optional_string(value)
+
+    @field_validator("bank_account_holder", mode="before")
+    @classmethod
+    def normalize_bank_account_holder(cls, value: object) -> Optional[str]:
+        return _normalize_bank_account_holder(value)
 
     @field_validator("english_level", mode="before")
     @classmethod
@@ -113,3 +133,43 @@ class ProfileUpdateRequest(BaseModel):
     @classmethod
     def normalize_string_lists(cls, value: object) -> Optional[list[str]]:
         return _normalize_string_list(value)
+
+
+class PayoutBankAccountVerificationRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    bank_bin: str
+    bank_account_number: str
+
+    @field_validator("bank_bin", "bank_account_number", mode="before")
+    @classmethod
+    def normalize_required_strings(cls, value: object) -> str:
+        normalized = _normalize_optional_string(value)
+        if normalized is None:
+            raise ValueError("Gia tri khong duoc de trong")
+        return normalized
+
+    @field_validator("bank_bin")
+    @classmethod
+    def validate_required_bank_bin(cls, value: str) -> str:
+        if not value.isdigit():
+            raise ValueError("bank_bin chi duoc chua chu so")
+        if len(value) < 3 or len(value) > 20:
+            raise ValueError("bank_bin phai dai tu 3 den 20 chu so")
+        return value
+
+    @field_validator("bank_account_number")
+    @classmethod
+    def validate_bank_account_number(cls, value: str) -> str:
+        if not value.isdigit():
+            raise ValueError("bank_account_number chi duoc chua chu so")
+        if len(value) < 6 or len(value) > 30:
+            raise ValueError("bank_account_number phai dai tu 6 den 30 chu so")
+        return value
+
+
+class PayoutBankAccountVerificationResponse(BaseModel):
+    provider: str
+    is_valid: bool
+    message: str
+    estimate_credit: Optional[int] = None

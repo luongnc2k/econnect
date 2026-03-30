@@ -29,6 +29,11 @@ def signup_user(
     email: str | None = None,
     full_name: str | None = None,
     password: str = DEFAULT_PASSWORD,
+    with_bank_account: bool = False,
+    bank_name: str = "ACB",
+    bank_bin: str = "970416",
+    bank_account_number: str = "0123456789",
+    bank_account_holder: str | None = None,
 ):
     payload = {
         "email": email or f"{role}.{uuid.uuid4().hex[:10]}@example.com",
@@ -36,6 +41,15 @@ def signup_user(
         "full_name": full_name or f"{role.title()} User",
         "role": role,
     }
+    if role == "teacher" and with_bank_account:
+        payload.update(
+            {
+                "bank_name": bank_name,
+                "bank_bin": bank_bin,
+                "bank_account_number": bank_account_number,
+                "bank_account_holder": bank_account_holder or (full_name or f"{role.title()} User"),
+            }
+        )
     response = client.post("/auth/signup", json=payload)
     return payload, response
 

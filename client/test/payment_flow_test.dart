@@ -7,6 +7,7 @@ import 'package:client/features/auth/model/user_model.dart';
 import 'package:client/features/payments/model/payment_summary.dart';
 import 'package:client/features/payments/model/payment_transaction_status.dart';
 import 'package:client/features/payments/repositories/payments_remote_repository.dart';
+import 'package:client/features/profile/model/payout_bank_account_verification_result.dart';
 import 'package:client/features/profile/model/teacher_my_profile_model.dart';
 import 'package:client/features/profile/repositories/my_profile_repository.dart';
 import 'package:client/features/profile/view/widgets/my_profile_view.dart';
@@ -87,6 +88,9 @@ void main() {
     );
     await tester.pump();
 
+    expect(find.text('Quay lại'), findsOneWidget);
+    expect(find.text('Giảng viên'), findsOneWidget);
+    expect(find.text('Thanh toán học phí'), findsOneWidget);
     expect(find.text('Cafe A'), findsOneWidget);
     expect(find.text('123 Main Street'), findsOneWidget);
     expect(find.text('Mang theo tai nghe.'), findsNothing);
@@ -108,6 +112,86 @@ void main() {
     expect(find.textContaining('TUI-123'), findsWidgets);
     expect(find.byType(FilledButton), findsNothing);
   });
+
+  testWidgets(
+    'student payment flow stops waiting after payment window is closed',
+    (tester) async {
+      fakeRepo.createJoinPaymentResult = const PaymentTransactionStatus(
+        paymentId: 'pay-2',
+        transactionRef: 'TUI-456',
+        paymentType: 'tuition',
+        provider: 'payos',
+        status: 'pending',
+        amount: 50000,
+        redirectUrl: 'http://localhost:8000/payments/mock/checkout/TUI-456',
+        classId: 'class-1',
+        bookingId: 'booking-2',
+        bookingStatus: 'payment_pending',
+        escrowStatus: 'pending',
+        classStatus: 'scheduled',
+        message: 'Dang cho ket qua thanh toan',
+      );
+      fakeRepo.transactionStatuses = [
+        const PaymentTransactionStatus(
+          paymentId: 'pay-2',
+          transactionRef: 'TUI-456',
+          paymentType: 'tuition',
+          provider: 'payos',
+          status: 'pending',
+          amount: 50000,
+          redirectUrl: 'http://localhost:8000/payments/mock/checkout/TUI-456',
+          classId: 'class-1',
+          bookingId: 'booking-2',
+          bookingStatus: 'payment_pending',
+          escrowStatus: 'pending',
+          classStatus: 'scheduled',
+          message: 'Dang cho ket qua thanh toan',
+        ),
+      ];
+      fakeStudentRepo.bookingStatusResult = const StudentClassBookingStatus(
+        classId: 'class-1',
+        hasBooking: false,
+        isRegistered: false,
+      );
+
+      await tester.pumpWidget(
+        _buildApp(
+          child: ClassDetailScreen(session: _sampleClassSession()),
+          fakeRepo: fakeRepo,
+          fakeStudentRepo: fakeStudentRepo,
+          user: _sampleUser(role: 'student'),
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.byType(FilledButton));
+      await tester.pump();
+
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      await tester.pump();
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pump();
+      await tester.pump();
+
+      expect(fakeRepo.createJoinPaymentCalls, 1);
+      expect(fakeRepo.getTransactionStatusCalls, 1);
+      expect(find.text('Tiếp tục thanh toán'), findsOneWidget);
+      expect(
+        find.textContaining('Bạn đã đóng cửa sổ thanh toán'),
+        findsOneWidget,
+      );
+
+      await tester.pump(const Duration(seconds: 3));
+      await tester.pump();
+      expect(fakeRepo.getTransactionStatusCalls, 1);
+
+      await tester.tap(find.text('Tiếp tục thanh toán'));
+      await tester.pump();
+
+      expect(fakeRepo.createJoinPaymentCalls, 1);
+      expect(fakeUrlLauncher.launchedUrls.length, 2);
+    },
+  );
 
   testWidgets(
     'student detail hides payment action when class is already registered',
@@ -355,6 +439,20 @@ class _FakeMyProfileRepository implements IMyProfileRepository {
     String? filePath,
   }) async {
     return 'http://localhost:8000/static/teacher-doc.jpg';
+  }
+
+  @override
+  Future<PayoutBankAccountVerificationResult> verifyPayoutBankAccount({
+    required String bankBin,
+    required String bankAccountNumber,
+  }) async {
+    return const PayoutBankAccountVerificationResult(
+      provider: 'payos',
+      isValid: true,
+      message:
+          'payOS không trả lỗi khi kiểm tra sơ bộ tài khoản nhận tiền này',
+      estimateCredit: 0,
+    );
   }
 }
 

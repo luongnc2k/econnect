@@ -1,10 +1,10 @@
 import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/core/router/app_router.dart';
 import 'package:client/core/utils.dart';
+import 'package:client/features/search/view/widgets/search_bar_widget.dart';
 import 'package:client/features/student/view/widgets/category_filter_widget.dart';
 import 'package:client/features/student/view/widgets/featured_teacher_list_widget.dart';
 import 'package:client/features/student/view/widgets/home_header_widget.dart';
-import 'package:client/features/search/view/widgets/search_bar_widget.dart';
 import 'package:client/features/student/view/widgets/section_header_widget.dart';
 import 'package:client/features/student/view/widgets/upcoming_classlist_widget.dart';
 import 'package:client/features/student/viewmodel/student_home_viewmodel.dart';
@@ -42,7 +42,6 @@ class StudentHomeScreen extends ConsumerWidget {
     return SafeArea(
       child: CustomScrollView(
         slivers: [
-          // Header — cuộn theo
           SliverToBoxAdapter(
             child: Padding(
               padding: EdgeInsets.fromLTRB(hPad, 16, hPad, 0),
@@ -55,8 +54,6 @@ class StudentHomeScreen extends ConsumerWidget {
               ),
             ),
           ),
-
-          // Search + Category — sticky
           SliverPersistentHeader(
             pinned: true,
             delegate: _StickyFilterDelegate(
@@ -65,13 +62,11 @@ class StudentHomeScreen extends ConsumerWidget {
               categories: state.categories,
               selectedCategory: state.selectedCategory,
               onSearchTap: onSearchTap,
-              onCategorySelected: (val) => ref
+              onCategorySelected: (value) => ref
                   .read(studentHomeViewModelProvider.notifier)
-                  .selectCategory(val),
+                  .selectCategory(value),
             ),
           ),
-
-          // Lớp học sắp diễn ra
           SliverToBoxAdapter(
             child: Padding(
               padding: EdgeInsets.fromLTRB(hPad, 0, hPad, 0),
@@ -82,7 +77,6 @@ class StudentHomeScreen extends ConsumerWidget {
               ),
             ),
           ),
-
           SliverToBoxAdapter(
             child: Padding(
               padding: EdgeInsets.fromLTRB(hPad, 8, hPad, 0),
@@ -101,8 +95,6 @@ class StudentHomeScreen extends ConsumerWidget {
                     ),
             ),
           ),
-
-          // Giảng viên nổi bật
           SliverToBoxAdapter(
             child: Padding(
               padding: EdgeInsets.fromLTRB(hPad, _sectionSpacing, hPad, 16),
@@ -154,6 +146,7 @@ class _ClassListSkeleton extends StatelessWidget {
 
 class _ErrorBanner extends StatelessWidget {
   final String message;
+
   const _ErrorBanner({required this.message});
 
   @override
@@ -180,7 +173,6 @@ class _EmptyClasses extends StatelessWidget {
   }
 }
 
-// height = top padding (12) + SearchBar (50) + gap (12) + CategoryFilter (36) + bottom padding (12)
 const double _stickyHeight = 12 + 50 + 12 + 36 + 12;
 
 class _StickyFilterDelegate extends SliverPersistentHeaderDelegate {
@@ -227,7 +219,7 @@ class _StickyFilterDelegate extends SliverPersistentHeaderDelegate {
             SearchBarWidget(
               onTap: onSearchTap,
               readOnly: true,
-              hintText: 'Tim user theo ten hoac so dien thoai',
+              hintText: 'Tìm người dùng hoặc nhập mã lớp',
             ),
             const SizedBox(height: 12),
             CategoryFilterWidget(

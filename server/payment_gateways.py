@@ -1,5 +1,8 @@
 import json
 import os
+import socket
+import threading
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
@@ -8,6 +11,7 @@ from urllib.parse import urlencode
 
 
 PAYOS_PROVIDER = "payos"
+_PAYOS_IPV4_PATCH_LOCK = threading.Lock()
 
 
 @dataclass
@@ -57,6 +61,15 @@ class ProviderPayoutBalanceResult:
     balance: Decimal
 
 
+@dataclass
+class ProviderPayoutDestinationVerificationResult:
+    provider: str
+    is_valid: bool
+    message: Optional[str] = None
+    estimate_credit: Optional[int] = None
+    raw_payload: Optional[str] = None
+
+
 class PaymentGatewayError(Exception):
     pass
 
@@ -95,6 +108,38 @@ def _is_payout_mock_mode() -> bool:
     if provider_flag in {"1", "true", "yes", "mock"}:
         return True
     return global_flag == "mock"
+
+
+def _env_flag(name: str, default: bool = False) -> bool:
+    raw_value = _env(name)
+    if raw_value is None:
+        return default
+    return raw_value.lower() in {"1", "true", "yes", "on"}
+
+
+def _force_payos_payout_ipv4() -> bool:
+    return _env_flag("PAYOS_PAYOUT_FORCE_IPV4", _env_flag("PAYOS_FORCE_IPV4", False))
+
+
+@contextmanager
+def _payos_payout_network_preferences():
+    if not _force_payos_payout_ipv4():
+        yield
+        return
+
+    original_getaddrinfo = socket.getaddrinfo
+
+    def ipv4_only_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
+        infos = original_getaddrinfo(host, port, family, type, proto, flags)
+        ipv4_infos = [info for info in infos if info[0] == socket.AF_INET]
+        return ipv4_infos or infos
+
+    with _PAYOS_IPV4_PATCH_LOCK:
+        socket.getaddrinfo = ipv4_only_getaddrinfo
+        try:
+            yield
+        finally:
+            socket.getaddrinfo = original_getaddrinfo
 
 
 def is_payment_mock_mode_enabled() -> bool:
@@ -186,6 +231,35 @@ def fetch_provider_payout_balance(provider: str) -> ProviderPayoutBalanceResult:
             balance=Decimal("999999999"),
         )
     return _fetch_payos_payout_balance()
+
+
+def verify_provider_payout_destination(
+    *,
+    provider: str,
+    to_bin: str,
+    to_account_number: str,
+) -> ProviderPayoutDestinationVerificationResult:
+    _normalize_provider(provider)
+    normalized_bin = to_bin.strip()
+    normalized_account_number = to_account_number.strip()
+
+    if not normalized_bin or not normalized_account_number:
+        return ProviderPayoutDestinationVerificationResult(
+            provider=PAYOS_PROVIDER,
+            is_valid=False,
+            message="Thong tin tai khoan ngan hang chua day du de kiem tra",
+        )
+
+    if _is_payout_mock_mode():
+        return _verify_mock_payout_destination(
+            to_bin=normalized_bin,
+            to_account_number=normalized_account_number,
+        )
+
+    return _verify_payos_payout_destination(
+        to_bin=normalized_bin,
+        to_account_number=normalized_account_number,
+    )
 
 
 def _create_mock_payment(
@@ -625,11 +699,12 @@ def _create_payos_payout(
     )
 
     try:
-        with _build_payos_payout_client() as client:
-            payout = client.payouts.create(
-                payout_data=payout_data,
-                idempotency_key=reference_id,
-            )
+        with _payos_payout_network_preferences():
+            with _build_payos_payout_client() as client:
+                payout = client.payouts.create(
+                    payout_data=payout_data,
+                    idempotency_key=reference_id,
+                )
     except Exception as exc:
         raise PaymentGatewayError(f"Khong tao duoc payout payOS: {exc}") from exc
 
@@ -638,8 +713,9 @@ def _create_payos_payout(
 
 def _fetch_payos_payout_status(provider_order_id: str) -> ProviderPayoutResult:
     try:
-        with _build_payos_payout_client() as client:
-            payout = client.payouts.get(provider_order_id)
+        with _payos_payout_network_preferences():
+            with _build_payos_payout_client() as client:
+                payout = client.payouts.get(provider_order_id)
     except Exception as exc:
         raise PaymentGatewayError(f"Khong lay duoc trang thai payout payOS: {exc}") from exc
 
@@ -648,8 +724,9 @@ def _fetch_payos_payout_status(provider_order_id: str) -> ProviderPayoutResult:
 
 def _fetch_payos_payout_balance() -> ProviderPayoutBalanceResult:
     try:
-        with _build_payos_payout_client() as client:
-            balance_info = client.payouts_account.balance()
+        with _payos_payout_network_preferences():
+            with _build_payos_payout_client() as client:
+                balance_info = client.payouts_account.balance()
     except Exception as exc:
         raise PaymentGatewayError(f"Khong lay duoc so du payout payOS: {exc}") from exc
 
@@ -658,4 +735,129 @@ def _fetch_payos_payout_balance() -> ProviderPayoutBalanceResult:
         account_name=balance_info.account_name,
         currency=balance_info.currency,
         balance=Decimal(balance_info.balance),
+    )
+
+
+def _generate_payos_verification_reference(prefix: str) -> str:
+    timestamp_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+    random_suffix = int.from_bytes(os.urandom(2), "big") % 1000
+    return f"{prefix}{timestamp_ms}{random_suffix:03d}"
+
+
+def _serialize_payos_api_error(exc: Exception) -> str:
+    payload = {
+        "statusCode": getattr(exc, "status_code", None),
+        "errorCode": getattr(exc, "error_code", None),
+        "errorDesc": getattr(exc, "error_desc", None),
+        "message": str(exc),
+    }
+    return _json_dumps(payload)
+
+
+def _build_payos_verification_failure_message(exc: Exception) -> str:
+    detail = (
+        getattr(exc, "error_desc", None)
+        or getattr(exc, "message", None)
+        or str(exc)
+        or "payOS khong hoan tat duoc buoc kiem tra so bo tai khoan nhan tien nay"
+    )
+    return f"payOS bao khong the hoan tat buoc kiem tra so bo tai khoan nhan tien: {detail}"
+
+
+def _verify_mock_payout_destination(
+    *,
+    to_bin: str,
+    to_account_number: str,
+) -> ProviderPayoutDestinationVerificationResult:
+    if not to_bin.isdigit() or len(to_bin) < 3 or len(to_bin) > 20:
+        return ProviderPayoutDestinationVerificationResult(
+            provider=PAYOS_PROVIDER,
+            is_valid=False,
+            message="Mock payout yeu cau bank_bin gom 3-20 chu so",
+        )
+
+    if not to_account_number.isdigit() or len(to_account_number) < 6:
+        return ProviderPayoutDestinationVerificationResult(
+            provider=PAYOS_PROVIDER,
+            is_valid=False,
+            message="Mock payout yeu cau so tai khoan gom it nhat 6 chu so",
+        )
+
+    payload = {
+        "estimateCredit": 0,
+        "validateDestination": True,
+        "toBin": to_bin,
+        "toAccountNumber": to_account_number,
+    }
+    return ProviderPayoutDestinationVerificationResult(
+        provider=PAYOS_PROVIDER,
+        is_valid=True,
+        message="Mock payout da hoan tat buoc kiem tra so bo tai khoan nhan tien",
+        estimate_credit=0,
+        raw_payload=_json_dumps(payload),
+    )
+
+
+def _verify_payos_payout_destination(
+    *,
+    to_bin: str,
+    to_account_number: str,
+) -> ProviderPayoutDestinationVerificationResult:
+    try:
+        from payos import APIError, BadRequestError
+        from payos.types import PayoutBatchItem, PayoutBatchRequest
+    except ImportError as exc:
+        raise PaymentGatewayError(
+            "Chua cai dat SDK payos. Hay chay pip install -r server/requirements.txt"
+        ) from exc
+
+    batch_reference_id = _generate_payos_verification_reference("verifybatch")
+    payout_reference_id = _generate_payos_verification_reference("verifyitem")
+    payout_data = PayoutBatchRequest(
+        reference_id=batch_reference_id,
+        validate_destination=True,
+        payouts=[
+            PayoutBatchItem(
+                reference_id=payout_reference_id,
+                amount=1000,
+                description="Verify payout account",
+                to_bin=to_bin,
+                to_account_number=to_account_number,
+            )
+        ],
+    )
+
+    try:
+        with _payos_payout_network_preferences():
+            with _build_payos_payout_client() as client:
+                estimate = client.payouts.estimate_credit(payout_data=payout_data)
+    except BadRequestError as exc:
+        return ProviderPayoutDestinationVerificationResult(
+            provider=PAYOS_PROVIDER,
+            is_valid=False,
+            message=_build_payos_verification_failure_message(exc),
+            raw_payload=_serialize_payos_api_error(exc),
+        )
+    except APIError as exc:
+        if (exc.status_code or 0) < 500 and exc.status_code not in {401, 403, 429}:
+            return ProviderPayoutDestinationVerificationResult(
+                provider=PAYOS_PROVIDER,
+                is_valid=False,
+                message=_build_payos_verification_failure_message(exc),
+                raw_payload=_serialize_payos_api_error(exc),
+            )
+        raise PaymentGatewayError(
+            f"Khong the xac thuc tai khoan ngan hang payOS: {exc}"
+        ) from exc
+    except Exception as exc:
+        raise PaymentGatewayError(
+            f"Khong the xac thuc tai khoan ngan hang payOS: {exc}"
+        ) from exc
+
+    return ProviderPayoutDestinationVerificationResult(
+        provider=PAYOS_PROVIDER,
+        is_valid=True,
+        message="payOS khong tra loi khi kiem tra so bo tai khoan nhan tien nay",
+        estimate_credit=int(estimate.estimate_credit),
+        raw_payload=_json_dumps(estimate.model_dump_camel_case()),
     )

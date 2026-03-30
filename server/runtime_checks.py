@@ -41,12 +41,66 @@ def strict_startup_validation_enabled() -> bool:
     return _env_flag("STRICT_STARTUP_VALIDATION", is_production_environment())
 
 
+def _payment_gateway_mode() -> str:
+    return _env("PAYMENT_GATEWAY_MODE", "mock").lower() or "mock"
+
+
+def payos_payment_mock_mode_enabled() -> bool:
+    return _env_flag("PAYOS_MOCK_MODE", _payment_gateway_mode() == "mock")
+
+
+def payos_payout_mock_mode_enabled() -> bool:
+    return _env_flag("PAYOS_PAYOUT_MOCK_MODE", _payment_gateway_mode() == "mock")
+
+
+def payos_payout_force_ipv4_enabled() -> bool:
+    return _env_flag("PAYOS_PAYOUT_FORCE_IPV4", _env_flag("PAYOS_FORCE_IPV4", False))
+
+
+def payos_payout_real_mode_startup_notice() -> str | None:
+    if _payment_gateway_mode() == "mock" or payos_payout_mock_mode_enabled():
+        return None
+    if payos_payout_force_ipv4_enabled():
+        return (
+            "payOS payout real mode dang bat va backend se ep ket noi payout qua IPv4 "
+            "vi PAYOS_PAYOUT_FORCE_IPV4=true. Hay dam bao IPv4 public outbound cua backend "
+            "da duoc them vao my.payos.vn > Kenh chuyen tien > Quan ly IP."
+        )
+    return (
+        "payOS tu choi kiem tra vi IP may chu hien tai chua duoc them vao "
+        "Kenh chuyen tien > Quan ly IP. Neu ban dang chay local/ngrok, hay doi "
+        "PAYOS_PAYOUT_MOCK_MODE=true trong server/.env roi restart backend. "
+        "Neu muon kiem tra that, hay them public outbound IP cua backend vao my.payos.vn. "
+        "Neu may local uu tien IPv6 va ban chi allowlist IPv4, hay bat them "
+        "PAYOS_PAYOUT_FORCE_IPV4=true."
+    )
+
+
+def log_startup_notices() -> None:
+    payout_notice = payos_payout_real_mode_startup_notice()
+    if payout_notice:
+        if payos_payout_force_ipv4_enabled():
+            logger.info("Startup notice: %s", payout_notice)
+        else:
+            logger.warning("Startup notice: %s", payout_notice)
+
+
 def runtime_summary() -> dict[str, object]:
+    internal_job_runner_enabled = _env_flag("INTERNAL_JOB_RUNNER_ENABLED", False)
+    payment_gateway_mode = _payment_gateway_mode()
     return {
         "app_env": app_environment(),
-        "payment_gateway_mode": _env("PAYMENT_GATEWAY_MODE", "mock").lower() or "mock",
+        "payment_gateway_mode": payment_gateway_mode,
+        "payos_mock_mode": payos_payment_mock_mode_enabled(),
+        "payos_payout_mock_mode": payos_payout_mock_mode_enabled(),
+        "payos_payout_force_ipv4": payos_payout_force_ipv4_enabled(),
         "strict_startup_validation": strict_startup_validation_enabled(),
         "auto_init_schema": _env_flag("AUTO_INIT_SCHEMA", True),
+        "internal_job_runner_enabled": internal_job_runner_enabled,
+        "internal_job_runner_interval_seconds": _env(
+            "INTERNAL_JOB_RUNNER_INTERVAL_SECONDS",
+            "60",
+        ),
     }
 
 
@@ -93,10 +147,10 @@ def validate_runtime_configuration(cors_origins: list[str]) -> None:
     jwt_secret = _env("JWT_SECRET", DEFAULT_DEV_JWT_SECRET)
     admin_create_secret = _env("ADMIN_CREATE_SECRET")
     job_secret = _env("JOB_SECRET")
-    payment_gateway_mode = _env("PAYMENT_GATEWAY_MODE", "mock").lower() or "mock"
+    payment_gateway_mode = _payment_gateway_mode()
     payment_public_base_url = _env("PAYMENT_PUBLIC_BASE_URL")
-    payment_mock_mode = _env_flag("PAYOS_MOCK_MODE", payment_gateway_mode == "mock")
-    payout_mock_mode = _env_flag("PAYOS_PAYOUT_MOCK_MODE", payment_gateway_mode == "mock")
+    payment_mock_mode = payos_payment_mock_mode_enabled()
+    payout_mock_mode = payos_payout_mock_mode_enabled()
     server_public_url = _env("SERVER_PUBLIC_URL")
     static_public_url = _env("STATIC_PUBLIC_URL")
 

@@ -14,8 +14,8 @@ import 'package:fpdart/fpdart.dart' show Either, Left, Right;
 
 final notificationsControllerProvider =
     NotifierProvider<NotificationsController, NotificationsState>(
-  NotificationsController.new,
-);
+      NotificationsController.new,
+    );
 
 final unreadNotificationsCountProvider = Provider<int>((ref) {
   return ref.watch(notificationsControllerProvider).unreadCount;
@@ -72,8 +72,12 @@ class NotificationsController extends Notifier<NotificationsState>
 
   Future<void> _hydrateFromCache(String userId) async {
     final localRepository = ref.read(notificationsLocalRepositoryProvider);
-    final cachedNotifications = await localRepository.getCachedNotifications(userId);
-    final cachedUnreadCount = await localRepository.getCachedUnreadCount(userId);
+    final cachedNotifications = await localRepository.getCachedNotifications(
+      userId,
+    );
+    final cachedUnreadCount = await localRepository.getCachedUnreadCount(
+      userId,
+    );
 
     if (cachedNotifications.isEmpty) {
       return;
@@ -109,7 +113,9 @@ class NotificationsController extends Notifier<NotificationsState>
       notificationType: filter.notificationType,
       unreadOnly: filter.unreadOnly,
     );
-    final unreadCountResult = await remoteRepository.getUnreadCount(token: user.token);
+    final unreadCountResult = await remoteRepository.getUnreadCount(
+      token: user.token,
+    );
 
     var unreadCount = state.unreadCount;
     if (unreadCountResult is Right<AppFailure, int>) {
@@ -125,10 +131,7 @@ class NotificationsController extends Notifier<NotificationsState>
             error: failure.message,
           );
         } else {
-          state = state.copyWith(
-            isLoading: false,
-            unreadCount: unreadCount,
-          );
+          state = state.copyWith(isLoading: false, unreadCount: unreadCount);
         }
       case Right(value: final page):
         state = state.copyWith(
@@ -158,7 +161,9 @@ class NotificationsController extends Notifier<NotificationsState>
     state = state.copyWith(isLoadingMore: true, clearError: true);
 
     final filter = _resolveFilter(state.selectedFilterKey);
-    final result = await ref.read(notificationsRemoteRepositoryProvider).getNotificationsPage(
+    final result = await ref
+        .read(notificationsRemoteRepositoryProvider)
+        .getNotificationsPage(
           token: user.token,
           limit: _pageSize,
           cursor: nextCursor,
@@ -168,10 +173,7 @@ class NotificationsController extends Notifier<NotificationsState>
 
     switch (result) {
       case Left(value: final failure):
-        state = state.copyWith(
-          isLoadingMore: false,
-          error: failure.message,
-        );
+        state = state.copyWith(isLoadingMore: false, error: failure.message);
       case Right(value: final page):
         state = state.copyWith(
           notifications: [...state.notifications, ...page.items],
@@ -214,19 +216,21 @@ class NotificationsController extends Notifier<NotificationsState>
       return null;
     }
 
-    final result = await ref.read(notificationsRemoteRepositoryProvider).markAsRead(
-          token: user.token,
-          notificationId: notification.id,
-        );
+    final result = await ref
+        .read(notificationsRemoteRepositoryProvider)
+        .markAsRead(token: user.token, notificationId: notification.id);
     switch (result) {
       case Left(value: final failure):
         return failure;
       case Right(value: final updated):
-        final notifications = state.selectedFilterKey == NotificationFilterKeys.unread
-            ? state.notifications.where((item) => item.id != updated.id).toList()
+        final notifications =
+            state.selectedFilterKey == NotificationFilterKeys.unread
+            ? state.notifications
+                  .where((item) => item.id != updated.id)
+                  .toList()
             : state.notifications
-                .map((item) => item.id == updated.id ? updated : item)
-                .toList();
+                  .map((item) => item.id == updated.id ? updated : item)
+                  .toList();
 
         final nextUnreadCount = notification.isRead
             ? state.unreadCount
@@ -242,7 +246,9 @@ class NotificationsController extends Notifier<NotificationsState>
     }
   }
 
-  Future<Either<AppFailure, String>> confirmTeaching(AppNotification notification) async {
+  Future<Either<AppFailure, String>> confirmTeaching(
+    AppNotification notification,
+  ) async {
     final user = ref.read(currentUserProvider);
     final classId = notification.classId;
     if (user == null || classId == null || classId.isEmpty) {
@@ -250,10 +256,9 @@ class NotificationsController extends Notifier<NotificationsState>
     }
 
     state = state.copyWith(actionNotificationId: notification.id);
-    final result = await ref.read(notificationsRemoteRepositoryProvider).confirmTeaching(
-          token: user.token,
-          classId: classId,
-        );
+    final result = await ref
+        .read(notificationsRemoteRepositoryProvider)
+        .confirmTeaching(token: user.token, classId: classId);
 
     state = state.copyWith(clearActionNotificationId: true);
 
@@ -279,28 +284,30 @@ class NotificationsController extends Notifier<NotificationsState>
 
   _NotificationsQuery _resolveFilter(String filterKey) {
     return switch (filterKey) {
-      NotificationFilterKeys.unread => const _NotificationsQuery(unreadOnly: true),
+      NotificationFilterKeys.unread => const _NotificationsQuery(
+        unreadOnly: true,
+      ),
       NotificationFilterKeys.minimumReached => const _NotificationsQuery(
-          notificationType: NotificationFilterKeys.minimumReached,
-        ),
+        notificationType: NotificationFilterKeys.minimumReached,
+      ),
       NotificationFilterKeys.tutorConfirmed => const _NotificationsQuery(
-          notificationType: NotificationFilterKeys.tutorConfirmed,
-        ),
+        notificationType: NotificationFilterKeys.tutorConfirmed,
+      ),
       NotificationFilterKeys.classStartingSoon => const _NotificationsQuery(
-          notificationType: NotificationFilterKeys.classStartingSoon,
-        ),
+        notificationType: NotificationFilterKeys.classStartingSoon,
+      ),
       NotificationFilterKeys.classCancelled => const _NotificationsQuery(
-          notificationType: NotificationFilterKeys.classCancelled,
-        ),
+        notificationType: NotificationFilterKeys.classCancelled,
+      ),
       NotificationFilterKeys.refundIssued => const _NotificationsQuery(
-          notificationType: NotificationFilterKeys.refundIssued,
-        ),
+        notificationType: NotificationFilterKeys.refundIssued,
+      ),
       NotificationFilterKeys.payoutUpdated => const _NotificationsQuery(
-          notificationType: NotificationFilterKeys.payoutUpdated,
-        ),
+        notificationType: NotificationFilterKeys.payoutUpdated,
+      ),
       NotificationFilterKeys.disputeResolved => const _NotificationsQuery(
-          notificationType: NotificationFilterKeys.disputeResolved,
-        ),
+        notificationType: NotificationFilterKeys.disputeResolved,
+      ),
       _ => const _NotificationsQuery(),
     };
   }
@@ -311,7 +318,9 @@ class NotificationsController extends Notifier<NotificationsState>
       return;
     }
 
-    await ref.read(notificationsLocalRepositoryProvider).saveInbox(
+    await ref
+        .read(notificationsLocalRepositoryProvider)
+        .saveInbox(
           user.id,
           notifications: state.notifications,
           unreadCount: state.unreadCount,
@@ -319,7 +328,16 @@ class NotificationsController extends Notifier<NotificationsState>
   }
 
   void _startPolling() {
-    if (_pollTimer != null || !_isAppActive || ref.read(currentUserProvider) == null) {
+    if (!_isAppActive || ref.read(currentUserProvider) == null) {
+      return;
+    }
+
+    if (_liveConnection != null) {
+      _disposePolling();
+      return;
+    }
+
+    if (_pollTimer != null) {
       return;
     }
 
@@ -347,9 +365,9 @@ class NotificationsController extends Notifier<NotificationsState>
     _connectingLiveUpdates = true;
 
     Future.microtask(() async {
-      final result = await ref.read(notificationsLiveRepositoryProvider).connect(
-            token: user.token,
-          );
+      final result = await ref
+          .read(notificationsLiveRepositoryProvider)
+          .connect(token: user.token);
       _connectingLiveUpdates = false;
 
       final currentUser = ref.read(currentUserProvider);
@@ -366,6 +384,7 @@ class NotificationsController extends Notifier<NotificationsState>
           _scheduleLiveReconnect();
         case Right(value: final connection):
           _liveConnection = connection;
+          _disposePolling();
           state = state.copyWith(liveConnected: true);
           _liveUpdatesSubscription = connection.events.listen(
             _handleLiveEvent,
@@ -377,6 +396,8 @@ class NotificationsController extends Notifier<NotificationsState>
   }
 
   void _handleLiveEvent(NotificationLiveEvent event) {
+    _disposePolling();
+
     if (!state.liveConnected) {
       state = state.copyWith(liveConnected: true);
     }
@@ -399,11 +420,14 @@ class NotificationsController extends Notifier<NotificationsState>
     _liveUpdatesSubscription = null;
     _liveConnection = null;
     state = state.copyWith(liveConnected: false);
+    _startPolling();
     _scheduleLiveReconnect();
   }
 
   void _scheduleLiveReconnect() {
-    if (!_isAppActive || ref.read(currentUserProvider) == null || _liveReconnectTimer != null) {
+    if (!_isAppActive ||
+        ref.read(currentUserProvider) == null ||
+        _liveReconnectTimer != null) {
       return;
     }
 
@@ -479,8 +503,5 @@ class _NotificationsQuery {
   final String? notificationType;
   final bool unreadOnly;
 
-  const _NotificationsQuery({
-    this.notificationType,
-    this.unreadOnly = false,
-  });
+  const _NotificationsQuery({this.notificationType, this.unreadOnly = false});
 }

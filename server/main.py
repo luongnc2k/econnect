@@ -1,4 +1,5 @@
-from contextlib import asynccontextmanager
+import asyncio
+from contextlib import asynccontextmanager, suppress
 import os
 from pathlib import Path
 
@@ -6,8 +7,9 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from models.base import Base
 from database import engine
+from job_runner import internal_job_runner_enabled, run_internal_job_runner
+from models.base import Base
 from routes import auth, upload, classes, profile, users, payments, notifications, locations
 
 # Import all models so Base.metadata knows about them
@@ -25,6 +27,7 @@ from models.push_device_token import PushDeviceToken
 from runtime_checks import (
     app_environment,
     database_ready,
+    log_startup_notices,
     runtime_summary,
     validate_runtime_configuration,
 )
@@ -71,10 +74,24 @@ allow_credentials = cors_origins != ["*"]
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     validate_runtime_configuration(cors_origins)
+    log_startup_notices()
     if _env_flag("AUTO_INIT_SCHEMA", True):
         Base.metadata.create_all(bind=engine)
         sync_schema(engine)
-    yield
+
+    stop_event = asyncio.Event()
+    job_runner_task = None
+    if internal_job_runner_enabled():
+        job_runner_task = asyncio.create_task(run_internal_job_runner(stop_event))
+
+    try:
+        yield
+    finally:
+        stop_event.set()
+        if job_runner_task is not None:
+            job_runner_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await job_runner_task
 
 
 app = FastAPI(lifespan=lifespan)

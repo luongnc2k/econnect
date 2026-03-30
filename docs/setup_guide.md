@@ -23,6 +23,7 @@ Bạn nên chuẩn bị sẵn:
 - `PAYOS_PARTNER_CODE` chỉ khi merchant của bạn thật sự có partner code từ chương trình đối tác tích hợp payOS
 
 Nếu bạn chỉ muốn test payment flow trước, nên giữ payout ở mock mode.
+`ngrok` chỉ giúp webhook/return của payOS callback về local. Các API payout thật như verify tài khoản ngân hàng, payout balance, create payout, và sync payout vẫn dùng IP public outbound của backend.
 
 ## 3. Tạo file môi trường cho local + payOS thật
 
@@ -241,6 +242,7 @@ Chỉ chuyển `PAYOS_PAYOUT_MOCK_MODE=false` khi bạn thật sự cần test c
 Khi bật payout thật:
 
 - điền thêm `PAYOS_PAYOUT_CLIENT_ID`, `PAYOS_PAYOUT_API_KEY`, `PAYOS_PAYOUT_CHECKSUM_KEY`
+- thêm IP public outbound của backend vào `my.payos.vn > Kênh chuyển tiền > Quản lý IP`
 - tutor phải có đủ `bank_bin` và `bank_account_number`
 - nên dùng teacher đã có hồ sơ payout sẵn hoặc cập nhật profile trước khi chạy job payout
 
@@ -275,6 +277,20 @@ Kiểm tra:
 - tutor có `bank_account_number`
 - payout account còn đủ số dư
 - lớp đã qua thời điểm được payout
+
+### Verify tài khoản ngân hàng báo `Địa chỉ IP không được phép truy cập hệ thống`
+
+Nguyên nhân:
+
+- backend đang gọi payout thật (`PAYOS_PAYOUT_MOCK_MODE=false`)
+- IP public outbound hiện tại của backend chưa được thêm vào `my.payos.vn > Kênh chuyển tiền > Quản lý IP`
+- `ngrok` không giải quyết lỗi này vì `ngrok` chỉ hỗ trợ callback đi vào local
+
+Cách xử lý:
+
+- nếu đang dev local/ngrok, đổi lại `PAYOS_PAYOUT_MOCK_MODE=true` rồi restart backend
+- nếu muốn verify/payout thật, xác định IP public outbound của backend rồi thêm IP đó vào allowlist của kênh chuyển tiền
+- nếu bạn đã allowlist IPv4 nhưng máy local vẫn bị chặn, rất có thể backend đang ưu tiên đi ra bằng IPv6; khi đó hãy bật `PAYOS_PAYOUT_FORCE_IPV4=true` rồi restart backend
 - không còn dispute mở
 
 ## 13. Tài liệu liên quan

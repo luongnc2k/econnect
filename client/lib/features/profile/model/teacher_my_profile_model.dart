@@ -14,6 +14,12 @@ class TeacherMyProfileModel extends UserModel {
   final List<String> certifications;
   final List<String> verificationDocs;
 
+  bool get hasPayoutBankAccount =>
+      _hasValue(bankName) &&
+      _hasValue(bankBin) &&
+      _hasValue(bankAccountNumber) &&
+      _hasValue(bankAccountHolder);
+
   TeacherMyProfileModel({
     required super.id,
     required super.email,
@@ -156,4 +162,6 @@ class TeacherMyProfileModel extends UserModel {
       verificationDocs: verificationDocs ?? this.verificationDocs,
     );
   }
+
+  static bool _hasValue(String? value) => (value ?? '').trim().isNotEmpty;
 }

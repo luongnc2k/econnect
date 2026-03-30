@@ -103,6 +103,8 @@ JOB_SECRET=...
 APP_ENV=development
 STRICT_STARTUP_VALIDATION=false
 AUTO_INIT_SCHEMA=true
+INTERNAL_JOB_RUNNER_ENABLED=true
+INTERNAL_JOB_RUNNER_INTERVAL_SECONDS=60
 ALLOW_DIRECT_CLASS_CREATION=false
 CORS_ALLOW_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
 CORS_ALLOW_ORIGIN_REGEX=
@@ -148,9 +150,13 @@ FCM_SERVICE_ACCOUNT_JSON=
 - `transaction_ref` nội bộ của EConnect được giữ nguyên để client poll trạng thái; `orderCode` của payOS được lưu trong `payments.provider_order_id`.
 - payment và payout dùng các bộ `client_id`, `api_key`, `checksum_key` riêng. Khi bật payout thật, cần điền `PAYOS_PAYOUT_CLIENT_ID`, `PAYOS_PAYOUT_API_KEY`, `PAYOS_PAYOUT_CHECKSUM_KEY`.
 - Payout cho tutor dùng API `POST /v1/payouts` và `GET /v1/payouts/{id}` của payOS. Backend lưu `payout.id` vào `payments.provider_order_id` để job có thể đồng bộ trạng thái payout.
+- Các API payout thật như verify tài khoản ngân hàng, payout balance, tạo payout, và sync payout dùng IP public outbound của backend. `ngrok` chỉ giúp webhook/return đi vào local, không thay thế allowlist IP cho payout.
+- Nếu payOS trả lỗi `Địa chỉ IP không được phép truy cập hệ thống`, hãy thêm IP public outbound của backend vào `my.payos.vn > Kênh chuyển tiền > Quản lý IP`, hoặc tạm giữ `PAYOS_PAYOUT_MOCK_MODE=true` khi đang dev local/ngrok.
+- Nếu bạn đã allowlist IPv4 nhưng máy local vẫn lỗi, backend có thể đang ưu tiên gọi payOS bằng IPv6. Khi đó hãy bật `PAYOS_PAYOUT_FORCE_IPV4=true` rồi restart backend.
 - Tutor cần cập nhật đầy đủ `bank_bin` và `bank_account_number` trong hồ sơ trước khi job payout chạy.
 - Nếu payout fail vì thông tin ngân hàng hoặc lỗi tạm thời, admin có thể sửa dữ liệu rồi gọi `POST /payments/classes/{class_id}/retry-payout`.
 - Các job endpoint nên được gọi bằng token admin hoặc header `x-job-secret` trùng với `JOB_SECRET`.
+- Khi `INTERNAL_JOB_RUNNER_ENABLED=true`, backend sẽ tự chạy các job `notify-classes-starting-soon`, `cancel-underfilled-classes`, `release-eligible-payouts`, và `sync-payout-statuses` theo chu kỳ `INTERNAL_JOB_RUNNER_INTERVAL_SECONDS`. Cơ chế này phù hợp cho local/dev hoặc môi trường chỉ chạy một instance backend.
 - Trong local dev, nên giữ `PAYMENT_GATEWAY_MODE=mock` nếu chưa có HTTPS/public callback URL.
 - Khi cấu hình `FCM_SERVICE_ACCOUNT_*`, backend sẽ tự thử gửi FCM sau mỗi lần tạo notification và tự bỏ qua bước này nếu Firebase chưa sẵn sàng.
 
@@ -170,6 +176,7 @@ Mục tiêu của flow này là:
 - nếu muốn test payout thật, chuẩn bị thêm bộ credential payout riêng
 
 Nếu bạn chỉ cần test payment flow trước, nên giữ `PAYOS_PAYOUT_MOCK_MODE=true`.
+Ngay cả khi đã có `ngrok`, bạn vẫn nên giữ payout mock nếu chưa allowlist IP public outbound của backend cho kênh chuyển tiền payOS.
 
 #### 2. Tạo file môi trường cho local + payOS thật
 
@@ -342,6 +349,7 @@ Chỉ chuyển `PAYOS_PAYOUT_MOCK_MODE=false` khi bạn thật sự cần test c
 Khi bật payout thật:
 
 - điền thêm `PAYOS_PAYOUT_CLIENT_ID`, `PAYOS_PAYOUT_API_KEY`, `PAYOS_PAYOUT_CHECKSUM_KEY`
+- thêm IP public outbound của backend vào `my.payos.vn > Kênh chuyển tiền > Quản lý IP`
 - tutor phải có đủ `bank_bin` và `bank_account_number`
 - nên dùng teacher đã có hồ sơ payout sẵn hoặc cập nhật profile trước khi chạy job payout
 

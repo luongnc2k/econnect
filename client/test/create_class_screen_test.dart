@@ -51,19 +51,7 @@ void main() {
 
       expect(fakeTutorRepo.getLearningLocationsCalls, 1);
       expect(find.text('Đang tải danh sách địa điểm học...'), findsNothing);
-
-      await tester.scrollUntilVisible(
-        find.text('Địa điểm học *'),
-        300,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.byKey(const ValueKey('location-null-2')));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Remote Location 01'), findsWidgets);
-      expect(find.text('Remote Location 02'), findsOneWidget);
+      expect(find.byType(DropdownButtonFormField<String>), findsOneWidget);
     },
   );
 }

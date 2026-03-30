@@ -37,7 +37,7 @@ class TutorRemoteRepository {
       if (response.statusCode != 200) {
         final body = jsonDecode(response.body) as Map<String, dynamic>;
         return Left(
-          AppFailure(body['detail'] ?? 'Loi tai du lieu', response.statusCode),
+          AppFailure(body['detail'] ?? 'Lỗi tải dữ liệu', response.statusCode),
         );
       }
 
@@ -68,7 +68,7 @@ class TutorRemoteRepository {
       if (response.statusCode != 201) {
         return Left(
           AppFailure(
-            decoded['detail'] ?? 'Tao buoi hoc that bai',
+            decoded['detail'] ?? 'Tạo buổi học thất bại',
             response.statusCode,
           ),
         );
@@ -91,7 +91,7 @@ class TutorRemoteRepository {
         final body = jsonDecode(response.body) as Map<String, dynamic>;
         return Left(
           AppFailure(
-            body['detail'] ?? 'Loi tai danh sach dia diem hoc',
+            body['detail'] ?? 'Lỗi tải danh sách địa điểm học',
             response.statusCode,
           ),
         );
@@ -123,7 +123,7 @@ class TutorRemoteRepository {
         final body = jsonDecode(response.body) as Map<String, dynamic>;
         return Left(
           AppFailure(
-            body['detail'] ?? 'Loi tai chi tiet lop',
+            body['detail'] ?? 'Lỗi tải chi tiết lớp',
             response.statusCode,
           ),
         );
@@ -168,11 +168,11 @@ class TutorRemoteRepository {
         return Right(data['url'].toString());
       }
 
-      return Left(AppFailure('Upload anh that bai'));
+      return Left(AppFailure('Upload ảnh thất bại'));
     } on DioException catch (e) {
       final detail = (e.response?.data as Map<String, dynamic>?)?['detail'];
       return Left(
-        AppFailure(detail?.toString() ?? e.message ?? 'Upload anh that bai'),
+        AppFailure(detail?.toString() ?? e.message ?? 'Upload ảnh thất bại'),
       );
     } catch (e) {
       return Left(AppFailure(e.toString()));

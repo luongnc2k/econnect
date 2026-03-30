@@ -5,6 +5,7 @@ import 'package:client/features/auth/view/screens/signup_screen.dart';
 import 'package:client/features/profile/view/screens/edit_my_profile_screen.dart';
 import 'package:client/features/profile/view/screens/my_profile_screen.dart';
 import 'package:client/features/profile/view/screens/user_profile_screen.dart';
+import 'package:client/features/profile/view/widgets/teacher_bank_account_gate.dart';
 import 'package:client/features/search/view/screens/user_search_screen.dart';
 import 'package:client/features/student/model/class_session.dart';
 import 'package:client/features/student/view/screens/class_detail_screen.dart';
@@ -29,6 +30,7 @@ abstract class AppRoutes {
   static const userProfile = '/user/:userId';
 
   static const teacherHome = '/teacher';
+  static const teacherBankSetup = '/teacher/bank-setup';
   static const teacherClassSummary = '/teacher/class-summary/:classCode';
   static const teacherMyProfile = '/teacher/profile';
   static const teacherEditMyProfile = '/teacher/profile/edit';
@@ -94,6 +96,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
+        path: AppRoutes.teacherBankSetup,
+        builder: (context, state) =>
+            const EditMyProfileScreen(requireBankSetup: true),
+      ),
+      GoRoute(
         path: AppRoutes.studentHome,
         builder: (context, state) => const StudentNavShell(),
         routes: [
@@ -122,7 +129,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.teacherHome,
-        builder: (context, state) => const TutorNavShell(),
+        builder: (context, state) => TeacherBankAccountGate(
+          redirectPath: AppRoutes.teacherBankSetup,
+          child: const TutorNavShell(),
+        ),
         routes: [
           GoRoute(
             path: 'create-class',

@@ -29,6 +29,7 @@ os.environ["PAYMENT_GATEWAY_MODE"] = "mock"
 os.environ["PAYOS_MOCK_MODE"] = "true"
 os.environ["PAYOS_PAYOUT_MOCK_MODE"] = "true"
 os.environ["AUTO_INIT_SCHEMA"] = "false"
+os.environ["INTERNAL_JOB_RUNNER_ENABLED"] = "false"
 os.environ["ALLOW_DIRECT_CLASS_CREATION"] = "false"
 os.environ["ALLOW_LEGACY_JWT_SECRET"] = "false"
 os.environ["LOCAL_UPLOAD_ROOT"] = str(TEST_UPLOAD_ROOT)

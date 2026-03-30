@@ -6,9 +6,46 @@ from middleware.auth_middleware import auth_middleware
 from models.student_profile import StudentProfile
 from models.teacher_profile import TeacherProfile
 from models.user import User
-from pydantic_schemas.profile import ProfileUpdateRequest
+from payment_gateways import (
+    PAYOS_PROVIDER,
+    PaymentGatewayError,
+    verify_provider_payout_destination,
+)
+from pydantic_schemas.profile import (
+    ProfileUpdateRequest,
+    PayoutBankAccountVerificationRequest,
+    PayoutBankAccountVerificationResponse,
+)
 
 router = APIRouter()
+
+_TEACHER_PAYOUT_FIELDS = {
+    "bank_name",
+    "bank_bin",
+    "bank_account_number",
+    "bank_account_holder",
+}
+
+
+def _map_payout_bank_verification_error_detail(exc: PaymentGatewayError) -> str:
+    message = str(exc)
+    normalized = message.lower()
+    ip_not_allowed_markers = (
+        "dia chi ip khong duoc phep truy cap he thong",
+        "địa chỉ ip không được phép truy cập hệ thống",
+        "ip may chu hien tai chua duoc them vao kenh chuyen tien",
+        "ip máy chủ hiện tại chưa được thêm vào kênh chuyển tiền",
+    )
+    if any(marker in normalized for marker in ip_not_allowed_markers):
+        return (
+            "payOS từ chối kiểm tra vì IP máy chủ hiện tại chưa được thêm vào "
+            "Kênh chuyển tiền > Quản lý IP. Nếu bạn đang chạy local/ngrok, hãy đổi "
+            "PAYOS_PAYOUT_MOCK_MODE=true trong server/.env rồi restart backend. "
+            "Nếu muốn kiểm tra thật, hãy thêm public outbound IP của backend vào my.payos.vn. "
+            "Nếu máy local ưu tiên IPv6 và bạn chỉ allowlist IPv4, hãy bật thêm "
+            "PAYOS_PAYOUT_FORCE_IPV4=true."
+        )
+    return f"Không thể kiểm tra tài khoản ngân hàng lúc này: {message}"
 
 
 def _serialize_profile(
@@ -201,6 +238,18 @@ def update_my_profile(
         if "verification_docs" in payload_data:
             teacher_profile.verification_docs = payload_data.get("verification_docs") or []
 
+        if _TEACHER_PAYOUT_FIELDS.intersection(payload_data):
+            bank_bin = (teacher_profile.bank_bin or "").strip()
+            bank_account_number = (teacher_profile.bank_account_number or "").strip()
+            if (bank_bin or bank_account_number) and (not bank_bin or not bank_account_number):
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "Thong tin ngan hang nhan payout chua day du. "
+                        "Can nhap ca bank_bin va bank_account_number."
+                    ),
+                )
+
     db.commit()
     db.refresh(user)
     if student_profile:
@@ -214,4 +263,46 @@ def update_my_profile(
         teacher_profile,
         include_private_user_fields=True,
         include_sensitive_teacher_fields=user.role == "teacher",
+    )
+
+
+@router.post(
+    "/me/payout-bank-account/verify",
+    response_model=PayoutBankAccountVerificationResponse,
+)
+def verify_my_payout_bank_account(
+    payload: PayoutBankAccountVerificationRequest,
+    user_dict: dict = Depends(auth_middleware),
+    db: Session = Depends(get_db),
+):
+    user = db.query(User).filter(User.id == user_dict["uid"]).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user.role != "teacher":
+        raise HTTPException(
+            status_code=403,
+            detail="Chi tutor moi duoc kiem tra tai khoan ngan hang nhan payout",
+        )
+
+    try:
+        result = verify_provider_payout_destination(
+            provider=PAYOS_PROVIDER,
+            to_bin=payload.bank_bin,
+            to_account_number=payload.bank_account_number,
+        )
+    except PaymentGatewayError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=_map_payout_bank_verification_error_detail(exc),
+        ) from exc
+
+    return PayoutBankAccountVerificationResponse(
+        provider=result.provider,
+        is_valid=result.is_valid,
+        message=result.message or (
+            "payOS khong tra loi khi kiem tra so bo tai khoan nhan tien nay"
+            if result.is_valid
+            else "payOS bao khong the hoan tat buoc kiem tra so bo tai khoan nhan tien nay"
+        ),
+        estimate_credit=result.estimate_credit,
     )

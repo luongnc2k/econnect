@@ -2,6 +2,7 @@ import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/features/auth/model/user_model.dart';
 import 'package:client/features/auth/repositories/auth_local_repository.dart';
 import 'package:client/features/auth/repositories/auth_remote_repository.dart';
+import 'package:client/features/profile/viewmodel/my_profile_viewmodel.dart';
 import 'package:fpdart/fpdart.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -30,6 +31,10 @@ class AuthViewModel extends _$AuthViewModel {
     required String email,
     required String password,
     required String role,
+    String? bankName,
+    String? bankBin,
+    String? bankAccountNumber,
+    String? bankAccountHolder,
   }) async {
     state = const AsyncValue.loading();
     final res = await _authRemoteRepository.signup(
@@ -37,6 +42,10 @@ class AuthViewModel extends _$AuthViewModel {
       email: email,
       password: password,
       role: role,
+      bankName: bankName,
+      bankBin: bankBin,
+      bankAccountNumber: bankAccountNumber,
+      bankAccountHolder: bankAccountHolder,
     );
 
     switch (res) {
@@ -66,6 +75,7 @@ class AuthViewModel extends _$AuthViewModel {
   }
 
   AsyncValue<UserModel>? _loginSuccess(UserModel user) {
+    ref.read(myProfileViewModelProvider.notifier).clearProfile();
     _authLocalRepository.setToken(user.token);
     _authLocalRepository.setUser(user);
     _currentUserNotifier.addUser(user);
@@ -75,6 +85,7 @@ class AuthViewModel extends _$AuthViewModel {
   Future<void> getData() async {
     final token = _authLocalRepository.getToken();
     if (token == null) {
+      ref.read(myProfileViewModelProvider.notifier).clearProfile();
       state = null;
       return;
     }
@@ -98,9 +109,10 @@ class AuthViewModel extends _$AuthViewModel {
           // Server xác nhận user không tồn tại hoặc token invalid → clear session
           _authLocalRepository.clearSession();
           _currentUserNotifier.addUser(null);
+          ref.read(myProfileViewModelProvider.notifier).clearProfile();
           state = null;
         }
-        // Network error → giữ nguyên cache nếu đã restore
+      // Network error → giữ nguyên cache nếu đã restore
       case Right(value: final r):
         _getDataSuccess(r);
     }
@@ -115,6 +127,7 @@ class AuthViewModel extends _$AuthViewModel {
   void logout() {
     _authLocalRepository.clearSession();
     _currentUserNotifier.addUser(null);
+    ref.read(myProfileViewModelProvider.notifier).clearProfile();
     state = null;
   }
 }

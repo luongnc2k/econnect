@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:client/core/failure/failure.dart';
 import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/features/payments/model/payment_transaction_status.dart';
 import 'package:client/features/payments/repositories/payments_remote_repository.dart';
@@ -12,7 +13,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:fpdart/fpdart.dart' show Left, Right;
+import 'package:fpdart/fpdart.dart' show Either, Left, Right;
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -24,7 +25,8 @@ class CreateClassScreen extends ConsumerStatefulWidget {
   ConsumerState<CreateClassScreen> createState() => _CreateClassScreenState();
 }
 
-class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
+class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
+    with WidgetsBindingObserver {
   final _formKey = GlobalKey<FormState>();
 
   final _topicController = TextEditingController();
@@ -46,6 +48,10 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
   bool _pollingPayment = false;
   int _pollAttempts = 0;
   int _consecutivePollErrors = 0;
+  bool _pollRequestInFlight = false;
+  bool _awaitingExternalPaymentReturn = false;
+  bool _paymentAppWasBackgrounded = false;
+  bool _resumeStatusCheckInFlight = false;
 
   List<LearningLocation> _locations = const [];
   String? _selectedLocationId;
@@ -69,14 +75,23 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
     return null;
   }
 
+  bool get _hasPendingPaymentTransaction {
+    final transaction = _transaction;
+    return transaction != null &&
+        !transaction.isTerminal &&
+        (transaction.status == 'pending' || transaction.status == 'processing');
+  }
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadLearningLocations();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _topicController.dispose();
     _titleController.dispose();
     _descriptionController.dispose();
@@ -86,6 +101,29 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
     _pollTimer?.cancel();
     _pollTimer = null;
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (!_awaitingExternalPaymentReturn) {
+      return;
+    }
+
+    switch (state) {
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.paused:
+        _paymentAppWasBackgrounded = true;
+        break;
+      case AppLifecycleState.resumed:
+        if (_paymentAppWasBackgrounded && !_resumeStatusCheckInFlight) {
+          _paymentAppWasBackgrounded = false;
+          unawaited(_handleExternalPaymentReturn());
+        }
+        break;
+      case AppLifecycleState.detached:
+      case AppLifecycleState.hidden:
+        break;
+    }
   }
 
   Future<void> _loadLearningLocations() async {
@@ -200,6 +238,15 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
     });
   }
 
+  Future<void> _handlePrimaryPaymentAction(CreateClassState vmState) async {
+    if (_hasPendingPaymentTransaction && !_pollingPayment) {
+      await _resumePendingPayment();
+      return;
+    }
+
+    await _submit(vmState);
+  }
+
   Future<void> _submit(CreateClassState vmState) async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -250,7 +297,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Giá» báº¯t Ä‘áº§u pháº£i sau thá»i Ä‘iá»ƒm hiá»‡n táº¡i',
+            'Giờ bắt đầu phải sau thời điểm hiện tại',
           ),
         ),
       );
@@ -296,15 +343,24 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
     }
 
     setState(() => _transaction = payment);
-    _beginPolling(payment.transactionRef);
 
     final redirectUrl = payment.redirectUrl;
     if (redirectUrl == null || redirectUrl.isEmpty) {
-      _stopPolling();
       _showMessage('Không nhận được URL thanh toán phí tạo lớp từ hệ thống.');
       return;
     }
 
+    await _launchPaymentWindow(
+      redirectUrl: redirectUrl,
+      transactionRef: payment.transactionRef,
+    );
+  }
+
+  Future<void> _launchPaymentWindow({
+    required String redirectUrl,
+    required String transactionRef,
+  }) async {
+    _beginPolling(transactionRef);
     final launched = await launchUrl(
       Uri.parse(redirectUrl),
       mode: LaunchMode.platformDefault,
@@ -313,13 +369,36 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
 
     if (!launched && mounted) {
       _stopPolling();
-      _showMessage('Không mở được cổng thanh toán. Vui lòng thử lại.');
+      _awaitingExternalPaymentReturn = false;
+      _showMessage(
+        'Kh\u00f4ng m\u1edf \u0111\u01b0\u1ee3c c\u1ed5ng thanh to\u00e1n. Vui l\u00f2ng th\u1eed l\u1ea1i.',
+      );
+      return;
     }
-    return;
+
+    _awaitingExternalPaymentReturn = true;
+    _paymentAppWasBackgrounded = false;
+  }
+
+  Future<void> _resumePendingPayment() async {
+    final transaction = _transaction;
+    final redirectUrl = transaction?.redirectUrl;
+    if (transaction == null || redirectUrl == null || redirectUrl.isEmpty) {
+      _showMessage(
+        'Kh\u00f4ng t\u00ecm th\u1ea5y link thanh to\u00e1n \u0111\u1ec3 m\u1edf l\u1ea1i.',
+      );
+      return;
+    }
+
+    await _launchPaymentWindow(
+      redirectUrl: redirectUrl,
+      transactionRef: transaction.transactionRef,
+    );
   }
 
   void _beginPolling(String transactionRef) {
     _pollTimer?.cancel();
+    _pollRequestInFlight = false;
     setState(() {
       _pollingPayment = true;
       _pollAttempts = 0;
@@ -327,6 +406,10 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
     });
 
     _pollTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
+      if (_pollRequestInFlight) {
+        return;
+      }
+
       final user = ref.read(currentUserProvider);
       if (user == null) {
         _stopPolling();
@@ -342,54 +425,124 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
         return;
       }
 
-      final result = await ref
-          .read(paymentsRemoteRepositoryProvider)
-          .getTransactionStatus(
-            token: user.token,
-            transactionRef: transactionRef,
-          );
+      _pollRequestInFlight = true;
+      try {
+        final result = await _fetchTransactionStatus(
+          token: user.token,
+          transactionRef: transactionRef,
+        );
+        if (!mounted) {
+          return;
+        }
+
+        switch (result) {
+          case Right(value: final status):
+            _consecutivePollErrors = 0;
+            await _handleTransactionStatusUpdate(status);
+            break;
+          case Left(value: final failure):
+            _consecutivePollErrors += 1;
+            if (_consecutivePollErrors >= _maxConsecutivePollErrors) {
+              _stopPolling();
+              _showMessage(failure.message);
+            }
+            break;
+        }
+      } finally {
+        _pollRequestInFlight = false;
+      }
+    });
+  }
+
+  Future<void> _handleExternalPaymentReturn() async {
+    final transactionRef = _transaction?.transactionRef;
+    final user = ref.read(currentUserProvider);
+    if (transactionRef == null || transactionRef.isEmpty || user == null) {
+      _awaitingExternalPaymentReturn = false;
+      return;
+    }
+
+    _resumeStatusCheckInFlight = true;
+    try {
+      final result = await _fetchTransactionStatus(
+        token: user.token,
+        transactionRef: transactionRef,
+      );
       if (!mounted) {
         return;
       }
 
       switch (result) {
         case Right(value: final status):
-          setState(() {
-            _transaction = status;
-            _consecutivePollErrors = 0;
-          });
-
-          if (!status.isTerminal) {
-            return;
-          }
-
-          _stopPolling();
-          if (status.isSuccessLike && status.classStatus == 'scheduled') {
-            await ref.read(tutorHomeViewModelProvider.notifier).refresh();
-            if (!mounted) {
-              return;
-            }
-            _showMessage('Thanh toán thành công, buổi học đã được tạo.');
-            context.pop();
-            return;
-          }
-
-          _showMessage(
-            status.message ?? 'Thanh toán phí tạo lớp không thành công.',
-          );
-        case Left(value: final failure):
-          _consecutivePollErrors += 1;
-          if (_consecutivePollErrors >= _maxConsecutivePollErrors) {
+          await _handleTransactionStatusUpdate(status);
+          if (mounted && !status.isTerminal) {
             _stopPolling();
-            _showMessage(failure.message);
+            _showMessage(
+              'B\u1ea1n \u0111\u00e3 \u0111\u00f3ng c\u1eeda s\u1ed5 thanh to\u00e1n. App s\u1ebd d\u1eebng ch\u1edd k\u1ebft qu\u1ea3; b\u1ea1n c\u00f3 th\u1ec3 b\u1ea5m "Ti\u1ebfp t\u1ee5c thanh to\u00e1n t\u1ea1o l\u1edbp" \u0111\u1ec3 m\u1edf l\u1ea1i QR.',
+            );
           }
+          break;
+        case Left():
+          _stopPolling();
+          if (mounted) {
+            _showMessage(
+              'B\u1ea1n \u0111\u00e3 \u0111\u00f3ng c\u1eeda s\u1ed5 thanh to\u00e1n. App s\u1ebd d\u1eebng ch\u1edd k\u1ebft qu\u1ea3; b\u1ea1n c\u00f3 th\u1ec3 b\u1ea5m "Ti\u1ebfp t\u1ee5c thanh to\u00e1n t\u1ea1o l\u1edbp" \u0111\u1ec3 m\u1edf l\u1ea1i QR.',
+            );
+          }
+          break;
       }
-    });
+    } finally {
+      _awaitingExternalPaymentReturn = false;
+      _resumeStatusCheckInFlight = false;
+    }
+  }
+
+  Future<Either<AppFailure, PaymentTransactionStatus>> _fetchTransactionStatus({
+    required String token,
+    required String transactionRef,
+  }) {
+    return ref.read(paymentsRemoteRepositoryProvider).getTransactionStatus(
+          token: token,
+          transactionRef: transactionRef,
+        );
+  }
+
+  Future<void> _handleTransactionStatusUpdate(
+    PaymentTransactionStatus status,
+  ) async {
+    if (!mounted) {
+      return;
+    }
+
+    setState(() => _transaction = status);
+    if (!status.isTerminal) {
+      return;
+    }
+
+    _awaitingExternalPaymentReturn = false;
+    _stopPolling();
+    if (status.isSuccessLike && status.classStatus == 'scheduled') {
+      await ref.read(tutorHomeViewModelProvider.notifier).refresh();
+      if (!mounted) {
+        return;
+      }
+      _showMessage(
+        'Thanh to\u00e1n th\u00e0nh c\u00f4ng, bu\u1ed5i h\u1ecdc \u0111\u00e3 \u0111\u01b0\u1ee3c t\u1ea1o.',
+      );
+      context.pop();
+      return;
+    }
+
+    _showMessage(
+      status.message ??
+          'Thanh to\u00e1n ph\u00ed t\u1ea1o l\u1edbp kh\u00f4ng th\u00e0nh c\u00f4ng.',
+    );
   }
 
   void _stopPolling() {
     _pollTimer?.cancel();
     _pollTimer = null;
+    _pollRequestInFlight = false;
     if (mounted) {
       setState(() => _pollingPayment = false);
     }
@@ -405,6 +558,11 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
   Widget build(BuildContext context) {
     final vmState = ref.watch(createClassViewModelProvider);
     final colorScheme = Theme.of(context).colorScheme;
+    final canResumePendingPayment =
+        _hasPendingPaymentTransaction && !_pollingPayment;
+    final primaryActionLabel = canResumePendingPayment
+        ? 'Ti\u1ebfp t\u1ee5c thanh to\u00e1n t\u1ea1o l\u1edbp'
+        : 'T\u1ea1o bu\u1ed5i h\u1ecdc v\u00e0 thanh to\u00e1n';
 
     ref.listen(createClassViewModelProvider, (_, next) {
       if (next.error == null) {
@@ -582,7 +740,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
             FilledButton(
               onPressed: vmState.isSubmitting || _pollingPayment
                   ? null
-                  : () => _submit(vmState),
+                  : () => _handlePrimaryPaymentAction(vmState),
               style: FilledButton.styleFrom(
                 minimumSize: const Size.fromHeight(52),
               ),
@@ -595,7 +753,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
                   : Text(
                       _pollingPayment
                           ? 'Đang chờ thanh toán phí tạo lớp...'
-                          : 'Tạo buổi học và thanh toán',
+                          : primaryActionLabel,
                       style: const TextStyle(fontSize: 16),
                     ),
             ),

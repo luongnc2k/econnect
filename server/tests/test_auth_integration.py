@@ -1,4 +1,5 @@
 from models.user import User
+from models.teacher_profile import TeacherProfile
 from tests.helpers import DEFAULT_PASSWORD, auth_headers, login_user, seed_user, signup_user
 
 
@@ -60,6 +61,53 @@ def test_login_rejects_inactive_user(client, db_session):
     db_user = db_session.query(User).filter(User.email == inactive_user.email).first()
     assert db_user is not None
     assert db_user.is_active is False
+
+
+def test_teacher_signup_creates_teacher_profile_even_without_bank_account(client, db_session):
+    signup_payload, signup_response = signup_user(
+        client,
+        role="teacher",
+        full_name="Teacher Signup First Login",
+    )
+
+    assert signup_response.status_code == 201
+    signup_body = signup_response.json()
+    teacher_profile = (
+        db_session.query(TeacherProfile)
+        .filter(TeacherProfile.user_id == signup_body["id"])
+        .first()
+    )
+    assert teacher_profile is not None
+    assert teacher_profile.bank_name is None
+    assert teacher_profile.bank_bin is None
+    assert teacher_profile.bank_account_number is None
+    assert teacher_profile.bank_account_holder is None
+
+
+def test_teacher_signup_can_still_persist_bank_account_when_provided(client, db_session):
+    signup_payload, signup_response = signup_user(
+        client,
+        role="teacher",
+        full_name="Teacher Signup Bank",
+        with_bank_account=True,
+        bank_name="MBBank",
+        bank_bin="970422",
+        bank_account_number="001122334455",
+        bank_account_holder="Trần Đăng Khoa",
+    )
+
+    assert signup_response.status_code == 201
+    signup_body = signup_response.json()
+    teacher_profile = (
+        db_session.query(TeacherProfile)
+        .filter(TeacherProfile.user_id == signup_body["id"])
+        .first()
+    )
+    assert teacher_profile is not None
+    assert teacher_profile.bank_name == signup_payload["bank_name"]
+    assert teacher_profile.bank_bin == signup_payload["bank_bin"]
+    assert teacher_profile.bank_account_number == signup_payload["bank_account_number"]
+    assert teacher_profile.bank_account_holder == "TRAN DANG KHOA"
 
 
 def test_login_uses_generic_error_for_unknown_email(client):

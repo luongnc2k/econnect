@@ -1,5 +1,7 @@
+from payment_gateways import PaymentGatewayError, ProviderPayoutDestinationVerificationResult
+from routes import profile as profile_routes
 from models.teacher_profile import TeacherProfile
-from tests.helpers import auth_headers, login_user, signup_user
+from tests.helpers import auth_headers, login_user, seed_user, signup_user
 
 
 def test_teacher_profile_update_uses_typed_schema_and_hides_sensitive_fields_from_others(client, db_session):
@@ -28,7 +30,7 @@ def test_teacher_profile_update_uses_typed_schema_and_hides_sensitive_fields_fro
             "bank_name": " ACB ",
             "bank_bin": "970416",
             "bank_account_number": " 0123456789 ",
-            "bank_account_holder": " Teacher Updated ",
+            "bank_account_holder": "  Trần Đăng Khoa  ",
             "certifications": "TESOL, IELTS",
             "verification_docs": ["https://example.com/doc-1.pdf", "  "],
             "rating": 5,
@@ -45,6 +47,7 @@ def test_teacher_profile_update_uses_typed_schema_and_hides_sensitive_fields_fro
     assert body["specialization"] == "English"
     assert body["bank_bin"] == "970416"
     assert body["bank_account_number"] == "0123456789"
+    assert body["bank_account_holder"] == "TRAN DANG KHOA"
     assert body["certifications"] == ["TESOL", "IELTS"]
     assert body["verification_docs"] == ["https://example.com/doc-1.pdf"]
 
@@ -56,6 +59,7 @@ def test_teacher_profile_update_uses_typed_schema_and_hides_sensitive_fields_fro
     assert teacher_profile is not None
     assert teacher_profile.native_language == "English"
     assert teacher_profile.years_experience == 6
+    assert teacher_profile.bank_account_holder == "TRAN DANG KHOA"
     assert teacher_profile.certifications == ["TESOL", "IELTS"]
 
     student_payload, student_signup_response = signup_user(client, role="student")
@@ -105,4 +109,171 @@ def test_profile_update_rejects_invalid_years_of_experience(client):
     assert any(
         "years_of_experience khong hop le" in error["msg"]
         for error in response.json()["detail"]
+    )
+
+
+def test_teacher_profile_update_requires_complete_payout_bank_fields(client, db_session):
+    teacher = seed_user(
+        db_session,
+        role="teacher",
+        full_name="Teacher Legacy Missing Bank",
+    )
+
+    teacher_login_response = login_user(
+        client,
+        email=teacher.email,
+    )
+    teacher_token = teacher_login_response.json()["token"]
+
+    response = client.put(
+        "/profile/me",
+        headers=auth_headers(teacher_token),
+        json={
+            "bank_name": "MBB",
+            "bank_account_number": "11223344455",
+        },
+    )
+
+    assert response.status_code == 400
+    assert (
+        response.json()["detail"]
+        == "Thong tin ngan hang nhan payout chua day du. Can nhap ca bank_bin va bank_account_number."
+    )
+
+
+def test_teacher_can_verify_payout_bank_account_destination(client, db_session, monkeypatch):
+    teacher = seed_user(
+        db_session,
+        role="teacher",
+        full_name="Teacher Verify Bank",
+    )
+
+    teacher_login_response = login_user(
+        client,
+        email=teacher.email,
+    )
+    teacher_token = teacher_login_response.json()["token"]
+
+    def _fake_verify_provider_payout_destination(*, provider: str, to_bin: str, to_account_number: str):
+        assert provider == "payos"
+        assert to_bin == "970418"
+        assert to_account_number == "1234567890"
+        return ProviderPayoutDestinationVerificationResult(
+            provider=provider,
+            is_valid=True,
+            message="payOS khong tra loi khi kiem tra so bo tai khoan nhan tien nay",
+            estimate_credit=0,
+        )
+
+    monkeypatch.setattr(
+        profile_routes,
+        "verify_provider_payout_destination",
+        _fake_verify_provider_payout_destination,
+    )
+
+    response = client.post(
+        "/profile/me/payout-bank-account/verify",
+        headers=auth_headers(teacher_token),
+        json={
+            "bank_bin": "970418",
+            "bank_account_number": "1234567890",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "provider": "payos",
+        "is_valid": True,
+        "message": "payOS khong tra loi khi kiem tra so bo tai khoan nhan tien nay",
+        "estimate_credit": 0,
+    }
+
+
+def test_teacher_verify_payout_bank_account_returns_invalid_result(client, db_session, monkeypatch):
+    teacher = seed_user(
+        db_session,
+        role="teacher",
+        full_name="Teacher Invalid Bank",
+    )
+
+    teacher_login_response = login_user(
+        client,
+        email=teacher.email,
+    )
+    teacher_token = teacher_login_response.json()["token"]
+
+    def _fake_verify_provider_payout_destination(*, provider: str, to_bin: str, to_account_number: str):
+        return ProviderPayoutDestinationVerificationResult(
+            provider=provider,
+            is_valid=False,
+            message="payOS bao khong the hoan tat buoc kiem tra so bo tai khoan nhan tien: Invalid destination account",
+        )
+
+    monkeypatch.setattr(
+        profile_routes,
+        "verify_provider_payout_destination",
+        _fake_verify_provider_payout_destination,
+    )
+
+    response = client.post(
+        "/profile/me/payout-bank-account/verify",
+        headers=auth_headers(teacher_token),
+        json={
+            "bank_bin": "970418",
+            "bank_account_number": "9999999999",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "provider": "payos",
+        "is_valid": False,
+        "message": "payOS bao khong the hoan tat buoc kiem tra so bo tai khoan nhan tien: Invalid destination account",
+        "estimate_credit": None,
+    }
+
+
+def test_teacher_verify_payout_bank_account_returns_actionable_ip_error(
+    client,
+    db_session,
+    monkeypatch,
+):
+    teacher = seed_user(
+        db_session,
+        role="teacher",
+        full_name="Teacher IP Restricted",
+    )
+
+    teacher_login_response = login_user(
+        client,
+        email=teacher.email,
+    )
+    teacher_token = teacher_login_response.json()["token"]
+
+    def _fake_verify_provider_payout_destination(*, provider: str, to_bin: str, to_account_number: str):
+        raise PaymentGatewayError(
+            "Khong the xac thuc tai khoan ngan hang payOS: Dia chi IP khong duoc phep truy cap he thong"
+        )
+
+    monkeypatch.setattr(
+        profile_routes,
+        "verify_provider_payout_destination",
+        _fake_verify_provider_payout_destination,
+    )
+
+    response = client.post(
+        "/profile/me/payout-bank-account/verify",
+        headers=auth_headers(teacher_token),
+        json={
+            "bank_bin": "970418",
+            "bank_account_number": "1234567890",
+        },
+    )
+
+    assert response.status_code == 502
+    assert response.json()["detail"] == (
+        "payOS từ chối kiểm tra vì IP máy chủ hiện tại chưa được thêm vào "
+        "Kênh chuyển tiền > Quản lý IP. Nếu bạn đang chạy local/ngrok, hãy đổi "
+        "PAYOS_PAYOUT_MOCK_MODE=true trong server/.env rồi restart backend. "
+        "Nếu muốn kiểm tra thật, hãy thêm public outbound IP của backend vào my.payos.vn."
     )

@@ -250,6 +250,8 @@ Không phải lúc nào cũng nên bật cả payment thật lẫn payout thật
 - nhận webhook thật
 - app poll lại transaction thật
 
+Lưu ý: `ngrok` chỉ giúp webhook/return callback vào máy local. Các API payout thật như verify tài khoản, payout balance, create payout, và sync payout vẫn đi ra từ IP public outbound của backend.
+
 Biến môi trường nên đặt:
 
 ```env
@@ -798,6 +800,7 @@ Chỉ đổi `PAYOS_PAYOUT_MOCK_MODE=false` khi bạn chuẩn bị test một tr
 - `POST /payments/classes/{class_id}/retry-payout`
 
 Khi đổi sang payout thật, cần điền bộ `PAYOS_PAYOUT_CLIENT_ID`, `PAYOS_PAYOUT_API_KEY`, `PAYOS_PAYOUT_CHECKSUM_KEY` riêng cho kênh payout.
+Ngoài ra, cần thêm IP public outbound của backend vào `my.payos.vn > Kênh chuyển tiền > Quản lý IP`, nếu không payOS sẽ chặn các API payout thật.
 
 Nếu chưa test các luồng này, nên để payout mock để tránh phát sinh lỗi ngoài ý muốn.
 
@@ -869,6 +872,21 @@ Cách xử lý:
 - kiểm tra thông tin ngân hàng tutor
 - sync payout nếu lệnh đang ở trạng thái processing
 
+### Verify tài khoản ngân hàng báo `Địa chỉ IP không được phép truy cập hệ thống`
+
+Nguyên nhân thường gặp:
+
+- `PAYOS_PAYOUT_MOCK_MODE=false`
+- IP public outbound của backend chưa được thêm vào allowlist của kênh chuyển tiền
+- tưởng rằng `ngrok` đã đủ, trong khi `ngrok` chỉ hỗ trợ callback inbound
+
+Cách xử lý:
+
+1. nếu chỉ đang dev local/ngrok, đổi lại `PAYOS_PAYOUT_MOCK_MODE=true`
+2. restart backend
+3. nếu cần verify/payout thật, xác định IP public outbound của backend
+4. thêm IP đó vào `my.payos.vn > Kênh chuyển tiền > Quản lý IP`
+
 ## 11. Bảo mật và quy tắc vận hành
 
 - Không chia sẻ token admin cho client app.
@@ -908,3 +926,4 @@ Với admin, 4 kỹ năng quan trọng nhất là:
 Nếu bạn chỉ cần nhớ một quy trình cơ bản, hãy nhớ chuỗi này:
 
 `tạo admin -> đăng nhập -> lấy token -> confirm webhook nếu cần -> xem summary / xử lý vận hành`
+
