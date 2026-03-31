@@ -68,4 +68,4 @@ Quản lý việc xem, chỉnh sửa và cập nhật hồ sơ cho người dùn
 ## Lưu ý
 
 - Student profile hiện tại không còn hiển thị `average score` trên UI.
-- Teacher profile có thêm certification, verification docs, rating, hourly rate.
+- Teacher profile có thêm certification, verification docs và rating.

@@ -10,7 +10,6 @@ class TeacherMyProfileModel extends UserModel {
   final double rating;
   final int totalStudents;
   final String? bio;
-  final double? hourlyRate;
   final List<String> certifications;
   final List<String> verificationDocs;
 
@@ -41,7 +40,6 @@ class TeacherMyProfileModel extends UserModel {
     this.rating = 0,
     this.totalStudents = 0,
     this.bio,
-    this.hourlyRate,
     this.certifications = const [],
     this.verificationDocs = const [],
   });
@@ -76,9 +74,6 @@ class TeacherMyProfileModel extends UserModel {
       totalStudents:
           int.tryParse(map['total_students']?.toString() ?? '0') ?? 0,
       bio: map['bio'] as String?,
-      hourlyRate: map['hourly_rate'] == null
-          ? null
-          : (map['hourly_rate'] as num).toDouble(),
       certifications: (map['certifications'] as List<dynamic>? ?? const [])
           .map((item) => item.toString())
           .where((item) => item.trim().isNotEmpty)
@@ -103,7 +98,6 @@ class TeacherMyProfileModel extends UserModel {
       'rating': rating,
       'total_students': totalStudents,
       'bio': bio,
-      'hourly_rate': hourlyRate,
       'certifications': certifications,
       'verification_docs': verificationDocs,
     });
@@ -132,7 +126,6 @@ class TeacherMyProfileModel extends UserModel {
     double? rating,
     int? totalStudents,
     String? bio,
-    double? hourlyRate,
     List<String>? certifications,
     List<String>? verificationDocs,
   }) {
@@ -157,7 +150,6 @@ class TeacherMyProfileModel extends UserModel {
       rating: rating ?? this.rating,
       totalStudents: totalStudents ?? this.totalStudents,
       bio: bio ?? this.bio,
-      hourlyRate: hourlyRate ?? this.hourlyRate,
       certifications: certifications ?? this.certifications,
       verificationDocs: verificationDocs ?? this.verificationDocs,
     );

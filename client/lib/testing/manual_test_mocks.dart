@@ -203,7 +203,6 @@ class ManualTestMocks {
           rating: 0.0,
           totalStudents: 128,
           bio: 'Chuyên dạy giao tiếp và phát âm cho người đi làm.',
-          hourlyRate: 250000,
           certifications: const ['TESOL', 'IELTS Trainer'],
         );
       case 'teacher-anna-lee':
@@ -224,7 +223,6 @@ class ManualTestMocks {
           rating: 0.0,
           totalStudents: 96,
           bio: 'Tập trung luyện phản xạ giao tiếp và phát âm tự nhiên.',
-          hourlyRate: 220000,
           certifications: const ['TEFL', 'Communication Coaching'],
         );
       case 'student-minh-tran':

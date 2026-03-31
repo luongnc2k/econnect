@@ -45,7 +45,6 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
   final _certificationsController = TextEditingController();
   final _bioController = TextEditingController();
   final _yearsOfExperienceController = TextEditingController();
-  final _hourlyRateController = TextEditingController();
 
   final _picker = ImagePicker();
   ImageProvider? _avatarPreviewImageProvider;
@@ -134,7 +133,6 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
       _certificationsController.text = profile.certifications.join(', ');
       _bioController.text = profile.bio ?? '';
       _yearsOfExperienceController.text = profile.yearsOfExperience.toString();
-      _hourlyRateController.text = profile.hourlyRate?.toStringAsFixed(0) ?? '';
       _selectedPayoutBankId = _resolveInitialPayoutBankId();
     }
 
@@ -219,7 +217,6 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
     _certificationsController.dispose();
     _bioController.dispose();
     _yearsOfExperienceController.dispose();
-    _hourlyRateController.dispose();
     super.dispose();
   }
 
@@ -785,7 +782,6 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
           bio: _bioController.text.trim(),
           yearsOfExperience:
               int.tryParse(_yearsOfExperienceController.text.trim()) ?? 0,
-          hourlyRate: double.tryParse(_hourlyRateController.text.trim()),
         );
       }
     } else {
@@ -955,12 +951,6 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
                           _buildField(
                             controller: _yearsOfExperienceController,
                             label: 'Số năm kinh nghiệm',
-                            keyboardType: TextInputType.number,
-                          ),
-                          const SizedBox(height: 12),
-                          _buildField(
-                            controller: _hourlyRateController,
-                            label: 'Học phí / buổi',
                             keyboardType: TextInputType.number,
                           ),
                           const SizedBox(height: 12),
