@@ -67,6 +67,7 @@ router = APIRouter()
 JOB_SECRET = (os.getenv("JOB_SECRET", "") or "").strip()
 CREATION_FEE_REFUND_PAYOUT_PAYMENT_TYPE = "creation_fee_refund_payout"
 STUDENT_REFUND_PAYOUT_PAYMENT_TYPE = "refund_payout"
+EMPTY_CLASS_NO_STUDENT_REASON = "Khong co hoc vien dang ky cho buoi hoc"
 
 
 def _now() -> datetime:
@@ -92,6 +93,18 @@ def _format_cancel_underfilled_reason(hours: float) -> str:
 def _is_underfilled_cancellation_reason(reason: Optional[str]) -> bool:
     normalized = (reason or "").strip().lower()
     return "hoc vien toi thieu" in normalized or "học viên tối thiểu" in normalized
+
+
+def _is_empty_class_cancellation_reason(reason: Optional[str]) -> bool:
+    normalized = (reason or "").strip().lower()
+    return (
+        EMPTY_CLASS_NO_STUDENT_REASON.lower() in normalized
+        or "khong co hoc vien dang ky" in normalized
+    )
+
+
+def _is_creation_fee_refund_eligible_cancellation_reason(reason: Optional[str]) -> bool:
+    return _is_underfilled_cancellation_reason(reason) or _is_empty_class_cancellation_reason(reason)
 
 
 def _get_user_or_404(db: Session, user_id: str) -> User:
@@ -424,6 +437,18 @@ def _create_refund_payment(
     return refund
 
 
+def _latest_refund_payment_for_booking(db: Session, booking_id: str) -> Optional[Payment]:
+    return (
+        db.query(Payment)
+        .filter(
+            Payment.booking_id == booking_id,
+            Payment.payment_type == "refund",
+        )
+        .order_by(Payment.created_at.desc())
+        .first()
+    )
+
+
 def _get_student_profile(db: Session, student_id: str) -> Optional[StudentProfile]:
     return db.query(StudentProfile).filter(StudentProfile.user_id == student_id).first()
 
@@ -545,6 +570,83 @@ def _create_student_refund_payout_attempt(
     return payout_payment
 
 
+def _released_student_refund_payout_for_booking(db: Session, booking_id: str) -> Optional[Payment]:
+    return (
+        db.query(Payment)
+        .filter(
+            Payment.booking_id == booking_id,
+            Payment.payment_type == STUDENT_REFUND_PAYOUT_PAYMENT_TYPE,
+            Payment.provider == PAYOS_PROVIDER,
+            Payment.status == "released",
+        )
+        .order_by(Payment.created_at.desc())
+        .first()
+    )
+
+
+def _latest_student_refund_payout_for_booking(db: Session, booking_id: str) -> Optional[Payment]:
+    return (
+        db.query(Payment)
+        .filter(
+            Payment.booking_id == booking_id,
+            Payment.payment_type == STUDENT_REFUND_PAYOUT_PAYMENT_TYPE,
+            Payment.provider == PAYOS_PROVIDER,
+        )
+        .order_by(Payment.created_at.desc())
+        .first()
+    )
+
+
+def _notify_student_refund_payout_updated(
+    *,
+    db: Session,
+    cls: Class,
+    booking: Booking,
+    refund_amount: Decimal,
+    refund_reason: str,
+    payout_payment: Payment,
+) -> None:
+    notify_refund_issued(
+        db,
+        cls=cls,
+        student_user_id=booking.student_id,
+        amount=refund_amount,
+        reason=refund_reason,
+        booking_id=booking.id,
+        refund_status=payout_payment.status,
+        transaction_ref=payout_payment.transaction_ref,
+        provider_order_id=payout_payment.provider_order_id,
+        message=payout_payment.failure_reason,
+    )
+
+
+def _start_student_refund_payout(
+    *,
+    db: Session,
+    cls: Class,
+    booking: Booking,
+    refund_payment: Payment,
+    refund_reason: str,
+    processed_at: datetime,
+) -> Payment:
+    refund_payout = _create_student_refund_payout_attempt(
+        db=db,
+        cls=cls,
+        booking=booking,
+        refund_payment=refund_payment,
+        processed_at=processed_at,
+    )
+    _notify_student_refund_payout_updated(
+        db=db,
+        cls=cls,
+        booking=booking,
+        refund_amount=Decimal(refund_payment.amount),
+        refund_reason=refund_reason,
+        payout_payment=refund_payout,
+    )
+    return refund_payout
+
+
 def _refund_booking(
     db: Session,
     booking: Booking,
@@ -576,24 +678,13 @@ def _refund_booking(
     )
 
     target_class = cls or _get_class_or_404(db, booking.class_id)
-    refund_payout = _create_student_refund_payout_attempt(
+    _start_student_refund_payout(
         db=db,
         cls=target_class,
         booking=booking,
         refund_payment=refund_payment,
+        refund_reason=reason,
         processed_at=processed_at,
-    )
-    notify_refund_issued(
-        db,
-        cls=target_class,
-        student_user_id=booking.student_id,
-        amount=Decimal(payment.amount),
-        reason=reason,
-        booking_id=booking.id,
-        refund_status=refund_payout.status,
-        transaction_ref=refund_payout.transaction_ref,
-        provider_order_id=refund_payout.provider_order_id,
-        message=refund_payout.failure_reason,
     )
 
 
@@ -1200,13 +1291,16 @@ def retry_class_payout(
         raise HTTPException(status_code=400, detail="Khong co escrow dang giu de retry payout")
 
     existing_payout = _active_payout_payment_for_class(db, cls.id)
-    if existing_payout and existing_payout.status == "processing":
-        payout_result = _sync_existing_payout(
-            db=db,
-            cls=cls,
-            payout_payment=existing_payout,
-            processed_at=now,
-        )
+    if existing_payout and existing_payout.status in {"pending", "processing"}:
+        try:
+            payout_result = _sync_existing_payout(
+                db=db,
+                cls=cls,
+                payout_payment=existing_payout,
+                processed_at=now,
+            )
+        except PaymentGatewayError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
         db.commit()
         return {
             "class_id": cls.id,
@@ -1228,12 +1322,15 @@ def retry_class_payout(
         }
 
     cls.tutor_payout_status = "pending"
-    payout_payment = _create_payout_attempt(
-        db=db,
-        cls=cls,
-        booking_rows=booking_rows,
-        processed_at=now,
-    )
+    try:
+        payout_payment = _create_payout_attempt(
+            db=db,
+            cls=cls,
+            booking_rows=booking_rows,
+            processed_at=now,
+        )
+    except PaymentGatewayError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     db.commit()
 
     return {
@@ -1259,22 +1356,28 @@ def retry_creation_fee_refund(
     now = _now()
     if cls.status != "cancelled":
         raise HTTPException(status_code=400, detail="Chi co the retry hoan phi tao lop cho lop da bi huy")
-    if not _is_underfilled_cancellation_reason(cls.cancellation_reason):
+    if not _is_creation_fee_refund_eligible_cancellation_reason(cls.cancellation_reason):
         raise HTTPException(
             status_code=400,
-            detail="Chi ho tro retry hoan phi tao lop cho lop bi huy do khong du hoc vien",
+            detail=(
+                "Chi ho tro retry hoan phi tao lop cho lop bi huy do khong du hoc vien "
+                "hoac khong co hoc vien dang ky"
+            ),
         )
     if Decimal(cls.creation_fee_amount) <= 0:
         raise HTTPException(status_code=400, detail="Lop hoc nay khong co phi tao lop de hoan")
 
     existing_refund = _active_creation_fee_refund_payout_for_class(db, cls.id)
-    if existing_refund and existing_refund.status == "processing":
-        payout_result = _sync_existing_creation_fee_refund_payout(
-            db=db,
-            cls=cls,
-            refund_payment=existing_refund,
-            processed_at=now,
-        )
+    if existing_refund and existing_refund.status in {"pending", "processing"}:
+        try:
+            payout_result = _sync_existing_creation_fee_refund_payout(
+                db=db,
+                cls=cls,
+                refund_payment=existing_refund,
+                processed_at=now,
+            )
+        except PaymentGatewayError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
         db.commit()
         return {
             "class_id": cls.id,
@@ -1295,11 +1398,14 @@ def retry_creation_fee_refund(
             "message": "Hoan phi tao lop da hoan tat truoc do",
         }
 
-    refund_payment = _create_creation_fee_refund_payout_attempt(
-        db=db,
-        cls=cls,
-        processed_at=now,
-    )
+    try:
+        refund_payment = _create_creation_fee_refund_payout_attempt(
+            db=db,
+            cls=cls,
+            processed_at=now,
+        )
+    except PaymentGatewayError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     db.commit()
 
     return {
@@ -1308,6 +1414,114 @@ def retry_creation_fee_refund(
         "amount": str(cls.creation_fee_amount),
         "provider_order_id": refund_payment.provider_order_id,
         "message": "Da tao lai lenh chuyen khoan hoan phi tao lop qua payOS",
+    }
+
+
+@router.post("/bookings/{booking_id}/retry-refund")
+def retry_student_refund_payout(
+    booking_id: str,
+    db: Session = Depends(get_db),
+    user_dict: dict = Depends(auth_middleware),
+):
+    admin = _get_user_or_404(db, user_dict["uid"])
+    _require_role(admin, {"admin"})
+
+    now = _now()
+    booking = db.query(Booking).filter(Booking.id == booking_id).with_for_update().first()
+    if not booking:
+        raise HTTPException(status_code=404, detail="Khong tim thay booking")
+
+    cls = _get_class_or_404(db, booking.class_id, for_update=True)
+    refund_reason = booking.cancel_reason or cls.cancellation_reason or "Lop hoc bi huy"
+    if booking.status != "refunded" or booking.escrow_status != "refunded":
+        raise HTTPException(
+            status_code=400,
+            detail="Chi co the retry hoan tien cho booking da duoc danh dau hoan tien",
+        )
+
+    refund_payment = _latest_refund_payment_for_booking(db, booking.id)
+    if not refund_payment:
+        tuition_payment = (
+            db.query(Payment)
+            .filter(
+                Payment.booking_id == booking.id,
+                Payment.payment_type == "tuition",
+            )
+            .order_by(Payment.created_at.desc())
+            .first()
+        )
+        if not tuition_payment:
+            raise HTTPException(status_code=400, detail="Khong tim thay giao dich hoc phi goc de retry hoan tien")
+        refund_payment = _create_refund_payment(
+            db,
+            payer_user_id=tuition_payment.payer_user_id,
+            payee_user_id=booking.student_id,
+            class_id=booking.class_id,
+            booking_id=booking.id,
+            amount=Decimal(tuition_payment.amount),
+            provider=tuition_payment.provider,
+            reason=refund_reason,
+        )
+
+    released_refund = _released_student_refund_payout_for_booking(db, booking.id)
+    if released_refund:
+        db.commit()
+        return {
+            "booking_id": booking.id,
+            "class_id": cls.id,
+            "status": released_refund.status,
+            "amount": str(refund_payment.amount),
+            "provider_order_id": released_refund.provider_order_id,
+            "message": "Hoan tien hoc vien da hoan tat truoc do",
+        }
+
+    existing_refund = _latest_student_refund_payout_for_booking(db, booking.id)
+    if existing_refund and existing_refund.status in {"pending", "processing"}:
+        try:
+            payout_result = _sync_existing_student_refund_payout(
+                db=db,
+                cls=cls,
+                booking=booking,
+                payout_payment=existing_refund,
+                processed_at=now,
+            )
+        except PaymentGatewayError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        db.commit()
+        return {
+            "booking_id": booking.id,
+            "class_id": cls.id,
+            "status": existing_refund.status,
+            "amount": str(refund_payment.amount),
+            "provider_order_id": existing_refund.provider_order_id,
+            "provider_status": payout_result.provider_status,
+            "message": "Da dong bo lai trang thai lenh hoan tien hoc vien dang xu ly",
+        }
+
+    try:
+        payout_payment = _start_student_refund_payout(
+            db=db,
+            cls=cls,
+            booking=booking,
+            refund_payment=refund_payment,
+            refund_reason=refund_reason,
+            processed_at=now,
+        )
+    except PaymentGatewayError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    db.commit()
+
+    message = "Da tao lai lenh chuyen khoan hoan tien cho hoc vien qua payOS"
+    if payout_payment.status == "failed":
+        message = payout_payment.failure_reason or "payOS tra ve that bai cho lenh hoan tien hoc vien"
+
+    return {
+        "booking_id": booking.id,
+        "class_id": cls.id,
+        "status": payout_payment.status,
+        "amount": str(refund_payment.amount),
+        "provider_order_id": payout_payment.provider_order_id,
+        "message": message,
     }
 
 
@@ -1487,7 +1701,7 @@ def _processing_payout_rows(db: Session) -> list[tuple[Payment, Class]]:
         .filter(
             Payment.payment_type == "payout",
             Payment.provider == PAYOS_PROVIDER,
-            Payment.status == "processing",
+            Payment.status.in_(["pending", "processing"]),
         )
         .all()
     )
@@ -1676,7 +1890,7 @@ def _processing_student_refund_payout_rows(db: Session) -> list[tuple[Payment, C
         .filter(
             Payment.payment_type == STUDENT_REFUND_PAYOUT_PAYMENT_TYPE,
             Payment.provider == PAYOS_PROVIDER,
-            Payment.status == "processing",
+            Payment.status.in_(["pending", "processing"]),
         )
         .all()
     )
@@ -1742,7 +1956,7 @@ def _processing_creation_fee_refund_payout_rows(db: Session) -> list[tuple[Payme
         .filter(
             Payment.payment_type == CREATION_FEE_REFUND_PAYOUT_PAYMENT_TYPE,
             Payment.provider == PAYOS_PROVIDER,
-            Payment.status == "processing",
+            Payment.status.in_(["pending", "processing"]),
         )
         .all()
     )
@@ -1750,6 +1964,93 @@ def _processing_creation_fee_refund_payout_rows(db: Session) -> list[tuple[Payme
 
 def _build_creation_fee_refund_description(cls: Class) -> str:
     return f"Refund {_build_class_code(cls)}"[:25]
+
+
+def _auto_cancel_empty_finished_class(
+    *,
+    db: Session,
+    cls: Class,
+    processed_at: datetime,
+    reason: str,
+) -> None:
+    cls.status = "cancelled"
+    cls.cancelled_at = processed_at
+    cls.cancellation_reason = reason
+    cls.current_participants = 0
+    cls.tutor_payout_status = "withheld"
+    cls.tutor_payout_amount = Decimal("0")
+    cls.tutor_paid_at = None
+
+    if cls.creation_payment_status == "paid":
+        try:
+            _create_creation_fee_refund_payout_attempt(
+                db=db,
+                cls=cls,
+                processed_at=processed_at,
+            )
+        except (HTTPException, PaymentGatewayError) as exc:
+            cls.creation_payment_status = "refund_failed"
+            notify_tutor_creation_fee_refund_updated(
+                db,
+                cls=cls,
+                amount=Decimal(cls.creation_fee_amount),
+                reason=reason,
+                refund_status=cls.creation_payment_status,
+                message=exc.detail if isinstance(exc, HTTPException) else str(exc),
+            )
+
+    notify_class_cancelled(
+        db,
+        cls=cls,
+        student_user_ids=[],
+        reason=reason,
+        cancelled_by="system",
+        notify_teacher=True,
+    )
+
+
+def _cancel_finished_empty_classes(
+    *,
+    db: Session,
+    now: datetime,
+) -> list[dict[str, str]]:
+    finished_classes = (
+        db.query(Class)
+        .filter(
+            Class.status.in_(["scheduled", "completed"]),
+            Class.end_time <= now,
+            Class.has_active_dispute.is_(False),
+        )
+        .all()
+    )
+
+    cancelled = []
+    for cls in finished_classes:
+        active_count = _sync_class_participants(db, cls.id)
+        if active_count != 0:
+            continue
+        if _held_booking_rows_for_class(db, cls.id):
+            continue
+
+        existing_payout = _active_payout_payment_for_class(db, cls.id)
+        if existing_payout:
+            continue
+
+        _auto_cancel_empty_finished_class(
+            db=db,
+            cls=cls,
+            processed_at=now,
+            reason=EMPTY_CLASS_NO_STUDENT_REASON,
+        )
+        cancelled.append(
+            {
+                "class_id": cls.id,
+                "status": "cancelled",
+                "reason": EMPTY_CLASS_NO_STUDENT_REASON,
+            }
+        )
+
+    return cancelled
 
 
 def _build_creation_fee_refund_payout_payment(
@@ -2085,6 +2386,7 @@ def release_eligible_payouts(
 ):
     _require_admin_or_job_secret(db, user_dict=user_dict, x_job_secret=x_job_secret)
     now = _now()
+    released = _cancel_finished_empty_classes(db=db, now=now)
     eligible_classes = (
         db.query(Class)
         .filter(
@@ -2094,30 +2396,42 @@ def release_eligible_payouts(
         )
         .all()
     )
-
-    released = []
     for cls in eligible_classes:
         if cls.tutor_payout_status not in {"pending", "processing"}:
             continue
 
+        active_count = _sync_class_participants(db, cls.id)
         existing_payout = _active_payout_payment_for_class(db, cls.id)
-        if existing_payout and existing_payout.status == "processing":
+        if existing_payout and existing_payout.status in {"pending", "processing"}:
             released.append(
                 {
                     "class_id": cls.id,
-                    "status": "processing",
+                    "status": existing_payout.status,
                     "amount": str(existing_payout.amount),
                 }
             )
             continue
+        if existing_payout and existing_payout.status == "released":
+            continue
 
         booking_rows = _held_booking_rows_for_class(db, cls.id)
         if not booking_rows:
-            if cls.status == "scheduled":
+            if active_count == 0:
+                _auto_cancel_empty_finished_class(
+                    db=db,
+                    cls=cls,
+                    processed_at=now,
+                    reason=EMPTY_CLASS_NO_STUDENT_REASON,
+                )
+                released.append(
+                    {
+                        "class_id": cls.id,
+                        "status": "cancelled",
+                        "reason": EMPTY_CLASS_NO_STUDENT_REASON,
+                    }
+                )
+            elif cls.status == "scheduled":
                 cls.status = "completed"
-            continue
-
-        if existing_payout and existing_payout.status == "released":
             continue
 
         try:

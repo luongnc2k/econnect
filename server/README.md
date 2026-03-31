@@ -356,6 +356,8 @@ Chỉ chuyển `PAYOS_PAYOUT_MOCK_MODE=false` khi bạn thật sự cần test c
 - `POST /payments/jobs/release-eligible-payouts`
 - `POST /payments/jobs/sync-payout-statuses`
 - `POST /payments/classes/{class_id}/retry-payout`
+- `POST /payments/classes/{class_id}/retry-creation-fee-refund`
+- `POST /payments/bookings/{booking_id}/retry-refund`
 
 Khi bật payout thật:
 
@@ -364,6 +366,7 @@ Khi bật payout thật:
 - tutor phải có đủ `bank_bin` và `bank_account_number`
 - học viên cũng nên có đủ `bank_bin` và `bank_account_number` nếu muốn backend hoàn tiền về tài khoản ngân hàng khi lớp bị hủy
 - nên dùng teacher đã có hồ sơ payout sẵn hoặc cập nhật profile trước khi chạy job payout
+- lớp đã hết giờ nhưng không có học viên sẽ bị auto-cancel ngay khi job `release-eligible-payouts` chạy, không cần chờ thêm 2 giờ
 
 Hướng dẫn chi tiết hơn cho luồng admin local có trong [docs/admin-operations.md](../docs/admin-operations.md).
 

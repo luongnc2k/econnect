@@ -1,7 +1,7 @@
 import json
 import uuid
 from notification_service import serialize_notification_data
-from payment_gateways import ProviderPayoutResult
+from payment_gateways import PaymentGatewayError, ProviderPayoutResult
 from models.class_ import Class
 from models.notification import Notification
 from models.payment import Payment
@@ -11,6 +11,7 @@ from datetime import datetime, timedelta, timezone
 
 from tests.helpers import (
     auth_headers,
+    create_admin_user,
     create_learning_location,
     login_user,
     seed_paid_class_with_held_bookings,
@@ -26,6 +27,19 @@ def _signup_and_login(client, *, role: str, full_name: str) -> tuple[dict, str]:
         full_name=full_name,
     )
     assert signup_response.status_code == 201
+
+    login_response = login_user(
+        client,
+        email=payload["email"],
+        password=payload["password"],
+    )
+    assert login_response.status_code == 200
+    return payload, login_response.json()["token"]
+
+
+def _create_admin_and_login(client, *, full_name: str = "Admin User") -> tuple[dict, str]:
+    payload, create_response = create_admin_user(client, full_name=full_name)
+    assert create_response.status_code == 201
 
     login_response = login_user(
         client,
@@ -510,6 +524,433 @@ def test_tutor_cannot_cancel_class_that_has_already_started(client, db_session):
     assert cancel_response.json()["detail"] == "Khong the huy buoi hoc da bat dau"
 
 
+def test_retry_student_refund_payout_recovers_failed_refund_transfer(
+    client,
+    db_session,
+    monkeypatch,
+):
+    _, teacher_token = _signup_and_login(client, role="teacher", full_name="Teacher Retry Refund")
+    location = create_learning_location(
+        db_session,
+        name="Retry Refund Room",
+        address="Google Meet",
+    )
+    start_time = datetime.now(timezone.utc) + timedelta(days=1)
+    end_time = start_time + timedelta(hours=2)
+    creation_response = client.post(
+        "/payments/class-creation/request",
+        headers=auth_headers(teacher_token),
+        json={
+            "class_payload": {
+                "topic": "Retry Refund Topic",
+                "title": "Retry Refund Class",
+                "description": "Test student refund retry flow",
+                "level": "intermediate",
+                "location_id": location.id,
+                "start_time": start_time.isoformat(),
+                "end_time": end_time.isoformat(),
+                "min_participants": 1,
+                "max_participants": 2,
+                "price": "200000",
+                "thumbnail_url": "https://example.com/thumb.jpg",
+            }
+        },
+    )
+    assert creation_response.status_code == 201
+    creation_body = creation_response.json()
+
+    activation_response = client.post(
+        "/payments/callback",
+        json={
+            "transaction_ref": creation_body["transaction_ref"],
+            "status": "success",
+            "provider_transaction_id": "MOCK-CREATION-RETRY-STUDENT-REFUND-001",
+        },
+    )
+    assert activation_response.status_code == 200
+
+    _, student_token = _signup_and_login(client, role="student", full_name="Student Retry Refund")
+    update_student_bank_response = client.put(
+        "/profile/me",
+        headers=auth_headers(student_token),
+        json={
+            "bank_name": "MBBank",
+            "bank_bin": "970422",
+            "bank_account_number": "9988776655",
+            "bank_account_holder": "STUDENT RETRY REFUND",
+        },
+    )
+    assert update_student_bank_response.status_code == 200
+
+    join_response = client.post(
+        f"/payments/classes/{creation_body['class_id']}/join/request",
+        headers=auth_headers(student_token),
+        json={},
+    )
+    assert join_response.status_code == 201
+    join_body = join_response.json()
+
+    complete_response = client.post(
+        "/payments/callback",
+        json={
+            "transaction_ref": join_body["transaction_ref"],
+            "status": "success",
+            "provider_transaction_id": "MOCK-TUITION-RETRY-STUDENT-REFUND-001",
+        },
+    )
+    assert complete_response.status_code == 200
+
+    def _fail_student_refund_payout(
+        *,
+        provider: str,
+        reference_id: str,
+        amount,
+        description: str,
+        to_bin: str,
+        to_account_number: str,
+    ):
+        assert provider == "payos"
+        assert description.startswith("Refund CLS-")
+        raise PaymentGatewayError("payOS tam thoi khong the chuyen khoan hoan tien hoc vien")
+
+    monkeypatch.setattr(
+        payments_routes,
+        "create_provider_payout",
+        _fail_student_refund_payout,
+    )
+
+    cancel_response = client.post(
+        f"/payments/classes/{creation_body['class_id']}/cancel",
+        headers=auth_headers(teacher_token),
+        json={"reason": "Tutor huy de test retry refund"},
+    )
+    assert cancel_response.status_code == 200
+
+    failed_refund_payout = (
+        db_session.query(Payment)
+        .filter(
+            Payment.booking_id == join_body["booking_id"],
+            Payment.payment_type == payments_routes.STUDENT_REFUND_PAYOUT_PAYMENT_TYPE,
+        )
+        .order_by(Payment.created_at.desc())
+        .first()
+    )
+    assert failed_refund_payout is not None
+    assert failed_refund_payout.status == "failed"
+
+    _, admin_token = _create_admin_and_login(client, full_name="Admin Retry Student Refund")
+
+    def _released_student_refund_payout(
+        *,
+        provider: str,
+        reference_id: str,
+        amount,
+        description: str,
+        to_bin: str,
+        to_account_number: str,
+    ):
+        assert provider == "payos"
+        assert description.startswith("Refund CLS-")
+        assert to_bin == "970422"
+        assert to_account_number == "9988776655"
+        return ProviderPayoutResult(
+            provider="payos",
+            provider_order_id=f"student-refund-retry-{reference_id}",
+            provider_transaction_id=f"student-refund-retry-txn-{reference_id}",
+            local_status="released",
+            payout_status="paid",
+            provider_status="COMPLETED:SUCCEEDED",
+            raw_payload='{"status":"SUCCEEDED"}',
+            message="payOS da chuyen khoan hoan tien hoc vien thanh cong",
+        )
+
+    monkeypatch.setattr(
+        payments_routes,
+        "create_provider_payout",
+        _released_student_refund_payout,
+    )
+
+    retry_response = client.post(
+        f"/payments/bookings/{join_body['booking_id']}/retry-refund",
+        headers=auth_headers(admin_token),
+    )
+    assert retry_response.status_code == 200
+    retry_body = retry_response.json()
+    assert retry_body["status"] == "released"
+
+    db_session.expire_all()
+    refund_payouts = (
+        db_session.query(Payment)
+        .filter(
+            Payment.booking_id == join_body["booking_id"],
+            Payment.payment_type == payments_routes.STUDENT_REFUND_PAYOUT_PAYMENT_TYPE,
+        )
+        .order_by(Payment.created_at.asc())
+        .all()
+    )
+    assert len(refund_payouts) == 2
+    assert refund_payouts[0].status == "failed"
+    assert refund_payouts[1].status == "released"
+
+    student_notifications_response = client.get(
+        "/notifications",
+        headers=auth_headers(student_token),
+    )
+    assert student_notifications_response.status_code == 200
+    refund_notifications = [
+        item
+        for item in student_notifications_response.json()
+        if item["type"] == "refund_issued" and item["data"]["class_id"] == creation_body["class_id"]
+    ]
+    assert any(item["data"]["refund_status"] == "failed" for item in refund_notifications)
+    assert any(item["data"]["refund_status"] == "released" for item in refund_notifications)
+
+
+def test_retry_creation_fee_refund_accepts_empty_finished_class_reason(
+    client,
+    db_session,
+    monkeypatch,
+):
+    _, admin_token = _create_admin_and_login(client, full_name="Admin Retry Creation Fee")
+    _, teacher_token = _signup_and_login(client, role="teacher", full_name="Teacher Retry Creation Fee")
+    update_teacher_bank_response = client.put(
+        "/profile/me",
+        headers=auth_headers(teacher_token),
+        json={
+            "bank_name": "MBBank",
+            "bank_bin": "970422",
+            "bank_account_number": "2233445566",
+            "bank_account_holder": "TEACHER RETRY CREATION FEE",
+        },
+    )
+    assert update_teacher_bank_response.status_code == 200
+
+    location = create_learning_location(
+        db_session,
+        name="Retry Creation Fee Room",
+        address="Google Meet",
+    )
+    start_time = datetime.now(timezone.utc) + timedelta(days=1)
+    end_time = start_time + timedelta(hours=1)
+    creation_response = client.post(
+        "/payments/class-creation/request",
+        headers=auth_headers(teacher_token),
+        json={
+            "class_payload": {
+                "topic": "Retry Creation Fee Topic",
+                "title": "Retry Creation Fee Class",
+                "description": "Retry creation fee refund for empty class",
+                "level": "intermediate",
+                "location_id": location.id,
+                "start_time": start_time.isoformat(),
+                "end_time": end_time.isoformat(),
+                "min_participants": 1,
+                "max_participants": 3,
+                "price": "200000",
+                "thumbnail_url": "https://example.com/thumb.jpg",
+            }
+        },
+    )
+    assert creation_response.status_code == 201
+    creation_body = creation_response.json()
+
+    activation_response = client.post(
+        "/payments/callback",
+        json={
+            "transaction_ref": creation_body["transaction_ref"],
+            "status": "success",
+            "provider_transaction_id": "MOCK-CREATION-RETRY-CREATION-FEE-001",
+        },
+    )
+    assert activation_response.status_code == 200
+
+    cls = db_session.query(Class).filter(Class.id == creation_body["class_id"]).first()
+    assert cls is not None
+    cls.status = "cancelled"
+    cls.cancelled_at = datetime.now(timezone.utc)
+    cls.cancellation_reason = payments_routes.EMPTY_CLASS_NO_STUDENT_REASON
+    cls.current_participants = 0
+    cls.creation_payment_status = "refund_failed"
+    db_session.commit()
+
+    def _released_creation_fee_refund(
+        *,
+        provider: str,
+        reference_id: str,
+        amount,
+        description: str,
+        to_bin: str,
+        to_account_number: str,
+    ):
+        assert provider == "payos"
+        assert description.startswith("Refund CLS-")
+        assert to_bin == "970422"
+        assert to_account_number == "2233445566"
+        return ProviderPayoutResult(
+            provider="payos",
+            provider_order_id=f"creation-fee-refund-{reference_id}",
+            provider_transaction_id=f"creation-fee-refund-txn-{reference_id}",
+            local_status="released",
+            payout_status="paid",
+            provider_status="COMPLETED:SUCCEEDED",
+            raw_payload='{"status":"SUCCEEDED"}',
+            message="payOS da chuyen khoan hoan phi tao lop thanh cong",
+        )
+
+    monkeypatch.setattr(
+        payments_routes,
+        "create_provider_payout",
+        _released_creation_fee_refund,
+    )
+
+    retry_response = client.post(
+        f"/payments/classes/{creation_body['class_id']}/retry-creation-fee-refund",
+        headers=auth_headers(admin_token),
+    )
+    assert retry_response.status_code == 200
+    retry_body = retry_response.json()
+    assert retry_body["status"] == "refunded"
+
+    db_session.expire_all()
+    creation_fee_refund = (
+        db_session.query(Payment)
+        .filter(
+            Payment.class_id == creation_body["class_id"],
+            Payment.payment_type == payments_routes.CREATION_FEE_REFUND_PAYOUT_PAYMENT_TYPE,
+            Payment.status == "released",
+        )
+        .first()
+    )
+    refreshed_class = db_session.query(Class).filter(Class.id == creation_body["class_id"]).first()
+    assert refreshed_class is not None
+    assert refreshed_class.creation_payment_status == "refunded"
+    assert creation_fee_refund is not None
+
+
+def test_release_eligible_payouts_cancels_empty_finished_class_immediately_after_end_time(
+    client,
+    db_session,
+    monkeypatch,
+):
+    _, teacher_token = _signup_and_login(client, role="teacher", full_name="Teacher Empty Immediate")
+    update_teacher_bank_response = client.put(
+        "/profile/me",
+        headers=auth_headers(teacher_token),
+        json={
+            "bank_name": "MBBank",
+            "bank_bin": "970422",
+            "bank_account_number": "6677889900",
+            "bank_account_holder": "TEACHER EMPTY IMMEDIATE",
+        },
+    )
+    assert update_teacher_bank_response.status_code == 200
+
+    location = create_learning_location(
+        db_session,
+        name="Immediate Empty Room",
+        address="Google Meet",
+    )
+    start_time = datetime.now(timezone.utc) + timedelta(days=1)
+    end_time = start_time + timedelta(hours=1)
+    creation_response = client.post(
+        "/payments/class-creation/request",
+        headers=auth_headers(teacher_token),
+        json={
+            "class_payload": {
+                "topic": "Immediate Empty Topic",
+                "title": "Immediate Empty Class",
+                "description": "Should auto cancel right after class ends",
+                "level": "intermediate",
+                "location_id": location.id,
+                "start_time": start_time.isoformat(),
+                "end_time": end_time.isoformat(),
+                "min_participants": 1,
+                "max_participants": 4,
+                "price": "200000",
+                "thumbnail_url": "https://example.com/thumb.jpg",
+            }
+        },
+    )
+    assert creation_response.status_code == 201
+    creation_body = creation_response.json()
+
+    activation_response = client.post(
+        "/payments/callback",
+        json={
+            "transaction_ref": creation_body["transaction_ref"],
+            "status": "success",
+            "provider_transaction_id": "MOCK-CREATION-IMMEDIATE-EMPTY-001",
+        },
+    )
+    assert activation_response.status_code == 200
+
+    cls = db_session.query(Class).filter(Class.id == creation_body["class_id"]).first()
+    assert cls is not None
+    cls.start_time = datetime.now(timezone.utc) - timedelta(hours=1, minutes=5)
+    cls.end_time = datetime.now(timezone.utc) - timedelta(minutes=5)
+    cls.status = "scheduled"
+    cls.current_participants = 0
+    db_session.commit()
+
+    def _released_empty_class_creation_fee_refund(
+        *,
+        provider: str,
+        reference_id: str,
+        amount,
+        description: str,
+        to_bin: str,
+        to_account_number: str,
+    ):
+        assert provider == "payos"
+        assert description.startswith("Refund CLS-")
+        assert to_bin == "970422"
+        assert to_account_number == "6677889900"
+        return ProviderPayoutResult(
+            provider="payos",
+            provider_order_id=f"immediate-empty-refund-{reference_id}",
+            provider_transaction_id=f"immediate-empty-refund-txn-{reference_id}",
+            local_status="released",
+            payout_status="paid",
+            provider_status="COMPLETED:SUCCEEDED",
+            raw_payload='{"status":"SUCCEEDED"}',
+            message="payOS da chuyen khoan hoan phi tao lop thanh cong",
+        )
+
+    monkeypatch.setattr(
+        payments_routes,
+        "create_provider_payout",
+        _released_empty_class_creation_fee_refund,
+    )
+
+    response = client.post(
+        "/payments/jobs/release-eligible-payouts",
+        headers={"x-job-secret": "test-job-secret"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert any(
+        item["class_id"] == creation_body["class_id"] and item["status"] == "cancelled"
+        for item in body["released"]
+    )
+
+    db_session.expire_all()
+    refreshed_class = db_session.query(Class).filter(Class.id == creation_body["class_id"]).first()
+    creation_fee_refund = (
+        db_session.query(Payment)
+        .filter(
+            Payment.class_id == creation_body["class_id"],
+            Payment.payment_type == payments_routes.CREATION_FEE_REFUND_PAYOUT_PAYMENT_TYPE,
+            Payment.status == "released",
+        )
+        .first()
+    )
+    assert refreshed_class is not None
+    assert refreshed_class.status == "cancelled"
+    assert refreshed_class.creation_payment_status == "refunded"
+    assert refreshed_class.cancellation_reason == payments_routes.EMPTY_CLASS_NO_STUDENT_REASON
+    assert creation_fee_refund is not None
+
+
 def test_cancel_underfilled_classes_uses_active_bookings_instead_of_stale_cached_count(
     client,
     db_session,
@@ -610,6 +1051,148 @@ def test_cancel_underfilled_classes_uses_active_bookings_instead_of_stale_cached
     assert tutor_refund_data["refund_scope"] == "class_creation_fee"
     assert tutor_refund_data["refund_amount"] == str(refreshed_class.creation_fee_amount)
     assert tutor_refund_data["refund_status"] == "refunded"
+
+
+def test_release_eligible_payouts_repairs_legacy_completed_empty_class_and_refunds_creation_fee(
+    client,
+    db_session,
+    monkeypatch,
+):
+    _, teacher_token = _signup_and_login(client, role="teacher", full_name="Teacher Empty Legacy")
+    update_teacher_bank_response = client.put(
+        "/profile/me",
+        headers=auth_headers(teacher_token),
+        json={
+            "bank_name": "MBBank",
+            "bank_bin": "970422",
+            "bank_account_number": "112233445566",
+            "bank_account_holder": "Teacher Empty Legacy",
+        },
+    )
+    assert update_teacher_bank_response.status_code == 200
+
+    location = create_learning_location(
+        db_session,
+        name="Legacy Empty Room",
+        address="Google Meet",
+    )
+    start_time = datetime.now(timezone.utc) + timedelta(days=1)
+    end_time = start_time + timedelta(hours=1)
+    creation_response = client.post(
+        "/payments/class-creation/request",
+        headers=auth_headers(teacher_token),
+        json={
+            "class_payload": {
+                "topic": "Legacy Empty Topic",
+                "title": "Legacy Empty Class",
+                "description": "No students but legacy completed",
+                "level": "intermediate",
+                "location_id": location.id,
+                "start_time": start_time.isoformat(),
+                "end_time": end_time.isoformat(),
+                "min_participants": 1,
+                "max_participants": 4,
+                "price": "200000",
+                "thumbnail_url": "https://example.com/thumb.jpg",
+            }
+        },
+    )
+    assert creation_response.status_code == 201
+    creation_body = creation_response.json()
+
+    activation_response = client.post(
+        "/payments/callback",
+        json={
+            "transaction_ref": creation_body["transaction_ref"],
+            "status": "success",
+            "provider_transaction_id": "MOCK-CREATION-EMPTY-LEGACY-001",
+        },
+    )
+    assert activation_response.status_code == 200
+
+    cls = db_session.query(Class).filter(Class.id == creation_body["class_id"]).first()
+    assert cls is not None
+    cls.start_time = datetime.now(timezone.utc) - timedelta(hours=3)
+    cls.end_time = datetime.now(timezone.utc) - timedelta(hours=2, minutes=30)
+    cls.status = "completed"
+    cls.current_participants = 0
+    db_session.commit()
+
+    def _fake_create_provider_payout(
+        *,
+        provider: str,
+        reference_id: str,
+        amount,
+        description: str,
+        to_bin: str,
+        to_account_number: str,
+    ):
+        assert provider == "payos"
+        assert description.startswith("Refund CLS-")
+        assert to_bin == "970422"
+        assert to_account_number == "112233445566"
+        return ProviderPayoutResult(
+            provider="payos",
+            provider_order_id=f"legacy-empty-refund-{reference_id}",
+            provider_transaction_id=f"legacy-empty-refund-txn-{reference_id}",
+            local_status="released",
+            payout_status="paid",
+            provider_status="COMPLETED:SUCCEEDED",
+            raw_payload='{"status":"SUCCEEDED"}',
+            message="payOS da chuyen khoan hoan phi tao lop thanh cong",
+        )
+
+    monkeypatch.setattr(
+        payments_routes,
+        "create_provider_payout",
+        _fake_create_provider_payout,
+    )
+
+    response = client.post(
+        "/payments/jobs/release-eligible-payouts",
+        headers={"x-job-secret": "test-job-secret"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["count"] == 1
+    assert body["released"][0]["class_id"] == cls.id
+    assert body["released"][0]["status"] == "cancelled"
+
+    db_session.expire_all()
+    refreshed_class = db_session.query(Class).filter(Class.id == cls.id).first()
+    creation_fee_refund = (
+        db_session.query(Payment)
+        .filter(
+            Payment.class_id == cls.id,
+            Payment.payment_type == payments_routes.CREATION_FEE_REFUND_PAYOUT_PAYMENT_TYPE,
+            Payment.status == "released",
+        )
+        .first()
+    )
+    assert refreshed_class is not None
+    assert refreshed_class.status == "cancelled"
+    assert refreshed_class.current_participants == 0
+    assert refreshed_class.creation_payment_status == "refunded"
+    assert refreshed_class.cancellation_reason == "Khong co hoc vien dang ky cho buoi hoc"
+    assert creation_fee_refund is not None
+    assert creation_fee_refund.amount == refreshed_class.creation_fee_amount
+
+    teacher_notifications_response = client.get(
+        "/notifications",
+        headers=auth_headers(teacher_token),
+    )
+    assert teacher_notifications_response.status_code == 200
+    notifications = teacher_notifications_response.json()
+    matching_cancel = [
+        item for item in notifications
+        if item["type"] == "class_cancelled" and item["data"]["class_id"] == cls.id
+    ]
+    matching_refund = [
+        item for item in notifications
+        if item["type"] == "refund_issued" and item["data"]["class_id"] == cls.id
+    ]
+    assert matching_cancel
+    assert matching_refund
 
 
 def test_cancel_underfilled_classes_uses_env_configured_deadline(

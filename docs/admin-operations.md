@@ -665,6 +665,11 @@ Invoke-RestMethod `
   -Headers $authHeader
 ```
 
+Lưu ý:
+
+- job này vẫn tạo payout cho Tutor sau cửa sổ 2 giờ
+- riêng lớp đã hết giờ nhưng không có học viên nào hợp lệ, backend sẽ auto-cancel và hoàn phí tạo lớp ngay khi job này chạy
+
 ### Đồng bộ payout đang xử lý
 
 ```powershell
@@ -673,6 +678,23 @@ Invoke-RestMethod `
   -Uri "$baseUrl/payments/jobs/sync-payout-statuses" `
   -Headers $authHeader
 ```
+
+### Retry hoàn tiền cho học viên khi `refund_payout` bị lỗi
+
+```powershell
+$bookingId = "<BOOKING_ID>"
+
+Invoke-RestMethod `
+  -Method Post `
+  -Uri "$baseUrl/payments/bookings/$bookingId/retry-refund" `
+  -Headers $authHeader
+```
+
+Dùng khi:
+
+- booking đã bị đánh dấu hoàn tiền
+- đã có `refund_payout` trước đó nhưng payOS trả `failed`
+- học viên đã cập nhật lại đúng `bank_bin` / `bank_account_number`
 
 ### Khi nào admin nên gọi tay job
 
