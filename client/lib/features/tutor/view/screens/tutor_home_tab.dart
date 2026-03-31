@@ -2,6 +2,7 @@ import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/core/router/app_router.dart';
 import 'package:client/core/utils.dart';
 import 'package:client/features/student/model/class_session.dart';
+import 'package:client/features/student/view/widgets/featured_teacher_list_widget.dart';
 import 'package:client/features/student/view/widgets/home_header_widget.dart';
 import 'package:client/features/student/view/widgets/section_header_widget.dart';
 import 'package:client/features/tutor/view/widgets/tutor_class_card_widget.dart';
@@ -142,6 +143,29 @@ class TutorHomeTab extends ConsumerWidget {
                         todayClasses.length -
                         _maxHomeClasses,
                     onTap: onScheduleTap,
+                  ),
+                ),
+              ),
+
+            if (state.featuredTeachers.isNotEmpty)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(hPad, 16, hPad, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SectionHeaderWidget(title: 'Giảng viên nổi bật'),
+                      const SizedBox(height: 12),
+                      FeaturedTeacherListWidget(
+                        teachers: state.featuredTeachers,
+                        onTeacherTap: (teacher) => context.push(
+                          AppRoutes.userProfile.replaceFirst(
+                            ':userId',
+                            teacher.id,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),

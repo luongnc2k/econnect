@@ -1,7 +1,6 @@
 import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/features/student/model/class_session.dart';
 import 'package:client/features/student/model/student_home_state.dart';
-import 'package:client/features/student/model/teacher_preview.dart';
 import 'package:client/features/student/repositories/student_remote_repository.dart';
 import 'package:client/testing/manual_test_mocks.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -22,7 +21,7 @@ class StudentHomeViewModel extends Notifier<StudentHomeState> {
         ? ManualTestMocks.mockClasses
         : const <ClassSession>[];
     if (user != null) {
-      Future.microtask(() => _loadClasses(user.token));
+      Future.microtask(() => _loadHomeData(user.token));
     }
     return StudentHomeState(
       classes: initialClasses,
@@ -33,6 +32,10 @@ class StudentHomeViewModel extends Notifier<StudentHomeState> {
       selectedCategory: _allClassesCategory,
       isLoading: user != null,
     );
+  }
+
+  Future<void> _loadHomeData(String token) async {
+    await Future.wait([_loadClasses(token), _loadFeaturedTeachers(token)]);
   }
 
   Future<void> _loadClasses(
@@ -61,7 +64,6 @@ class StudentHomeViewModel extends Notifier<StudentHomeState> {
         final resolvedClasses = classes.isEmpty && ManualTestMocks.enabled
             ? ManualTestMocks.mockClasses
             : classes;
-        final resolvedTeachers = _mapTeachers(resolvedClasses);
         final categories =
             preservedCategories ?? _buildCategories(resolvedClasses);
         final selectedCategory = categories.contains(state.selectedCategory)
@@ -70,11 +72,25 @@ class StudentHomeViewModel extends Notifier<StudentHomeState> {
         state = state.copyWith(
           isLoading: false,
           classes: resolvedClasses,
-          teachers: resolvedTeachers.isEmpty && ManualTestMocks.enabled
-              ? ManualTestMocks.mockTeachers
-              : resolvedTeachers,
           categories: categories,
           selectedCategory: selectedCategory,
+        );
+    }
+  }
+
+  Future<void> _loadFeaturedTeachers(String token) async {
+    final repo = ref.read(studentRemoteRepositoryProvider);
+    final result = await repo.getFeaturedTeachers(token, limit: 5);
+    switch (result) {
+      case Left():
+        if (ManualTestMocks.enabled) {
+          state = state.copyWith(teachers: ManualTestMocks.mockTeachers);
+        }
+      case Right(value: final teachers):
+        state = state.copyWith(
+          teachers: teachers.isEmpty && ManualTestMocks.enabled
+              ? ManualTestMocks.mockTeachers
+              : teachers,
         );
     }
   }
@@ -102,28 +118,5 @@ class StudentHomeViewModel extends Notifier<StudentHomeState> {
       }
     }
     return [_allClassesCategory, ...uniqueTopics];
-  }
-
-  List<TeacherPreview> _mapTeachers(List<ClassSession> classes) {
-    final mapped = <String, TeacherPreview>{};
-
-    for (final session in classes) {
-      if (session.teacherId == null || mapped.containsKey(session.teacherId)) {
-        continue;
-      }
-
-      mapped[session.teacherId!] = TeacherPreview(
-        id: session.teacherId!,
-        name: session.teacherName,
-        subtitle: session.tags.join(', '),
-        rating: session.teacherRating ?? 0,
-        reviewCount:
-            session.teacherReviewCount ?? session.teacherSessionCount ?? 0,
-        specialties: session.tags,
-        avatarUrl: session.teacherAvatarUrl,
-      );
-    }
-
-    return mapped.values.toList();
   }
 }

@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from database import get_db
@@ -12,6 +13,7 @@ from payment_gateways import (
     verify_provider_payout_destination,
 )
 from pydantic_schemas.profile import (
+    FeaturedTeacherResponse,
     ProfileUpdateRequest,
     PayoutBankAccountVerificationRequest,
     PayoutBankAccountVerificationResponse,
@@ -142,6 +144,52 @@ def _serialize_profile(
         )
 
     return data
+
+
+@router.get("/featured-teachers", response_model=list[FeaturedTeacherResponse])
+def get_featured_teachers(
+    limit: int = Query(default=5, ge=1, le=10),
+    user_dict: dict = Depends(auth_middleware),
+    db: Session = Depends(get_db),
+):
+    requester = db.query(User).filter(User.id == user_dict["uid"]).first()
+    if not requester:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    rows = (
+        db.query(User, TeacherProfile)
+        .join(TeacherProfile, TeacherProfile.user_id == User.id)
+        .filter(
+            User.role == "teacher",
+            User.is_active.is_(True),
+            or_(
+                func.coalesce(TeacherProfile.rating_avg, 0) > 0,
+                func.coalesce(TeacherProfile.total_sessions, 0) > 0,
+                func.coalesce(TeacherProfile.total_reviews, 0) > 0,
+            ),
+        )
+        .order_by(
+            func.coalesce(TeacherProfile.rating_avg, 0).desc(),
+            func.coalesce(TeacherProfile.total_sessions, 0).desc(),
+            func.coalesce(TeacherProfile.total_reviews, 0).desc(),
+            User.full_name.asc(),
+        )
+        .limit(limit)
+        .all()
+    )
+
+    return [
+        FeaturedTeacherResponse(
+            id=user.id,
+            full_name=user.full_name,
+            avatar_url=user.avatar_url,
+            specialization=teacher_profile.native_language,
+            rating=float(teacher_profile.rating_avg or 0),
+            total_sessions=int(teacher_profile.total_sessions or 0),
+            total_reviews=int(teacher_profile.total_reviews or 0),
+        )
+        for user, teacher_profile in rows
+    ]
 
 
 @router.get("/me")

@@ -89,6 +89,60 @@ def test_teacher_profile_update_uses_typed_schema_and_hides_sensitive_fields_fro
     assert public_body["verification_docs"] == []
 
 
+def test_featured_teachers_returns_top_5_ordered_by_rating_then_sessions(
+    client,
+    db_session,
+):
+    viewer = seed_user(db_session, role="student", full_name="Student Viewer")
+    viewer_login_response = login_user(client, email=viewer.email)
+    assert viewer_login_response.status_code == 200
+    viewer_token = viewer_login_response.json()["token"]
+
+    teacher_specs = [
+        ("Teacher Alpha", 5.0, 80, 20, "IELTS"),
+        ("Teacher Beta", 4.9, 150, 50, "Business English"),
+        ("Teacher Gamma", 4.9, 90, 40, "TOEIC"),
+        ("Teacher Delta", 4.8, 220, 70, "Speaking"),
+        ("Teacher Epsilon", 4.7, 180, 35, "Grammar"),
+        ("Teacher Zeta", 4.6, 300, 90, "Communication"),
+    ]
+
+    for full_name, rating, total_sessions, total_reviews, specialization in teacher_specs:
+        teacher = seed_user(db_session, role="teacher", full_name=full_name)
+        teacher_profile = TeacherProfile(
+            user_id=teacher.id,
+            native_language=specialization,
+            bio="Featured teacher",
+            years_experience=5,
+            rating_avg=rating,
+            total_sessions=total_sessions,
+            total_reviews=total_reviews,
+        )
+        db_session.add(teacher_profile)
+
+    db_session.commit()
+
+    response = client.get(
+        "/profile/featured-teachers",
+        headers=auth_headers(viewer_token),
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body) == 5
+    assert [teacher["full_name"] for teacher in body] == [
+        "Teacher Alpha",
+        "Teacher Beta",
+        "Teacher Gamma",
+        "Teacher Delta",
+        "Teacher Epsilon",
+    ]
+    assert body[0]["rating"] == 5.0
+    assert body[1]["total_sessions"] == 150
+    assert body[2]["total_sessions"] == 90
+    assert body[0]["specialization"] == "IELTS"
+
+
 def test_student_profile_update_supports_bank_account_and_hides_it_from_others(
     client,
     db_session,
@@ -165,6 +219,53 @@ def test_student_profile_update_supports_bank_account_and_hides_it_from_others(
     assert public_body["bank_bin"] is None
     assert public_body["bank_account_number"] is None
     assert public_body["bank_account_holder"] is None
+
+
+def test_student_profile_update_accepts_cefr_english_level_values(
+    client,
+    db_session,
+):
+    student_payload, student_signup_response = signup_user(
+        client,
+        role="student",
+        full_name="Student CEFR",
+    )
+    assert student_signup_response.status_code == 201
+
+    student_login_response = login_user(
+        client,
+        email=student_payload["email"],
+        password=student_payload["password"],
+    )
+    student_token = student_login_response.json()["token"]
+
+    update_response = client.put(
+        "/profile/me",
+        headers=auth_headers(student_token),
+        json={
+            "english_level": " A2 ",
+            "bank_name": " BIDV ",
+            "bank_bin": "970418",
+            "bank_account_number": " 1234567890 ",
+            "bank_account_holder": "  Tran Dang Khoa  ",
+        },
+    )
+
+    assert update_response.status_code == 200
+    body = update_response.json()
+    assert body["english_level"] == "beginner"
+    assert body["bank_name"] == "BIDV"
+    assert body["bank_bin"] == "970418"
+    assert body["bank_account_number"] == "1234567890"
+    assert body["bank_account_holder"] == "TRAN DANG KHOA"
+
+    student_profile = (
+        db_session.query(StudentProfile)
+        .filter(StudentProfile.user_id == body["id"])
+        .first()
+    )
+    assert student_profile is not None
+    assert student_profile.english_level == "beginner"
 
 
 def test_profile_update_rejects_invalid_years_of_experience(client):

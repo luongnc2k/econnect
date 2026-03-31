@@ -70,15 +70,16 @@ class AuthViewModel extends _$AuthViewModel {
       case Left(value: final l):
         state = AsyncValue.error(l.message, StackTrace.current);
       case Right(value: final r):
-        _loginSuccess(r);
+        await _loginSuccess(r);
     }
   }
 
-  AsyncValue<UserModel>? _loginSuccess(UserModel user) {
+  Future<AsyncValue<UserModel>?> _loginSuccess(UserModel user) async {
     ref.read(myProfileViewModelProvider.notifier).clearProfile();
     _authLocalRepository.setToken(user.token);
     _authLocalRepository.setUser(user);
     _currentUserNotifier.addUser(user);
+    await ref.read(myProfileViewModelProvider.notifier).fetchMyProfile();
     return state = AsyncValue.data(user);
   }
 
@@ -115,6 +116,7 @@ class AuthViewModel extends _$AuthViewModel {
       // Network error → giữ nguyên cache nếu đã restore
       case Right(value: final r):
         _getDataSuccess(r);
+        await ref.read(myProfileViewModelProvider.notifier).fetchMyProfile();
     }
   }
 

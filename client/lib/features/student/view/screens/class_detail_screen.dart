@@ -485,20 +485,18 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen>
       return;
     }
     if (reviewStatus == null) {
-      _showMessage('Không tải được trạng thái đánh giá tutor.');
+      _showMessage('Không tải được trạng thái đánh giá buổi học.');
       return;
     }
     if (reviewStatus.alreadyReviewed) {
       _showMessage(
-        reviewStatus.reason ??
-            'Bạn đã gửi đánh giá cho tutor của buổi học này.',
+        reviewStatus.reason ?? 'Bạn đã gửi đánh giá cho buổi học này.',
       );
       return;
     }
     if (!reviewStatus.canReview) {
       _showMessage(
-        reviewStatus.reason ??
-            'Bạn chưa thể gửi đánh giá cho tutor vào lúc này.',
+        reviewStatus.reason ?? 'Bạn chưa thể gửi đánh giá vào lúc này.',
       );
       return;
     }
@@ -528,7 +526,7 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen>
         _selectedReviewRating =
             result.value.review?.rating ?? _selectedReviewRating;
       });
-      _showMessage('Đã gửi đánh giá tutor thành công.');
+      _showMessage('Đã gửi đánh giá buổi học thành công.');
       return;
     }
 
@@ -1008,14 +1006,14 @@ class _TutorReviewSection extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Đánh giá tutor',
+            'Đánh giá buổi học',
             style: Theme.of(
               context,
             ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 6),
           Text(
-            'Sau mỗi buổi học đã kết thúc, bạn có thể chấm từ 0 đến 5 sao và để lại nhận xét ngắn cho tutor.',
+            'Sau khi buổi học kết thúc, bạn có thể chấm từ 0 đến 5 sao và để lại nhận xét ngắn cho gia sư.',
             style: TextStyle(color: cs.onSurfaceVariant, height: 1.4),
           ),
           if (loading && reviewStatus == null) ...[
@@ -1091,7 +1089,7 @@ class _TutorReviewSection extends StatelessWidget {
                   Expanded(
                     child: Text(
                       validationMessage ??
-                          'Nhận xét không bắt buộc, nhưng sẽ giúp tutor cải thiện chất lượng dạy.',
+                          'Nhận xét không bắt buộc, nhưng sẽ giúp gia sư cải thiện chất lượng dạy.',
                       style: TextStyle(
                         fontSize: 12,
                         color: validationMessage == null

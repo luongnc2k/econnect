@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:client/core/providers/current_user_notifier.dart';
+import 'package:client/testing/manual_test_mocks.dart';
 import 'package:client/features/tutor/model/tutor_home_state.dart';
 import 'package:client/features/tutor/repositories/tutor_remote_repository.dart';
 import 'package:flutter/widgets.dart';
@@ -25,13 +26,20 @@ class TutorHomeViewModel extends Notifier<TutorHomeState>
     if (user != null) {
       Future.microtask(() => _loadAll(user.token));
     }
-    return const TutorHomeState(isLoading: true, isLoadingPast: true);
+    return TutorHomeState(
+      isLoading: true,
+      isLoadingPast: true,
+      featuredTeachers: ManualTestMocks.enabled
+          ? ManualTestMocks.mockTeachers
+          : const [],
+    );
   }
 
   Future<void> _loadAll(String token, {bool silent = false}) async {
     await Future.wait([
       _loadUpcoming(token, silent: silent),
       _loadPast(token, silent: silent),
+      _loadFeaturedTeachers(token),
     ]);
   }
 
@@ -60,6 +68,25 @@ class TutorHomeViewModel extends Notifier<TutorHomeState>
         state = state.copyWith(isLoadingPast: false);
       case Right(value: final classes):
         state = state.copyWith(isLoadingPast: false, pastClasses: classes);
+    }
+  }
+
+  Future<void> _loadFeaturedTeachers(String token) async {
+    final repo = ref.read(tutorRemoteRepositoryProvider);
+    final result = await repo.getFeaturedTeachers(token, limit: 5);
+    switch (result) {
+      case Left():
+        if (ManualTestMocks.enabled) {
+          state = state.copyWith(
+            featuredTeachers: ManualTestMocks.mockTeachers,
+          );
+        }
+      case Right(value: final teachers):
+        state = state.copyWith(
+          featuredTeachers: teachers.isEmpty && ManualTestMocks.enabled
+              ? ManualTestMocks.mockTeachers
+              : teachers,
+        );
     }
   }
 

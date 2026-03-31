@@ -267,7 +267,7 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.text('Đánh giá tutor'), findsOneWidget);
+      expect(find.text('Đánh giá buổi học'), findsOneWidget);
       expect(find.textContaining('0335837165'), findsOneWidget);
 
       final starFinder = find.byKey(const Key('tutorReviewStar-5'));

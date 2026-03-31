@@ -1,6 +1,6 @@
 import re
 import unicodedata
-from typing import Literal, Optional
+from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
@@ -40,6 +40,36 @@ def _normalize_string_list(value: object) -> Optional[list[str]]:
     return normalized_items
 
 
+_ENGLISH_LEVEL_ALIASES = {
+    "a1": "beginner",
+    "a2": "beginner",
+    "beginner": "beginner",
+    "elementary": "beginner",
+    "b1": "intermediate",
+    "b2": "intermediate",
+    "intermediate": "intermediate",
+    "upper-intermediate": "intermediate",
+    "upper intermediate": "intermediate",
+    "c1": "advanced",
+    "c2": "advanced",
+    "advanced": "advanced",
+    "proficient": "advanced",
+}
+
+
+def _normalize_english_level(value: object) -> Optional[str]:
+    normalized = _normalize_optional_string(value)
+    if normalized is None:
+        return None
+
+    canonical = _ENGLISH_LEVEL_ALIASES.get(normalized.lower())
+    if canonical is None:
+        raise ValueError(
+            "english_level phai la beginner, intermediate, advanced hoac muc CEFR tuong ung"
+        )
+    return canonical
+
+
 class ProfileUpdateRequest(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
@@ -47,7 +77,7 @@ class ProfileUpdateRequest(BaseModel):
     phone: Optional[str] = None
     avatar_url: Optional[str] = None
 
-    english_level: Optional[Literal["beginner", "intermediate", "advanced"]] = None
+    english_level: Optional[str] = None
     learning_goal: Optional[str] = None
 
     bio: Optional[str] = None
@@ -95,7 +125,7 @@ class ProfileUpdateRequest(BaseModel):
     @field_validator("english_level", mode="before")
     @classmethod
     def normalize_english_level(cls, value: object) -> Optional[str]:
-        return _normalize_optional_string(value)
+        return _normalize_english_level(value)
 
     @field_validator("years_of_experience", mode="before")
     @classmethod
@@ -173,3 +203,13 @@ class PayoutBankAccountVerificationResponse(BaseModel):
     is_valid: bool
     message: str
     estimate_credit: Optional[int] = None
+
+
+class FeaturedTeacherResponse(BaseModel):
+    id: str
+    full_name: str
+    avatar_url: Optional[str] = None
+    specialization: Optional[str] = None
+    rating: float = 0.0
+    total_sessions: int = 0
+    total_reviews: int = 0

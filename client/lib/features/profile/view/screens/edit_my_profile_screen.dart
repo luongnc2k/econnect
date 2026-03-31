@@ -50,6 +50,8 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
   final _picker = ImagePicker();
   ImageProvider? _avatarPreviewImageProvider;
   bool _didInitForm = false;
+  bool? _initialStudentHadBankAccount;
+  bool _handledBankSetupCompletionRedirect = false;
   String? _deletingDocUrl;
   String? _selectedPayoutBankId;
   bool _isVerifyingBankAccount = false;
@@ -109,6 +111,7 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
     _phoneController.text = profile.phone ?? '';
 
     if (profile is StudentMyProfileModel) {
+      _initialStudentHadBankAccount ??= profile.hasBankAccount;
       _englishLevelController.text = profile.englishLevel ?? '';
       _learningGoalController.text = profile.learningGoal ?? '';
       _bankNameController.text = profile.bankName ?? '';
@@ -146,7 +149,7 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
     if (!_supportsBankAccount(profile)) {
       return false;
     }
-    if (widget.requireBankSetup && profile is TeacherMyProfileModel) {
+    if (widget.requireBankSetup) {
       return true;
     }
 
@@ -175,6 +178,30 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
       return (profile.bankAccountNumber ?? '').trim();
     }
     return '';
+  }
+
+  bool _isBankSetupComplete(UserModel? profile) {
+    if (profile is TeacherMyProfileModel) {
+      return profile.hasPayoutBankAccount;
+    }
+    if (profile is StudentMyProfileModel) {
+      return profile.hasBankAccount;
+    }
+    return false;
+  }
+
+  void _navigateToRoleHome(UserModel profile) {
+    if (_handledBankSetupCompletionRedirect) {
+      return;
+    }
+    _handledBankSetupCompletionRedirect = true;
+    final destination = profile is TeacherMyProfileModel
+        ? AppRoutes.teacherHome
+        : AppRoutes.studentHome;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.go(destination);
+    });
   }
 
   @override
@@ -606,7 +633,7 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
       return false;
     }
 
-    if (widget.requireBankSetup && profile is TeacherMyProfileModel) {
+    if (widget.requireBankSetup) {
       return true;
     }
 
@@ -695,20 +722,38 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
     }
 
     late UserModel updatedProfile;
+    var shouldGoToStudentHomeAfterSave = false;
 
     if (latestProfile is StudentMyProfileModel) {
-      updatedProfile = latestProfile.copyWith(
-        fullName: _fullNameController.text.trim(),
-        phone: _phoneController.text.trim(),
-        learningGoal: _learningGoalController.text.trim(),
-        englishLevel: _englishLevelController.text.trim(),
-        bankName: _bankNameController.text.trim(),
-        bankBin: _bankBinController.text.trim(),
-        bankAccountNumber: _bankAccountNumberController.text.trim(),
-        bankAccountHolder: _normalizeBankAccountHolderForStorage(
-          _bankAccountHolderController.text,
-        ),
-      );
+      if (widget.requireBankSetup) {
+        updatedProfile = latestProfile.copyWith(
+          bankName: _bankNameController.text.trim(),
+          bankBin: _bankBinController.text.trim(),
+          bankAccountNumber: _bankAccountNumberController.text.trim(),
+          bankAccountHolder: _normalizeBankAccountHolderForStorage(
+            _bankAccountHolderController.text,
+          ),
+        );
+      } else {
+        updatedProfile = latestProfile.copyWith(
+          fullName: _fullNameController.text.trim(),
+          phone: _phoneController.text.trim(),
+          learningGoal: _learningGoalController.text.trim(),
+          englishLevel: _englishLevelController.text.trim(),
+          bankName: _bankNameController.text.trim(),
+          bankBin: _bankBinController.text.trim(),
+          bankAccountNumber: _bankAccountNumberController.text.trim(),
+          bankAccountHolder: _normalizeBankAccountHolderForStorage(
+            _bankAccountHolderController.text,
+          ),
+        );
+      }
+      final startedWithoutStudentBankAccount =
+          _initialStudentHadBankAccount == false;
+      shouldGoToStudentHomeAfterSave =
+          startedWithoutStudentBankAccount &&
+          updatedProfile is StudentMyProfileModel &&
+          updatedProfile.hasBankAccount;
     } else if (latestProfile is TeacherMyProfileModel) {
       if (widget.requireBankSetup) {
         updatedProfile = latestProfile.copyWith(
@@ -764,8 +809,8 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
           ),
         ),
       );
-      if (widget.requireBankSetup) {
-        context.go(AppRoutes.teacherHome);
+      if (widget.requireBankSetup || shouldGoToStudentHomeAfterSave) {
+        _navigateToRoleHome(updatedProfile);
       } else {
         Navigator.pop(context);
       }
@@ -783,10 +828,23 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(myProfileViewModelProvider, (_, next) {
+      if (!widget.requireBankSetup || _handledBankSetupCompletionRedirect) {
+        return;
+      }
+      final profile = next.profile;
+      if (!_isBankSetupComplete(profile)) {
+        return;
+      }
+      _navigateToRoleHome(profile!);
+    });
+
     final state = ref.watch(myProfileViewModelProvider);
     final profile = state.profile;
     final isBankSetupOnly =
-        widget.requireBankSetup && profile is TeacherMyProfileModel;
+        widget.requireBankSetup &&
+        profile != null &&
+        _supportsBankAccount(profile);
 
     if (state.isLoading && profile == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
@@ -871,6 +929,8 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
                     label: 'M\u1EE5c ti\u00EAu h\u1ECDc',
                     maxLines: 3,
                   ),
+                ],
+                if (profile is StudentMyProfileModel) ...[
                   const SizedBox(height: 12),
                   _buildBankAccountSection(profile),
                 ],

@@ -2,9 +2,13 @@ import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/features/auth/view/screens/login_screen.dart';
 import 'package:client/features/notifications/view/screens/notifications_screen.dart';
 import 'package:client/features/auth/view/screens/signup_screen.dart';
+import 'package:client/features/profile/model/student_my_profile_model.dart';
+import 'package:client/features/profile/model/teacher_my_profile_model.dart';
 import 'package:client/features/profile/view/screens/edit_my_profile_screen.dart';
 import 'package:client/features/profile/view/screens/my_profile_screen.dart';
 import 'package:client/features/profile/view/screens/user_profile_screen.dart';
+import 'package:client/features/profile/viewmodel/my_profile_viewmodel.dart';
+import 'package:client/features/profile/view/widgets/student_bank_account_gate.dart';
 import 'package:client/features/profile/view/widgets/teacher_bank_account_gate.dart';
 import 'package:client/features/search/view/screens/user_search_screen.dart';
 import 'package:client/features/student/model/class_session.dart';
@@ -14,6 +18,7 @@ import 'package:client/features/tutor/view/screens/create_class_screen.dart';
 import 'package:client/features/tutor/view/screens/tutor_class_detail_screen.dart';
 import 'package:client/features/tutor/view/screens/tutor_class_summary_screen.dart';
 import 'package:client/features/tutor/view/screens/tutor_home_screen.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -23,6 +28,7 @@ abstract class AppRoutes {
   static const notifications = '/notifications';
 
   static const studentHome = '/student';
+  static const studentBankSetup = '/student/bank-setup';
   static const studentSearch = '/student/search';
   static const classDetail = '/student/class';
   static const studentMyProfile = '/student/profile';
@@ -42,13 +48,41 @@ abstract class AppRoutes {
   }
 }
 
-final appRouterProvider = Provider<GoRouter>((ref) {
-  final currentUser = ref.watch(currentUserProvider);
+class _RouterRefreshNotifier extends ChangeNotifier {
+  void refresh() {
+    notifyListeners();
+  }
+}
 
-  return GoRouter(
+final _routerRefreshNotifierProvider = Provider<_RouterRefreshNotifier>((ref) {
+  final notifier = _RouterRefreshNotifier();
+
+  ref.listen(currentUserProvider, (previous, next) {
+    notifier.refresh();
+  });
+  ref.listen(
+    myProfileViewModelProvider.select((state) => state.profile),
+    (previous, next) {
+      notifier.refresh();
+    },
+  );
+  ref.onDispose(notifier.dispose);
+
+  return notifier;
+});
+
+final appRouterProvider = Provider<GoRouter>((ref) {
+  final refreshListenable = ref.watch(_routerRefreshNotifierProvider);
+
+  final router = GoRouter(
     debugLogDiagnostics: false,
-    initialLocation: AppRoutes.homeForRole(currentUser?.role),
+    refreshListenable: refreshListenable,
+    initialLocation: AppRoutes.homeForRole(ref.read(currentUserProvider)?.role),
     redirect: (context, state) {
+      final currentUser = ref.read(currentUserProvider);
+      final profile = ref.read(
+        myProfileViewModelProvider.select((state) => state.profile),
+      );
       final loggedIn = currentUser != null;
       final path = state.uri.path;
       final onAuth = path == AppRoutes.login || path == AppRoutes.signup;
@@ -57,9 +91,27 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
       if (loggedIn) {
         final isTeacher = currentUser.role == 'teacher';
+        final onTeacherBankSetup = path == AppRoutes.teacherBankSetup;
+        final onStudentBankSetup = path == AppRoutes.studentBankSetup;
+        final requiresTeacherBankSetup =
+            profile is TeacherMyProfileModel && !profile.hasPayoutBankAccount;
+        final requiresStudentBankSetup =
+            profile is StudentMyProfileModel && !profile.hasBankAccount;
 
         if (onAuth) {
           return AppRoutes.homeForRole(currentUser.role);
+        }
+        if (requiresTeacherBankSetup && !onTeacherBankSetup) {
+          return AppRoutes.teacherBankSetup;
+        }
+        if (requiresStudentBankSetup && !onStudentBankSetup) {
+          return AppRoutes.studentBankSetup;
+        }
+        if (isTeacher && onTeacherBankSetup && !requiresTeacherBankSetup) {
+          return AppRoutes.teacherHome;
+        }
+        if (!isTeacher && onStudentBankSetup && !requiresStudentBankSetup) {
+          return AppRoutes.studentHome;
         }
 
         // teacher bị vào route student → redirect về teacher home
@@ -101,8 +153,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             const EditMyProfileScreen(requireBankSetup: true),
       ),
       GoRoute(
+        path: AppRoutes.studentBankSetup,
+        builder: (context, state) =>
+            const EditMyProfileScreen(requireBankSetup: true),
+      ),
+      GoRoute(
         path: AppRoutes.studentHome,
-        builder: (context, state) => const StudentNavShell(),
+        builder: (context, state) => StudentBankAccountGate(
+          redirectPath: AppRoutes.studentBankSetup,
+          child: const StudentNavShell(),
+        ),
         routes: [
           GoRoute(
             path: 'search',
@@ -166,4 +226,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
     ],
   );
+
+  ref.onDispose(router.dispose);
+  return router;
 });

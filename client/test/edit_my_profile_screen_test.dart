@@ -66,7 +66,12 @@ void main() {
     tester,
   ) async {
     final fakeRepo = _FakeMyProfileRepository();
-    final studentProfile = _sampleStudentProfile();
+    final studentProfile = _sampleStudentProfile().copyWith(
+      bankName: 'ACB',
+      bankBin: '970416',
+      bankAccountNumber: '1234567890',
+      bankAccountHolder: 'STUDENT DEMO',
+    );
 
     await tester.pumpWidget(
       ProviderScope(
@@ -109,6 +114,184 @@ void main() {
     expect(saved.bankBin, '970418');
     expect(fakeRepo.verifyCallCount, 1);
   });
+
+  testWidgets(
+    'student first bank account save from normal edit screen returns to student home',
+    (tester) async {
+      final fakeRepo = _FakeMyProfileRepository();
+      final studentProfile = _sampleStudentProfile();
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            currentUserProvider.overrideWithValue(
+              _sampleCurrentUser(role: 'student'),
+            ),
+            myProfileRepositoryProvider.overrideWithValue(fakeRepo),
+            myProfileViewModelProvider.overrideWith(
+              () => _TestMyProfileViewModel(studentProfile),
+            ),
+          ],
+          child: MaterialApp.router(
+            theme: AppTheme.lightThemeMode,
+            routerConfig: _buildStudentEditRouter(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final dropdownFinder = find.byType(DropdownButtonFormField<String>);
+      await tester.ensureVisible(dropdownFinder);
+      await tester.tap(dropdownFinder, warnIfMissed: false);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('BIDV').last);
+      await tester.pumpAndSettle();
+
+      await _waitForAutoVerification(tester);
+
+      final saveButtonFinder = find.byKey(const Key('saveProfileButton'));
+      await tester.ensureVisible(saveButtonFinder);
+      await tester.tap(saveButtonFinder, warnIfMissed: false);
+      await tester.pumpAndSettle();
+
+      expect(find.text('STUDENT_HOME'), findsOneWidget);
+      final saved = fakeRepo.updatedProfile as StudentMyProfileModel;
+      expect(saved.bankName, 'BIDV');
+      expect(saved.bankBin, '970418');
+    },
+  );
+
+  testWidgets(
+    'student first bank account save reaches student home after router clears bank setup on next frame',
+    (tester) async {
+      final fakeRepo = _FakeMyProfileRepository();
+      final studentProfile = _sampleStudentProfile();
+      final needsBankSetup = ValueNotifier<bool>(true);
+
+      fakeRepo.onProfileUpdated = (_) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          needsBankSetup.value = false;
+        });
+      };
+
+      final router = GoRouter(
+        refreshListenable: needsBankSetup,
+        initialLocation: '/student-bank-setup',
+        redirect: (context, state) {
+          final onBankSetup = state.uri.path == '/student-bank-setup';
+          if (needsBankSetup.value && !onBankSetup) {
+            return '/student-bank-setup';
+          }
+          if (!needsBankSetup.value && onBankSetup) {
+            return '/student';
+          }
+          return null;
+        },
+        routes: [
+          GoRoute(
+            path: '/student-bank-setup',
+            builder: (context, state) => const EditMyProfileScreen(),
+          ),
+          GoRoute(
+            path: '/student',
+            builder: (context, state) =>
+                const Scaffold(body: Center(child: Text('STUDENT_HOME'))),
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            currentUserProvider.overrideWithValue(
+              _sampleCurrentUser(role: 'student'),
+            ),
+            myProfileRepositoryProvider.overrideWithValue(fakeRepo),
+            myProfileViewModelProvider.overrideWith(
+              () => _TestMyProfileViewModel(studentProfile),
+            ),
+          ],
+          child: MaterialApp.router(
+            theme: AppTheme.lightThemeMode,
+            routerConfig: router,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final dropdownFinder = find.byType(DropdownButtonFormField<String>);
+      await tester.ensureVisible(dropdownFinder);
+      await tester.tap(dropdownFinder, warnIfMissed: false);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('BIDV').last);
+      await tester.pumpAndSettle();
+
+      await _waitForAutoVerification(tester);
+
+      final saveButtonFinder = find.byKey(const Key('saveProfileButton'));
+      await tester.ensureVisible(saveButtonFinder);
+      await tester.tap(saveButtonFinder, warnIfMissed: false);
+      await tester.pump();
+      await tester.pumpAndSettle();
+
+      expect(find.text('STUDENT_HOME'), findsOneWidget);
+      expect(find.byType(EditMyProfileScreen), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'required bank setup mode only shows bank fields for student and returns to student home',
+    (tester) async {
+      final fakeRepo = _FakeMyProfileRepository();
+      final studentProfile = _sampleStudentProfile();
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            currentUserProvider.overrideWithValue(
+              _sampleCurrentUser(role: 'student'),
+            ),
+            myProfileRepositoryProvider.overrideWithValue(fakeRepo),
+            myProfileViewModelProvider.overrideWith(
+              () => _TestMyProfileViewModel(studentProfile),
+            ),
+          ],
+          child: MaterialApp.router(
+            theme: AppTheme.lightThemeMode,
+            routerConfig: _buildStudentBankSetupRouter(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('saveProfileButton')), findsOneWidget);
+      expect(find.text('Họ và tên'), findsNothing);
+      expect(find.text('Trình độ tiếng Anh'), findsNothing);
+      expect(find.text('Mục tiêu học'), findsNothing);
+      expect(find.byType(DropdownButtonFormField<String>), findsOneWidget);
+
+      final dropdownFinder = find.byType(DropdownButtonFormField<String>);
+      await tester.ensureVisible(dropdownFinder);
+      await tester.tap(dropdownFinder, warnIfMissed: false);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('BIDV').last);
+      await tester.pumpAndSettle();
+
+      await _waitForAutoVerification(tester);
+
+      final saveButtonFinder = find.byKey(const Key('saveProfileButton'));
+      await tester.ensureVisible(saveButtonFinder);
+      await tester.tap(saveButtonFinder, warnIfMissed: false);
+      await tester.pumpAndSettle();
+
+      final saved = fakeRepo.updatedProfile as StudentMyProfileModel;
+      expect(find.text('STUDENT_HOME'), findsOneWidget);
+      expect(saved.fullName, 'Student Demo');
+      expect(saved.englishLevel, 'intermediate');
+      expect(saved.bankName, 'BIDV');
+      expect(saved.bankBin, '970418');
+    },
+  );
 
   testWidgets('required bank setup mode only shows payout bank fields', (
     tester,
@@ -311,6 +494,41 @@ GoRouter _buildTeacherBankSetupRouter() {
   );
 }
 
+GoRouter _buildStudentBankSetupRouter() {
+  return GoRouter(
+    initialLocation: '/student-bank-setup',
+    routes: [
+      GoRoute(
+        path: '/student-bank-setup',
+        builder: (context, state) =>
+            const EditMyProfileScreen(requireBankSetup: true),
+      ),
+      GoRoute(
+        path: '/student',
+        builder: (context, state) =>
+            const Scaffold(body: Center(child: Text('STUDENT_HOME'))),
+      ),
+    ],
+  );
+}
+
+GoRouter _buildStudentEditRouter() {
+  return GoRouter(
+    initialLocation: '/student-edit',
+    routes: [
+      GoRoute(
+        path: '/student-edit',
+        builder: (context, state) => const EditMyProfileScreen(),
+      ),
+      GoRoute(
+        path: '/student',
+        builder: (context, state) =>
+            const Scaffold(body: Center(child: Text('STUDENT_HOME'))),
+      ),
+    ],
+  );
+}
+
 Future<void> _waitForAutoVerification(WidgetTester tester) async {
   await tester.pump(const Duration(milliseconds: 750));
   await tester.pumpAndSettle();
@@ -332,6 +550,7 @@ class _FakeMyProfileRepository implements IMyProfileRepository {
   int verifyCallCount = 0;
   String? verifiedBankBin;
   String? verifiedBankAccountNumber;
+  void Function(UserModel profile)? onProfileUpdated;
   String? verificationMessage =
       'payOS không trả lỗi khi kiểm tra sơ bộ tài khoản nhận tiền này.';
 
@@ -343,6 +562,7 @@ class _FakeMyProfileRepository implements IMyProfileRepository {
   @override
   Future<UserModel> updateMyProfile(UserModel profile) async {
     updatedProfile = profile;
+    onProfileUpdated?.call(profile);
     return profile;
   }
 

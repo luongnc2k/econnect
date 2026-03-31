@@ -128,7 +128,7 @@ def _build_student_tutor_review_status_response(
             can_review=False,
             already_reviewed=review is not None,
             hotline=ECONNECT_HOTLINE,
-            reason="Bạn cần đăng ký và thanh toán buổi học này trước khi đánh giá tutor.",
+            reason="Bạn cần đăng ký và thanh toán buổi học này trước khi gửi đánh giá.",
             review=_serialize_tutor_review(review) if review else None,
         )
 
@@ -138,7 +138,7 @@ def _build_student_tutor_review_status_response(
             can_review=False,
             already_reviewed=True,
             hotline=ECONNECT_HOTLINE,
-            reason="Bạn đã gửi đánh giá cho tutor của buổi học này.",
+            reason="Bạn đã gửi đánh giá cho buổi học này.",
             review=_serialize_tutor_review(review),
         )
 
@@ -148,7 +148,7 @@ def _build_student_tutor_review_status_response(
             can_review=False,
             already_reviewed=review is not None,
             hotline=ECONNECT_HOTLINE,
-            reason="Bạn chỉ có thể đánh giá tutor sau khi buổi học kết thúc.",
+            reason="Bạn chỉ có thể gửi đánh giá sau khi buổi học kết thúc.",
             review=_serialize_tutor_review(review) if review else None,
         )
 
@@ -584,12 +584,12 @@ def get_my_tutor_review(
     if not student or student.role != "student":
         raise HTTPException(
             status_code=403,
-            detail="Chi hoc vien moi co the xem trang thai danh gia tutor cua minh",
+            detail="Chỉ học viên mới có thể xem trạng thái đánh giá của mình",
         )
 
     cls = db.query(Class).filter(Class.id == class_id).first()
     if not cls:
-        raise HTTPException(status_code=404, detail="Khong tim thay lop hoc")
+        raise HTTPException(status_code=404, detail="Không tìm thấy buổi học")
 
     return _build_student_tutor_review_status_response(
         db,
@@ -612,12 +612,12 @@ def upsert_my_tutor_review(
     if not student or student.role != "student":
         raise HTTPException(
             status_code=403,
-            detail="Chi hoc vien moi co the gui danh gia tutor",
+            detail="Chỉ học viên mới có thể gửi đánh giá",
         )
 
     cls = db.query(Class).filter(Class.id == class_id).first()
     if not cls:
-        raise HTTPException(status_code=404, detail="Khong tim thay lop hoc")
+        raise HTTPException(status_code=404, detail="Không tìm thấy buổi học")
 
     booking = _find_student_booking_for_review(
         db,
@@ -627,12 +627,12 @@ def upsert_my_tutor_review(
     if booking is None:
         raise HTTPException(
             status_code=400,
-            detail="Ban chi co the danh gia tutor cho buoi hoc da dang ky va thanh toan",
+            detail="Bạn chỉ có thể đánh giá buổi học đã đăng ký và thanh toán",
         )
     if cls.end_time > datetime.now(timezone.utc):
         raise HTTPException(
             status_code=400,
-            detail="Buoi hoc chua ket thuc, chua the gui danh gia tutor",
+            detail="Buổi học chưa kết thúc, chưa thể gửi đánh giá",
         )
 
     review = (
@@ -643,7 +643,7 @@ def upsert_my_tutor_review(
     if review:
         raise HTTPException(
             status_code=400,
-            detail="Bạn đã gửi đánh giá cho tutor của buổi học này.",
+            detail="Bạn đã gửi đánh giá cho buổi học này.",
         )
 
     review = TutorReview(

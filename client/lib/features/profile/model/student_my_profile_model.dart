@@ -10,6 +10,12 @@ class StudentMyProfileModel extends UserModel {
   final int totalLessons;
   final double? averageScore;
 
+  bool get hasBankAccount =>
+      _hasValue(bankName) &&
+      _hasValue(bankBin) &&
+      _hasValue(bankAccountNumber) &&
+      _hasValue(bankAccountHolder);
+
   StudentMyProfileModel({
     required super.id,
     required super.email,
@@ -124,4 +130,6 @@ class StudentMyProfileModel extends UserModel {
       averageScore: averageScore ?? this.averageScore,
     );
   }
+
+  static bool _hasValue(String? value) => (value ?? '').trim().isNotEmpty;
 }

@@ -3,6 +3,7 @@ import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/core/theme/theme.dart';
 import 'package:client/features/auth/model/user_model.dart';
 import 'package:client/features/student/model/class_session.dart';
+import 'package:client/features/student/model/teacher_preview.dart';
 import 'package:client/features/tutor/repositories/tutor_remote_repository.dart';
 import 'package:client/features/tutor/view/screens/tutor_home_tab.dart';
 import 'package:dio/dio.dart';
@@ -33,6 +34,10 @@ void main() {
 
     final initialUpcomingCalls = fakeTutorRepo.upcomingCalls;
     final initialPastCalls = fakeTutorRepo.pastCalls;
+    final initialFeaturedCalls = fakeTutorRepo.featuredCalls;
+
+    expect(find.text('Giảng viên nổi bật'), findsOneWidget);
+    expect(find.text('Top Tutor'), findsOneWidget);
 
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     await tester.pump();
@@ -40,6 +45,7 @@ void main() {
 
     expect(fakeTutorRepo.upcomingCalls, initialUpcomingCalls + 1);
     expect(fakeTutorRepo.pastCalls, initialPastCalls + 1);
+    expect(fakeTutorRepo.featuredCalls, initialFeaturedCalls + 1);
   });
 }
 
@@ -57,6 +63,7 @@ UserModel _sampleUser() {
 class _FakeTutorRemoteRepository extends TutorRemoteRepository {
   int upcomingCalls = 0;
   int pastCalls = 0;
+  int featuredCalls = 0;
 
   _FakeTutorRemoteRepository() : super(Dio());
 
@@ -85,6 +92,26 @@ class _FakeTutorRemoteRepository extends TutorRemoteRepository {
         statusText: 'OPEN',
         startDateTime: DateTime(2026, 3, 26, 18),
         endDateTime: DateTime(2026, 3, 26, 20),
+      ),
+    ]);
+  }
+
+  @override
+  Future<Either<AppFailure, List<TeacherPreview>>> getFeaturedTeachers(
+    String token, {
+    int limit = 5,
+  }) async {
+    featuredCalls += 1;
+    return const Right([
+      TeacherPreview(
+        id: 'teacher-top',
+        name: 'Top Tutor',
+        subtitle: 'IELTS',
+        rating: 4.9,
+        reviewCount: 32,
+        sessionCount: 120,
+        specialties: ['IELTS'],
+        badgeText: 'TOP 1',
       ),
     ]);
   }

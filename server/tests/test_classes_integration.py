@@ -387,7 +387,7 @@ def test_student_can_submit_tutor_review_and_teacher_rating_is_updated(
     assert update_response.status_code == 400
     assert (
         update_response.json()["detail"]
-        == "Bạn đã gửi đánh giá cho tutor của buổi học này."
+        == "Bạn đã gửi đánh giá cho buổi học này."
     )
 
     db_session.expire_all()

@@ -5,6 +5,9 @@ import 'package:client/features/auth/view/widgets/auth_gradient_button.dart';
 import 'package:client/features/auth/view/widgets/auth_logo.dart';
 import 'package:client/features/auth/view/widgets/auth_scroll_body.dart';
 import 'package:client/features/auth/view/widgets/custom_field.dart';
+import 'package:client/features/profile/model/student_my_profile_model.dart';
+import 'package:client/features/profile/model/teacher_my_profile_model.dart';
+import 'package:client/features/profile/viewmodel/my_profile_viewmodel.dart';
 import 'package:client/features/auth/viewmodel/auth_viewmodel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -21,6 +24,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   final formKey = GlobalKey<FormState>();
+  bool _handledLoginRoute = false;
 
   @override
   void dispose() {
@@ -39,10 +43,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       next?.when(
         data: (data) {
           if (!mounted) return;
-          context.go(AppRoutes.homeForRole(data.role));
+          if (_handledLoginRoute) {
+            return;
+          }
+          _handledLoginRoute = true;
+          context.go(_resolvePostLoginRoute(data.role));
         },
         error: (error, st) {
           if (!mounted) return;
+          _handledLoginRoute = false;
           showSnackBar(context, error.toString());
         },
         loading: () {},
@@ -140,5 +149,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ),
       ),
     );
+  }
+
+  String _resolvePostLoginRoute(String role) {
+    final profile = ref.read(myProfileViewModelProvider).profile;
+    if (profile is TeacherMyProfileModel && !profile.hasPayoutBankAccount) {
+      return AppRoutes.teacherBankSetup;
+    }
+    if (profile is StudentMyProfileModel && !profile.hasBankAccount) {
+      return AppRoutes.studentBankSetup;
+    }
+    return AppRoutes.homeForRole(role);
   }
 }

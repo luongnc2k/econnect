@@ -29,6 +29,7 @@ class FeaturedTeacherListWidget extends StatelessWidget {
           subtitle: teacher.subtitle,
           rating: teacher.rating,
           reviewCount: teacher.reviewCount,
+          sessionCount: teacher.sessionCount,
           specialties: teacher.specialties,
           avatarUrl: teacher.avatarUrl,
           badgeText: teacher.badgeText,

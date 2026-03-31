@@ -7,6 +7,7 @@ import 'package:client/core/network/dio_provider.dart';
 import 'package:client/core/network/multipart_file_helper.dart';
 import 'package:client/features/student/model/class_session.dart';
 import 'package:client/features/student/model/class_session_mapper.dart';
+import 'package:client/features/student/model/teacher_preview.dart';
 import 'package:client/features/tutor/model/enrolled_student.dart';
 import 'package:client/features/tutor/model/learning_location.dart';
 import 'package:dio/dio.dart';
@@ -135,6 +136,43 @@ class TutorRemoteRepository {
           .map((e) => EnrolledStudent.fromMap(e as Map<String, dynamic>))
           .toList();
       return Right(students);
+    } catch (e) {
+      return Left(AppFailure(e.toString()));
+    }
+  }
+
+  Future<Either<AppFailure, List<TeacherPreview>>> getFeaturedTeachers(
+    String token, {
+    int limit = 5,
+  }) async {
+    try {
+      final uri = Uri.parse(
+        '${ServerConstant.serverURL}/profile/featured-teachers',
+      ).replace(queryParameters: {'limit': '$limit'});
+      final response = await http.get(uri, headers: {'x-auth-token': token});
+
+      if (response.statusCode != 200) {
+        final body = jsonDecode(response.body) as Map<String, dynamic>;
+        return Left(
+          AppFailure(
+            body['detail'] ?? 'Không tải được danh sách giảng viên nổi bật',
+            response.statusCode,
+          ),
+        );
+      }
+
+      final list = jsonDecode(response.body) as List<dynamic>;
+      final teachers = list
+          .asMap()
+          .entries
+          .map(
+            (entry) => TeacherPreview.fromFeaturedTeacherMap(
+              entry.value as Map<String, dynamic>,
+              badgeText: 'TOP ${entry.key + 1}',
+            ),
+          )
+          .toList();
+      return Right(teachers);
     } catch (e) {
       return Left(AppFailure(e.toString()));
     }
