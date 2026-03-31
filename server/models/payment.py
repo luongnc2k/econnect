@@ -15,7 +15,7 @@ class Payment(Base):
     payment_type = Column(
         TEXT,
         nullable=False,
-    )  # class_creation | tuition | refund | payout | creation_fee_refund_payout
+    )  # class_creation | tuition | refund | payout | refund_payout | creation_fee_refund_payout
     provider = Column(TEXT, nullable=False)  # payos | system
     method = Column(TEXT, nullable=True)
     amount = Column(Numeric(10, 0), nullable=False)

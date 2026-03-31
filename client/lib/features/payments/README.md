@@ -439,6 +439,16 @@ Nếu xảy ra race condition và lớp đã hết chỗ:
 - booking đó sẽ bị refund tự động
 - khoản tiền đã refund không được tính vào payout cho Tutor
 
+## 9.4 Khi Tutor chủ động hủy buổi học
+
+Khi Tutor chủ động hủy một buổi học đang `scheduled` và chưa bắt đầu:
+
+- hệ thống chuyển `classes.status = cancelled`
+- học viên đã đăng ký và đã thanh toán sẽ được đánh dấu `booking/payment = refunded`
+- backend tạo lệnh `refund_payout` để hoàn tiền về tài khoản ngân hàng của từng học viên
+- hệ thống gửi `class_cancelled` và `refund_issued` cho các học viên đã đăng ký thành công
+- Tutor không được hoàn lại phí tạo buổi học, nên `creation_payment_status` vẫn giữ là `paid`
+
 # 10. Quy tắc tính payout cho Tutor
 
 ## 10.1 Điều kiện tạo payout

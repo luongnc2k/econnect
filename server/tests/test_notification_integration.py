@@ -291,7 +291,7 @@ def test_notify_classes_starting_soon_notifies_tutor_and_students_once(client, d
     assert second_response.json()["count"] == 0
 
 
-def test_tutor_cancel_class_creates_cancelled_and_refund_notifications(client, db_session):
+def test_tutor_cancel_class_creates_cancelled_and_refund_notifications(client, db_session, monkeypatch):
     _, teacher_token = _signup_and_login(client, role="teacher", full_name="Teacher Cancel Flow")
     location = create_learning_location(
         db_session,
@@ -332,7 +332,53 @@ def test_tutor_cancel_class_creates_cancelled_and_refund_notifications(client, d
     )
     assert activation_response.status_code == 200
 
-    _, student_token = _signup_and_login(client, role="student", full_name="Student Cancel Flow")
+    _, student_token = _signup_and_login(
+        client,
+        role="student",
+        full_name="Student Cancel Flow",
+    )
+    update_student_bank_response = client.put(
+        "/profile/me",
+        headers=auth_headers(student_token),
+        json={
+            "bank_name": "MBBank",
+            "bank_bin": "970422",
+            "bank_account_number": "1234567890",
+            "bank_account_holder": "Student Cancel Flow",
+        },
+    )
+    assert update_student_bank_response.status_code == 200
+
+    def _fake_create_provider_payout(
+        *,
+        provider: str,
+        reference_id: str,
+        amount,
+        description: str,
+        to_bin: str,
+        to_account_number: str,
+    ):
+        assert provider == "payos"
+        assert description.startswith("Refund CLS-")
+        assert to_bin == "970422"
+        assert to_account_number == "1234567890"
+        return ProviderPayoutResult(
+            provider="payos",
+            provider_order_id=f"student-refund-{reference_id}",
+            provider_transaction_id=f"student-refund-txn-{reference_id}",
+            local_status="released",
+            payout_status="paid",
+            provider_status="COMPLETED:SUCCEEDED",
+            raw_payload='{"status":"SUCCEEDED"}',
+            message="payOS da chuyen khoan hoan tien hoc vien thanh cong",
+        )
+
+    monkeypatch.setattr(
+        payments_routes,
+        "create_provider_payout",
+        _fake_create_provider_payout,
+    )
+
     join_response = client.post(
         f"/payments/classes/{creation_body['class_id']}/join/request",
         headers=auth_headers(student_token),
@@ -359,6 +405,32 @@ def test_tutor_cancel_class_creates_cancelled_and_refund_notifications(client, d
     assert cancel_response.status_code == 200
     assert cancel_response.json()["class_status"] == "cancelled"
 
+    db_session.expire_all()
+    cls = db_session.query(Class).filter(Class.id == creation_body["class_id"]).first()
+    assert cls is not None
+    assert cls.creation_payment_status == "paid"
+    assert cls.tutor_payout_status == "withheld"
+    assert (
+        db_session.query(Payment)
+        .filter(
+            Payment.class_id == creation_body["class_id"],
+            Payment.payment_type == "creation_fee_refund_payout",
+        )
+        .count()
+        == 0
+    )
+    refund_payout = (
+        db_session.query(Payment)
+        .filter(
+            Payment.class_id == creation_body["class_id"],
+            Payment.payment_type == payments_routes.STUDENT_REFUND_PAYOUT_PAYMENT_TYPE,
+            Payment.payee_user_id.isnot(None),
+        )
+        .first()
+    )
+    assert refund_payout is not None
+    assert refund_payout.status == "released"
+
     student_notifications_response = client.get(
         "/notifications",
         headers=auth_headers(student_token),
@@ -379,6 +451,63 @@ def test_tutor_cancel_class_creates_cancelled_and_refund_notifications(client, d
     assert cancelled_notification["data"]["cancellation_reason"] == "Tutor co viec dot xuat"
     assert refund_notification["data"]["class_id"] == creation_body["class_id"]
     assert refund_notification["data"]["refund_reason"] == "Tutor co viec dot xuat"
+    assert refund_notification["data"]["refund_status"] == "released"
+
+
+def test_tutor_cannot_cancel_class_that_has_already_started(client, db_session):
+    _, teacher_token = _signup_and_login(client, role="teacher", full_name="Teacher Started Class")
+    location = create_learning_location(
+        db_session,
+        name="Started Class Room",
+        address="Google Meet",
+    )
+    start_time = datetime.now(timezone.utc) + timedelta(days=1)
+    end_time = start_time + timedelta(hours=2)
+    creation_response = client.post(
+        "/payments/class-creation/request",
+        headers=auth_headers(teacher_token),
+        json={
+            "class_payload": {
+                "topic": "Started Class Topic",
+                "title": "Started Class Notification",
+                "description": "Test started class cancel guard",
+                "level": "intermediate",
+                "location_id": location.id,
+                "start_time": start_time.isoformat(),
+                "end_time": end_time.isoformat(),
+                "min_participants": 1,
+                "max_participants": 2,
+                "price": "200000",
+                "thumbnail_url": "https://example.com/thumb.jpg",
+            }
+        },
+    )
+    assert creation_response.status_code == 201
+    creation_body = creation_response.json()
+
+    activation_response = client.post(
+        "/payments/callback",
+        json={
+            "transaction_ref": creation_body["transaction_ref"],
+            "status": "success",
+            "provider_transaction_id": "MOCK-CREATION-CANCEL-STARTED-001",
+        },
+    )
+    assert activation_response.status_code == 200
+
+    cls = db_session.query(Class).filter(Class.id == creation_body["class_id"]).first()
+    assert cls is not None
+    cls.start_time = datetime.now(timezone.utc) - timedelta(minutes=5)
+    cls.end_time = datetime.now(timezone.utc) + timedelta(minutes=55)
+    db_session.commit()
+
+    cancel_response = client.post(
+        f"/payments/classes/{creation_body['class_id']}/cancel",
+        headers=auth_headers(teacher_token),
+        json={"reason": "Tutor muon huy muon"},
+    )
+    assert cancel_response.status_code == 400
+    assert cancel_response.json()["detail"] == "Khong the huy buoi hoc da bat dau"
 
 
 def test_cancel_underfilled_classes_uses_active_bookings_instead_of_stale_cached_count(

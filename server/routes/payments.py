@@ -15,6 +15,7 @@ from middleware.auth_middleware import auth_middleware, optional_auth_middleware
 from models.booking import Booking
 from models.class_ import Class
 from models.payment import Payment
+from models.student_profile import StudentProfile
 from models.teacher_profile import TeacherProfile
 from models.user import User
 from notification_service import (
@@ -65,6 +66,7 @@ from topic_service import ensure_topic_record
 router = APIRouter()
 JOB_SECRET = (os.getenv("JOB_SECRET", "") or "").strip()
 CREATION_FEE_REFUND_PAYOUT_PAYMENT_TYPE = "creation_fee_refund_payout"
+STUDENT_REFUND_PAYOUT_PAYMENT_TYPE = "refund_payout"
 
 
 def _now() -> datetime:
@@ -422,6 +424,127 @@ def _create_refund_payment(
     return refund
 
 
+def _get_student_profile(db: Session, student_id: str) -> Optional[StudentProfile]:
+    return db.query(StudentProfile).filter(StudentProfile.user_id == student_id).first()
+
+
+def _resolve_student_bank_bin(student_profile: Optional[StudentProfile]) -> Optional[str]:
+    if student_profile is None:
+        return None
+    if student_profile.bank_bin and student_profile.bank_bin.strip():
+        return student_profile.bank_bin.strip()
+    bank_name = (student_profile.bank_name or "").strip()
+    if bank_name.isdigit():
+        return bank_name
+    return None
+
+
+def _require_student_refund_destination(student_profile: Optional[StudentProfile]) -> tuple[str, str]:
+    bank_bin = _resolve_student_bank_bin(student_profile)
+    account_number = (student_profile.bank_account_number or "").strip() if student_profile else ""
+
+    missing_fields = []
+    if not bank_bin:
+        missing_fields.append("bank_bin")
+    if not account_number:
+        missing_fields.append("bank_account_number")
+
+    if missing_fields:
+        raise PaymentGatewayError(
+            "Hoc vien chua cap nhat day du thong tin nhan hoan tien: "
+            + ", ".join(missing_fields)
+        )
+
+    return bank_bin, account_number
+
+
+def _build_student_refund_description(cls: Class) -> str:
+    return f"Refund {_build_class_code(cls)}"[:25]
+
+
+def _build_student_refund_payout_payment(
+    *,
+    booking: Booking,
+    refund_payment: Payment,
+    transaction_ref: str,
+    provider: str,
+    provider_order_id: Optional[str],
+    raw_payload: Optional[str],
+    status: str,
+    processed_at: datetime,
+    failure_reason: Optional[str] = None,
+) -> Payment:
+    payout_payment = Payment(
+        id=str(uuid.uuid4()),
+        booking_id=booking.id,
+        class_id=booking.class_id,
+        payer_user_id=booking.student_id,
+        payee_user_id=booking.student_id,
+        payment_type=STUDENT_REFUND_PAYOUT_PAYMENT_TYPE,
+        provider=provider,
+        amount=Decimal(refund_payment.amount),
+        status=status,
+        transaction_ref=transaction_ref,
+        provider_order_id=provider_order_id,
+        provider_payload=raw_payload,
+        failure_reason=failure_reason,
+    )
+    if status == "released":
+        payout_payment.released_at = processed_at
+    return payout_payment
+
+
+def _create_student_refund_payout_attempt(
+    *,
+    db: Session,
+    cls: Class,
+    booking: Booking,
+    refund_payment: Payment,
+    processed_at: datetime,
+) -> Payment:
+    transaction_ref = _generate_transaction_ref("SRF")
+
+    try:
+        student_profile = _get_student_profile(db, booking.student_id)
+        bank_bin, bank_account_number = _require_student_refund_destination(student_profile)
+        payout_result = create_provider_payout(
+            provider=PAYOS_PROVIDER,
+            reference_id=transaction_ref,
+            amount=Decimal(refund_payment.amount),
+            description=_build_student_refund_description(cls),
+            to_bin=bank_bin,
+            to_account_number=bank_account_number,
+        )
+        payout_payment = _build_student_refund_payout_payment(
+            booking=booking,
+            refund_payment=refund_payment,
+            transaction_ref=transaction_ref,
+            provider=PAYOS_PROVIDER,
+            provider_order_id=payout_result.provider_order_id,
+            raw_payload=payout_result.raw_payload,
+            status=payout_result.local_status,
+            processed_at=processed_at,
+            failure_reason=(
+                payout_result.message if payout_result.local_status == "failed" else None
+            ),
+        )
+    except PaymentGatewayError as exc:
+        payout_payment = _build_student_refund_payout_payment(
+            booking=booking,
+            refund_payment=refund_payment,
+            transaction_ref=transaction_ref,
+            provider=PAYOS_PROVIDER,
+            provider_order_id=None,
+            raw_payload=None,
+            status="failed",
+            processed_at=processed_at,
+            failure_reason=str(exc),
+        )
+
+    db.add(payout_payment)
+    return payout_payment
+
+
 def _refund_booking(
     db: Session,
     booking: Booking,
@@ -430,17 +553,18 @@ def _refund_booking(
     *,
     cls: Optional[Class] = None,
 ) -> None:
+    processed_at = _now()
     booking.status = "refunded"
     booking.payment_status = "refunded"
     booking.escrow_status = "refunded"
-    booking.cancelled_at = _now()
+    booking.cancelled_at = processed_at
     booking.cancel_reason = reason
 
     payment.status = "refunded"
-    payment.refunded_at = _now()
+    payment.refunded_at = processed_at
     payment.failure_reason = reason
 
-    _create_refund_payment(
+    refund_payment = _create_refund_payment(
         db,
         payer_user_id=payment.payer_user_id,
         payee_user_id=booking.student_id,
@@ -452,6 +576,13 @@ def _refund_booking(
     )
 
     target_class = cls or _get_class_or_404(db, booking.class_id)
+    refund_payout = _create_student_refund_payout_attempt(
+        db=db,
+        cls=target_class,
+        booking=booking,
+        refund_payment=refund_payment,
+        processed_at=processed_at,
+    )
     notify_refund_issued(
         db,
         cls=target_class,
@@ -459,6 +590,10 @@ def _refund_booking(
         amount=Decimal(payment.amount),
         reason=reason,
         booking_id=booking.id,
+        refund_status=refund_payout.status,
+        transaction_ref=refund_payout.transaction_ref,
+        provider_order_id=refund_payout.provider_order_id,
+        message=refund_payout.failure_reason,
     )
 
 
@@ -1121,6 +1256,7 @@ def retry_creation_fee_refund(
 
     now = _now()
     cls = _get_class_or_404(db, class_id, for_update=True)
+    now = _now()
     if cls.status != "cancelled":
         raise HTTPException(status_code=400, detail="Chi co the retry hoan phi tao lop cho lop da bi huy")
     if not _is_underfilled_cancellation_reason(cls.cancellation_reason):
@@ -1185,15 +1321,21 @@ def cancel_class_by_tutor(
     tutor = _get_user_or_404(db, user_dict["uid"])
     _require_role(tutor, {"teacher"})
     cls = _get_class_or_404(db, class_id, for_update=True)
+    now = _now()
 
     if cls.teacher_id != tutor.id:
         raise HTTPException(status_code=403, detail="Ban khong so huu lop hoc nay")
     if cls.status == "cancelled":
         return _build_class_payment_summary(db, class_id)
+    if cls.status != "scheduled":
+        raise HTTPException(status_code=400, detail="Chi co the huy buoi hoc dang scheduled")
+    if cls.start_time <= now:
+        raise HTTPException(status_code=400, detail="Khong the huy buoi hoc da bat dau")
 
     cls.status = "cancelled"
-    cls.cancelled_at = _now()
-    cls.cancellation_reason = body.reason or "Tutor chủ động hủy lớp"
+    cls.cancelled_at = now
+    default_tutor_cancel_reason = "Tutor chu dong huy lop"
+    cls.cancellation_reason = (body.reason or "").strip() or default_tutor_cancel_reason
 
     booking_rows = (
         db.query(Booking, Payment)
@@ -1518,6 +1660,56 @@ def _sync_existing_payout(
             cls=cls,
             amount=Decimal(payout_payment.amount),
             payout_status=cls.tutor_payout_status,
+            transaction_ref=payout_payment.transaction_ref,
+            provider_order_id=payout_payment.provider_order_id,
+            message=payout_result.message,
+        )
+
+    return payout_result
+
+
+def _processing_student_refund_payout_rows(db: Session) -> list[tuple[Payment, Class, Booking]]:
+    return (
+        db.query(Payment, Class, Booking)
+        .join(Class, Class.id == Payment.class_id)
+        .join(Booking, Booking.id == Payment.booking_id)
+        .filter(
+            Payment.payment_type == STUDENT_REFUND_PAYOUT_PAYMENT_TYPE,
+            Payment.provider == PAYOS_PROVIDER,
+            Payment.status == "processing",
+        )
+        .all()
+    )
+
+
+def _sync_existing_student_refund_payout(
+    *,
+    db: Session,
+    cls: Class,
+    booking: Booking,
+    payout_payment: Payment,
+    processed_at: datetime,
+) -> ProviderPayoutResult:
+    if not payout_payment.provider_order_id:
+        raise PaymentGatewayError("Lenh chi hoan tien hoc vien khong co provider_order_id de dong bo")
+
+    previous_status = payout_payment.status
+    payout_result = fetch_provider_payout_status(PAYOS_PROVIDER, payout_payment.provider_order_id)
+    payout_payment.provider_payload = payout_result.raw_payload
+    payout_payment.failure_reason = payout_result.message if payout_result.local_status == "failed" else None
+    payout_payment.status = payout_result.local_status
+    if payout_result.local_status == "released":
+        payout_payment.released_at = processed_at
+
+    if payout_result.local_status != previous_status:
+        notify_refund_issued(
+            db,
+            cls=cls,
+            student_user_id=booking.student_id,
+            amount=Decimal(payout_payment.amount),
+            reason=booking.cancel_reason or "Lop hoc bi huy",
+            booking_id=booking.id,
+            refund_status=payout_payment.status,
             transaction_ref=payout_payment.transaction_ref,
             provider_order_id=payout_payment.provider_order_id,
             message=payout_result.message,
@@ -2001,6 +2193,37 @@ def sync_payout_statuses(
                     "class_id": cls.id,
                     "payout_id": payout_payment.id,
                     "status": "error",
+                    "error": str(exc),
+                }
+            )
+
+    for payout_payment, cls, booking in _processing_student_refund_payout_rows(db):
+        try:
+            payout_result = _sync_existing_student_refund_payout(
+                db=db,
+                cls=cls,
+                booking=booking,
+                payout_payment=payout_payment,
+                processed_at=now,
+            )
+            synced.append(
+                {
+                    "class_id": cls.id,
+                    "booking_id": booking.id,
+                    "payout_id": payout_payment.id,
+                    "status": payout_payment.status,
+                    "kind": "student_refund",
+                    "provider_status": payout_result.provider_status,
+                }
+            )
+        except PaymentGatewayError as exc:
+            synced.append(
+                {
+                    "class_id": cls.id,
+                    "booking_id": booking.id,
+                    "payout_id": payout_payment.id,
+                    "status": "error",
+                    "kind": "student_refund",
                     "error": str(exc),
                 }
             )

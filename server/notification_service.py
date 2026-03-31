@@ -271,6 +271,10 @@ def notify_refund_issued(
     amount: Decimal,
     reason: str,
     booking_id: str | None = None,
+    refund_status: str = "released",
+    transaction_ref: str | None = None,
+    provider_order_id: str | None = None,
+    message: str | None = None,
 ) -> Notification:
     data = _class_notification_data(cls)
     data.update(
@@ -279,17 +283,37 @@ def notify_refund_issued(
             "booking_id": booking_id,
             "refund_amount": str(amount),
             "refund_reason": reason,
+            "refund_status": refund_status,
+            "transaction_ref": transaction_ref,
+            "provider_order_id": provider_order_id,
+            "message": message,
         }
     )
+    if refund_status == "released":
+        title = "Học phí đã được hoàn"
+        body = (
+            f"Hệ thống đã chuyển khoản {_format_vnd_amount(amount)} cho lớp '{cls.title}'. "
+            f"Lý do: {reason}."
+        )
+    elif refund_status == "failed":
+        title = "Hoàn tiền học phí chưa thực hiện được"
+        body = (
+            f"Hệ thống chưa thể chuyển khoản hoàn tiền {_format_vnd_amount(amount)} "
+            f"cho lớp '{cls.title}'. Lý do: {message or reason}."
+        )
+    else:
+        title = "Hoàn tiền học phí đang được xử lý"
+        body = (
+            f"Hệ thống đã tạo yêu cầu hoàn tiền {_format_vnd_amount(amount)} "
+            f"cho lớp '{cls.title}'. Vui lòng chờ ngân hàng xử lý."
+        )
+
     return create_notification(
         db,
         user_id=student_user_id,
         notification_type=NOTIFICATION_TYPE_REFUND_ISSUED,
-        title="Học phí đã được hoàn",
-        body=(
-            f"Hệ thống đã tạo hoàn tiền {_format_vnd_amount(amount)} cho lớp '{cls.title}'. "
-            f"Lý do: {reason}."
-        ),
+        title=title,
+        body=body,
         data=data,
     )
 

@@ -362,6 +362,7 @@ Khi bật payout thật:
 - điền thêm `PAYOS_PAYOUT_CLIENT_ID`, `PAYOS_PAYOUT_API_KEY`, `PAYOS_PAYOUT_CHECKSUM_KEY`
 - thêm IP public outbound của backend vào `my.payos.vn > Kênh chuyển tiền > Quản lý IP`
 - tutor phải có đủ `bank_bin` và `bank_account_number`
+- học viên cũng nên có đủ `bank_bin` và `bank_account_number` nếu muốn backend hoàn tiền về tài khoản ngân hàng khi lớp bị hủy
 - nên dùng teacher đã có hồ sơ payout sẵn hoặc cập nhật profile trước khi chạy job payout
 
 Hướng dẫn chi tiết hơn cho luồng admin local có trong [docs/admin-operations.md](../docs/admin-operations.md).

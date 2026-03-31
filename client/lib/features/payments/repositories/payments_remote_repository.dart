@@ -86,6 +86,38 @@ class PaymentsRemoteRepository {
     }
   }
 
+  Future<Either<AppFailure, PaymentSummary>> cancelClass({
+    required String token,
+    required String classId,
+    String? reason,
+  }) async {
+    try {
+      final uri = Uri.parse(
+        '${ServerConstant.serverURL}/payments/classes/$classId/cancel',
+      );
+      final body = <String, dynamic>{};
+      final normalizedReason = reason?.trim();
+      if (normalizedReason != null && normalizedReason.isNotEmpty) {
+        body['reason'] = normalizedReason;
+      }
+
+      final response = await http.post(
+        uri,
+        headers: {'Content-Type': 'application/json', 'x-auth-token': token},
+        body: jsonEncode(body),
+      );
+
+      if (response.statusCode != 200) {
+        return Left(_decodeFailure(response));
+      }
+
+      final map = jsonDecode(response.body) as Map<String, dynamic>;
+      return Right(PaymentSummary.fromMap(map));
+    } catch (e) {
+      return Left(AppFailure(e.toString()));
+    }
+  }
+
   Either<AppFailure, PaymentTransactionStatus> _decodeTransactionResponse(
     http.Response response,
   ) {

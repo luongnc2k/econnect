@@ -9,6 +9,7 @@ from models.booking import Booking
 from models.class_ import Class
 from models.learning_location import LearningLocation
 from models.payment import Payment
+from models.student_profile import StudentProfile
 from models.teacher_profile import TeacherProfile
 from models.topic import Topic
 from models.user import User
@@ -172,6 +173,38 @@ def seed_teacher_profile(
     return teacher_profile
 
 
+def seed_student_profile(
+    db: Session,
+    *,
+    student_id: str,
+    bank_name: str = "MBBank",
+    bank_bin: str = "970422",
+    bank_account_number: str = "1234567890",
+    bank_account_holder: str = "Student Seed",
+) -> StudentProfile:
+    existing = db.query(StudentProfile).filter(StudentProfile.user_id == student_id).first()
+    if existing:
+        existing.bank_name = bank_name
+        existing.bank_bin = bank_bin
+        existing.bank_account_number = bank_account_number
+        existing.bank_account_holder = bank_account_holder
+        db.commit()
+        db.refresh(existing)
+        return existing
+
+    student_profile = StudentProfile(
+        user_id=student_id,
+        bank_name=bank_name,
+        bank_bin=bank_bin,
+        bank_account_number=bank_account_number,
+        bank_account_holder=bank_account_holder,
+    )
+    db.add(student_profile)
+    db.commit()
+    db.refresh(student_profile)
+    return student_profile
+
+
 def seed_paid_class_with_held_booking(
     db: Session,
     *,
@@ -188,6 +221,7 @@ def seed_paid_class_with_held_booking(
     topic = create_topic(db)
     location = create_learning_location(db, name="Online", address="Zoom")
     seed_teacher_profile(db, teacher_id=teacher.id, bank_account_holder=teacher.full_name)
+    seed_student_profile(db, student_id=student.id, bank_account_holder=student.full_name)
 
     now = datetime.now(timezone.utc)
     actual_start_time = start_time or (now - timedelta(hours=3))
@@ -326,6 +360,7 @@ def seed_paid_class_with_held_bookings(
 
     for index in range(student_count):
         student = seed_user(db, role="student", full_name=f"Student Seed {index + 1}")
+        seed_student_profile(db, student_id=student.id, bank_account_holder=student.full_name)
         booking = Booking(
             id=str(uuid.uuid4()),
             class_id=cls.id,
