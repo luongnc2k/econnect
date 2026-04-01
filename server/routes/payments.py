@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
+import logging
 import os
 import uuid
 from typing import Optional
@@ -64,6 +65,7 @@ from runtime_checks import cancel_underfilled_classes_hours
 from topic_service import ensure_topic_record
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 JOB_SECRET = (os.getenv("JOB_SECRET", "") or "").strip()
 CREATION_FEE_REFUND_PAYOUT_PAYMENT_TYPE = "creation_fee_refund_payout"
 STUDENT_REFUND_PAYOUT_PAYMENT_TYPE = "refund_payout"
@@ -79,6 +81,62 @@ def _build_class_code(cls: Class) -> str:
     raw_id = "".join(char for char in str(cls.id).upper() if char.isalnum())
     suffix = raw_id[:4].ljust(4, "0")
     return f"CLS-{date_part}-{suffix}"
+
+
+def _safe_class_code(cls: Optional[Class]) -> Optional[str]:
+    if cls is None:
+        return None
+    try:
+        return _build_class_code(cls)
+    except Exception:  # pragma: no cover - defensive logging helper
+        return None
+
+
+def _log_payment_failure(
+    *,
+    context: str,
+    payment: Optional[Payment],
+    cls: Optional[Class],
+    booking: Optional[Booking] = None,
+    reason: str,
+) -> None:
+    logger.error(
+        "Payment failed | context=%s | payment_type=%s | transaction_ref=%s | provider_order_id=%s | class_id=%s | class_code=%s | booking_id=%s | amount=%s | status=%s | reason=%s",
+        context,
+        payment.payment_type if payment else None,
+        payment.transaction_ref if payment else None,
+        payment.provider_order_id if payment else None,
+        cls.id if cls else None,
+        _safe_class_code(cls),
+        booking.id if booking else None,
+        str(payment.amount) if payment else None,
+        payment.status if payment else None,
+        reason,
+    )
+
+
+def _log_payout_failure(
+    *,
+    kind: str,
+    cls: Class,
+    reason: str,
+    payment: Optional[Payment] = None,
+    booking: Optional[Booking] = None,
+    amount: Optional[Decimal] = None,
+) -> None:
+    logger.error(
+        "Payout failed | kind=%s | class_id=%s | class_code=%s | booking_id=%s | payment_id=%s | transaction_ref=%s | provider_order_id=%s | amount=%s | payout_status=%s | reason=%s",
+        kind,
+        cls.id,
+        _safe_class_code(cls),
+        booking.id if booking else None,
+        payment.id if payment else None,
+        payment.transaction_ref if payment else None,
+        payment.provider_order_id if payment else None,
+        str(amount if amount is not None else (payment.amount if payment else None)),
+        payment.status if payment else cls.tutor_payout_status,
+        reason,
+    )
 
 
 def _generate_transaction_ref(prefix: str) -> str:
@@ -566,6 +624,16 @@ def _create_student_refund_payout_attempt(
             failure_reason=str(exc),
         )
 
+    if payout_payment.status == "failed":
+        _log_payout_failure(
+            kind="student_refund",
+            cls=cls,
+            booking=booking,
+            payment=payout_payment,
+            amount=Decimal(refund_payment.amount),
+            reason=payout_payment.failure_reason or "Unknown student refund payout failure",
+        )
+
     db.add(payout_payment)
     return payout_payment
 
@@ -761,6 +829,13 @@ def _process_payment_result(
             booking.payment_status = "failed"
             booking.cancelled_at = _now()
             booking.cancel_reason = payment.failure_reason
+        _log_payment_failure(
+            context="process_payment_result",
+            payment=payment,
+            cls=cls,
+            booking=booking,
+            reason=payment.failure_reason,
+        )
         db.commit()
         return _serialize_payment(payment, cls=cls, booking=booking, message="Thanh toan that bai")
 
@@ -919,6 +994,12 @@ def create_class_payment_request(
             },
         )
     except PaymentGatewayError as exc:
+        _log_payment_failure(
+            context="create_class_payment_request",
+            payment=payment,
+            cls=new_class,
+            reason=str(exc),
+        )
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     payment.redirect_url = provider_result.redirect_url
@@ -1007,6 +1088,13 @@ def create_join_payment_request(
             },
         )
     except PaymentGatewayError as exc:
+        _log_payment_failure(
+            context="create_join_payment_request",
+            payment=payment,
+            cls=cls,
+            booking=booking,
+            reason=str(exc),
+        )
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     payment.redirect_url = provider_result.redirect_url
@@ -1163,6 +1251,13 @@ async def payos_return(
     try:
         gateway_status = fetch_provider_payment_status("payos", provider_order_id)
     except PaymentGatewayError as exc:
+        _log_payment_failure(
+            context="payos_return_status_fetch",
+            payment=payment,
+            cls=cls,
+            booking=booking,
+            reason=str(exc),
+        )
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     if gateway_status.provider_status in {"PAID", "CANCELLED", "FAILED", "EXPIRED"}:
@@ -1200,6 +1295,7 @@ async def payos_webhook(
     try:
         result = verify_provider_callback("payos", raw_payload)
     except PaymentGatewayError as exc:
+        logger.error("Payment callback verification failed | provider=payos | reason=%s", str(exc))
         return {"code": "01", "desc": str(exc)}
 
     if not _get_payment_by_reference_or_order_id(db, result.transaction_ref):
@@ -1215,6 +1311,12 @@ async def payos_webhook(
             raw_payload=result.raw_payload,
         )
     except HTTPException as exc:
+        logger.error(
+            "Payment webhook processing failed | provider=payos | transaction_ref=%s | status_code=%s | reason=%s",
+            result.transaction_ref,
+            exc.status_code,
+            exc.detail,
+        )
         return {"code": str(exc.status_code), "desc": exc.detail}
 
     return {"code": "00", "desc": "Success"}
@@ -1821,6 +1923,14 @@ def _create_payout_attempt(
         payout_result=payout_result,
         processed_at=processed_at,
     )
+    if payout_result.local_status == "failed":
+        _log_payout_failure(
+            kind="tutor_payout",
+            cls=cls,
+            payment=payout_payment,
+            amount=payout_amount,
+            reason=payout_result.message or "Unknown tutor payout failure",
+        )
     db.add(payout_payment)
     notify_tutor_payout_updated(
         db,
@@ -1869,6 +1979,14 @@ def _sync_existing_payout(
         cls.tutor_paid_at = None
 
     if payout_result.local_status != previous_status:
+        if payout_result.local_status == "failed":
+            _log_payout_failure(
+                kind="tutor_payout_sync",
+                cls=cls,
+                payment=payout_payment,
+                amount=Decimal(payout_payment.amount),
+                reason=payout_result.message or "Unknown tutor payout sync failure",
+            )
         notify_tutor_payout_updated(
             db,
             cls=cls,
@@ -1916,6 +2034,15 @@ def _sync_existing_student_refund_payout(
         payout_payment.released_at = processed_at
 
     if payout_result.local_status != previous_status:
+        if payout_result.local_status == "failed":
+            _log_payout_failure(
+                kind="student_refund_sync",
+                cls=cls,
+                booking=booking,
+                payment=payout_payment,
+                amount=Decimal(payout_payment.amount),
+                reason=payout_result.message or "Unknown student refund payout sync failure",
+            )
         notify_refund_issued(
             db,
             cls=cls,
@@ -2133,6 +2260,14 @@ def _create_creation_fee_refund_payout_attempt(
         payout_result=payout_result,
         processed_at=processed_at,
     )
+    if payout_result.local_status == "failed":
+        _log_payout_failure(
+            kind="creation_fee_refund",
+            cls=cls,
+            payment=refund_payment,
+            amount=refund_amount,
+            reason=payout_result.message or "Unknown creation fee refund payout failure",
+        )
     db.add(refund_payment)
     notify_tutor_creation_fee_refund_updated(
         db,
@@ -2170,6 +2305,14 @@ def _sync_existing_creation_fee_refund_payout(
     )
 
     if payout_result.local_status != previous_status:
+        if payout_result.local_status == "failed":
+            _log_payout_failure(
+                kind="creation_fee_refund_sync",
+                cls=cls,
+                payment=refund_payment,
+                amount=Decimal(refund_payment.amount),
+                reason=payout_result.message or "Unknown creation fee refund payout sync failure",
+            )
         notify_tutor_creation_fee_refund_updated(
             db,
             cls=cls,
@@ -2353,6 +2496,12 @@ def cancel_underfilled_classes(
                 )
             except (HTTPException, PaymentGatewayError) as exc:
                 cls.creation_payment_status = "refund_failed"
+                _log_payout_failure(
+                    kind="cancel_underfilled_creation_fee_refund",
+                    cls=cls,
+                    amount=Decimal(cls.creation_fee_amount),
+                    reason=exc.detail if isinstance(exc, HTTPException) else str(exc),
+                )
                 notify_tutor_creation_fee_refund_updated(
                     db,
                     cls=cls,
@@ -2455,6 +2604,12 @@ def release_eligible_payouts(
             cls.tutor_payout_status = "failed"
             cls.tutor_payout_amount = payout_amount
             cls.tutor_paid_at = None
+            _log_payout_failure(
+                kind="release_eligible_payouts",
+                cls=cls,
+                amount=payout_amount,
+                reason=exc.detail if isinstance(exc, HTTPException) else str(exc),
+            )
             notify_tutor_payout_updated(
                 db,
                 cls=cls,
@@ -2502,6 +2657,13 @@ def sync_payout_statuses(
                 }
             )
         except PaymentGatewayError as exc:
+            _log_payout_failure(
+                kind="sync_creation_fee_refund_statuses",
+                cls=cls,
+                payment=refund_payment,
+                amount=Decimal(refund_payment.amount),
+                reason=str(exc),
+            )
             synced.append(
                 {
                     "class_id": cls.id,
@@ -2531,6 +2693,13 @@ def sync_payout_statuses(
                 }
             )
         except PaymentGatewayError as exc:
+            _log_payout_failure(
+                kind="sync_payout_statuses",
+                cls=cls,
+                payment=payout_payment,
+                amount=Decimal(payout_payment.amount),
+                reason=str(exc),
+            )
             synced.append(
                 {
                     "class_id": cls.id,
@@ -2560,6 +2729,14 @@ def sync_payout_statuses(
                 }
             )
         except PaymentGatewayError as exc:
+            _log_payout_failure(
+                kind="sync_student_refund_payout_statuses",
+                cls=cls,
+                booking=booking,
+                payment=payout_payment,
+                amount=Decimal(payout_payment.amount),
+                reason=str(exc),
+            )
             synced.append(
                 {
                     "class_id": cls.id,

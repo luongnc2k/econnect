@@ -244,7 +244,36 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
       return;
     }
 
+    final confirmed = await _confirmCreationPaymentDisclaimer();
+    if (!confirmed) {
+      return;
+    }
+
     await _submit(vmState);
+  }
+
+  Future<bool> _confirmCreationPaymentDisclaimer() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Xác nhận trước khi thanh toán'),
+        content: const Text(
+          'Sau khi thanh toán sẽ không được hoàn phí tạo lớp nếu hủy lớp. Bạn có muốn tiếp tục không?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Quay lại'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Tôi đã hiểu'),
+          ),
+        ],
+      ),
+    );
+
+    return confirmed == true;
   }
 
   Future<void> _submit(CreateClassState vmState) async {

@@ -54,6 +54,55 @@ void main() {
       expect(find.byType(DropdownButtonFormField<String>), findsOneWidget);
     },
   );
+
+  testWidgets(
+    'create class screen asks tutor to confirm the non-refundable creation fee before payment',
+    (tester) async {
+      final fakeTutorRepo = _FakeTutorRemoteRepository(
+        locations: const [
+          LearningLocation(
+            id: 'loc-1',
+            name: 'Remote Location 01',
+            address: '12 Nguyen Van Linh',
+            notes: 'Tang 2',
+            isActive: true,
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            currentUserProvider.overrideWithValue(_sampleUser()),
+            tutorRemoteRepositoryProvider.overrideWithValue(fakeTutorRepo),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.lightThemeMode,
+            home: const CreateClassScreen(),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+      await tester.drag(find.byType(ListView), const Offset(0, -1200));
+      await tester.pumpAndSettle();
+
+      final primaryButton = find.text('Tạo buổi học và thanh toán');
+      await tester.ensureVisible(primaryButton);
+      await tester.tap(primaryButton);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Xác nhận trước khi thanh toán'), findsOneWidget);
+      expect(
+        find.text(
+          'Sau khi thanh toán sẽ không được hoàn phí tạo lớp nếu hủy lớp. Bạn có muốn tiếp tục không?',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Quay lại'), findsOneWidget);
+      expect(find.text('Tôi đã hiểu'), findsOneWidget);
+    },
+  );
 }
 
 UserModel _sampleUser() {
