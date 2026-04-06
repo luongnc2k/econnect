@@ -1,0 +1,9 @@
+fastapi
+SQLAlchemy
+psycopg2-binary
+bcrypt
+PyJWT
+uvicorn
+python-dotenv
+google-cloud-storage
+python-multipart
