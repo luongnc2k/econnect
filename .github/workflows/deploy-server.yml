@@ -1,0 +1,53 @@
+name: Deploy Server
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'server/**'
+      - '.github/workflows/deploy-server.yml'
+
+env:
+  PROJECT_ID: econnect-prod
+  REGION: asia-southeast1
+  SERVICE: econnect-server
+  IMAGE: asia-southeast1-docker.pkg.dev/econnect-prod/econnect/server
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker
+        run: gcloud auth configure-docker asia-southeast1-docker.pkg.dev
+
+      - name: Build and push
+        run: |
+          docker build -t $IMAGE:$GITHUB_SHA ./server
+          docker push $IMAGE:$GITHUB_SHA
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy $SERVICE \
+            --image $IMAGE:$GITHUB_SHA \
+            --region $REGION \
+            --platform managed \
+            --service-account econnect-server@$PROJECT_ID.iam.gserviceaccount.com \
+            --add-cloudsql-instances $PROJECT_ID:$REGION:econnect-db \
+            --set-secrets="JWT_SECRET=JWT_SECRET:latest,DATABASE_URL=DATABASE_URL:latest,ADMIN_CREATE_SECRET=ADMIN_CREATE_SECRET:latest" \
+            --allow-unauthenticated \
+            --min-instances 0 \
+            --max-instances 10
