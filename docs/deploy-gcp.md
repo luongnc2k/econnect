@@ -24,8 +24,8 @@ Monitoring: Cloud Monitoring
 
 ### 1.1 Tạo GCP Project
 
-- [ ] Tạo project `econnect-prod` trên Google Cloud Console
-- [ ] Enable các APIs:
+- [x] Tạo project `econnect-prod` trên Google Cloud Console
+- [x] Enable các APIs:
   - Cloud Run API
   - Cloud SQL Admin API
   - Cloud Storage API
@@ -35,22 +35,22 @@ Monitoring: Cloud Monitoring
 
 ### 1.2 Tạo Service Account cho Cloud Run
 
-- [ ] Tạo service account: `econnect-server@econnect-prod.iam.gserviceaccount.com`
-- [ ] Gán roles:
+- [x] Tạo service account: `econnect-server@econnect-prod.iam.gserviceaccount.com`
+- [x] Gán roles:
   - `roles/cloudsql.client`
   - `roles/storage.objectAdmin`
   - `roles/secretmanager.secretAccessor`
 
 ### 1.3 Cloud SQL (PostgreSQL)
 
-- [ ] Tạo Cloud SQL instance:
+- [x] Tạo Cloud SQL instance:
   - Engine: PostgreSQL 16
   - Instance ID: `econnect-db`
   - Region: `asia-southeast1` (Singapore)
-  - Machine type: `db-f1-micro` (dev) / `db-g1-small` (prod)
+  - Machine type: `db-g1-small`, edition: ENTERPRISE
   - Storage: SSD, 10GB, bật auto-resize
-- [ ] Tạo database: `econnectdb`
-- [ ] Tạo user DB với strong password
+- [x] Tạo database: `econnectdb`
+- [x] Tạo user DB với strong password
 - [ ] Test kết nối local qua Cloud SQL Auth Proxy:
   ```bash
   ./cloud-sql-proxy econnect-prod:asia-southeast1:econnect-db --port 5433
@@ -58,20 +58,20 @@ Monitoring: Cloud Monitoring
 
 ### 1.4 Google Cloud Storage
 
-- [ ] Tạo bucket `econnect-class-thumbnails` — public read
-- [ ] Tạo bucket `econnect-user-avatars` — public read
-- [ ] Tạo bucket `econnect-teacher-docs` — private (dùng Signed URLs)
-- [ ] Set IAM cho 2 bucket public: thêm `allUsers` với role `Storage Object Viewer`
+- [x] Tạo bucket `econnect-class-thumbnails` — public read
+- [x] Tạo bucket `econnect-user-avatars` — public read
+- [x] Tạo bucket `econnect-teacher-docs` — private (dùng Signed URLs)
+- [x] Set IAM cho 2 bucket public: thêm `allUsers` với role `Storage Object Viewer`
 
 ### 1.5 Secret Manager
 
-- [ ] Lưu các secrets:
+- [x] Lưu các secrets:
   ```bash
   echo -n "..." | gcloud secrets create JWT_SECRET --data-file=-
   echo -n "..." | gcloud secrets create DATABASE_URL --data-file=-
   echo -n "..." | gcloud secrets create ADMIN_CREATE_SECRET --data-file=-
   ```
-- [ ] Format `DATABASE_URL` cho Cloud SQL Unix socket:
+- [x] Format `DATABASE_URL` cho Cloud SQL Unix socket:
   ```
   postgresql+psycopg2://USER:PASS@/econnectdb?host=/cloudsql/econnect-prod:asia-southeast1:econnect-db
   ```
