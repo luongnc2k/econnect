@@ -5,5 +5,5 @@ bcrypt
 PyJWT
 uvicorn
 python-dotenv
-minio
+google-cloud-storage
 python-multipart

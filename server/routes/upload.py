@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 from middleware.auth_middleware import auth_middleware
-from minio_client import (
+from gcs_client import (
     delete_avatar,
     upload_avatar,
     upload_teacher_document,

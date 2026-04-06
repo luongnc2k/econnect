@@ -1,8 +1,7 @@
-from pathlib import Path
+import os
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 
 from models.base import Base
 from database import engine
@@ -19,9 +18,11 @@ from models.booking import Booking
 
 app = FastAPI()
 
+CORS_ORIGINS = [o.strip() for o in os.getenv("CORS_ORIGINS", "*").split(",")]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=CORS_ORIGINS,
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -33,10 +34,6 @@ app.include_router(classes.router, prefix="/classes")
 app.include_router(topics.router, prefix="/topics")
 app.include_router(profile.router, prefix="/profile")
 app.include_router(users.router, prefix="/users")
-
-uploads_dir = Path("uploads")
-uploads_dir.mkdir(parents=True, exist_ok=True)
-app.mount("/static", StaticFiles(directory=uploads_dir), name="static")
 
 # Base.metadata.drop_all(bind=engine)
 Base.metadata.create_all(bind=engine)
