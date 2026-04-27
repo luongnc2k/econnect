@@ -61,6 +61,7 @@ Monitoring: Cloud Monitoring
 - [x] Tạo bucket `econnect-class-thumbnails` — public read
 - [x] Tạo bucket `econnect-user-avatars` — public read
 - [x] Tạo bucket `econnect-teacher-docs` — private (dùng Signed URLs)
+- [ ] Tạo bucket `econnect-class-materials` — private hoặc signed/public theo chính sách tài liệu lớp
 - [x] Set IAM cho 2 bucket public: thêm `allUsers` với role `Storage Object Viewer`
 
 ### 1.5 Secret Manager
@@ -128,10 +129,10 @@ Vấn đề: `minio_client.py` có fallback `_local_upload()` lưu file vào dis
 
 ### 2.3 Cập nhật main.py
 
-- [ ] Xóa dòng mount StaticFiles:
+- [x] Không mount StaticFiles trong production:
   ```python
-  # Xóa dòng này:
-  app.mount("/static", StaticFiles(directory="uploads"), name="static")
+  if app_environment() != "production":
+      app.mount("/static", StaticFiles(directory=uploads_dir), name="static")
   ```
 - [ ] Thu hẹp CORS `allow_origins`:
   ```python
@@ -158,9 +159,29 @@ Vấn đề: `minio_client.py` có fallback `_local_upload()` lưu file vào dis
 
 ## Giai đoạn 3 — CI/CD
 
+### Trạng thái deploy tự động
+
+Repo hiện có workflow GitHub Actions `.github/workflows/deploy-server.yml` để tự động deploy backend lên Google Cloud Run.
+
+- Workflow chỉ chạy khi `push` vào branch `main`.
+- Workflow chỉ chạy nếu thay đổi nằm trong `server/**` hoặc `.github/workflows/deploy-server.yml`.
+- Push lên branch khác, ví dụ `feature/payment`, hoặc chỉ mở pull request sẽ không tự deploy production.
+- Target deploy:
+  - Project: `econnect-prod`
+  - Region: `asia-southeast1`
+  - Cloud Run service: `econnect-server`
+  - Artifact Registry image: `asia-southeast1-docker.pkg.dev/econnect-prod/econnect/server`
+- Workflow cần GitHub Secrets `WIF_PROVIDER` và `WIF_SERVICE_ACCOUNT` để đăng nhập GCP bằng Workload Identity Federation.
+- Lần deploy thành công gần nhất được ghi nhận: `2026-04-06 18:42 UTC`.
+- Lần deploy mới nhất được kiểm tra: `2026-04-27 15:04 UTC`, fail tại step `Deploy to Cloud Run`.
+- Nguyên nhân code đã phát hiện sau run fail: backend không import/startup được do `server/main.py` thiếu import `Path`/`StaticFiles`, và `server/routes/upload.py` import `upload_class_material` nhưng `server/gcs_client.py` chưa định nghĩa hàm này.
+- Workflow hiện có bước `Validate backend startup imports` trước khi build/push image để bắt sớm nhóm lỗi import/startup tương tự.
+- Workflow dùng `--update-env-vars` để đặt `APP_ENV=production`, `STRICT_STARTUP_VALIDATION=false`, `GCS_FORCE_REMOTE=true` cho Cloud Run mà không xóa các biến môi trường khác.
+- Workflow dùng `--update-secrets` thay cho `--set-secrets` để không xóa các secret đã cấu hình ngoài workflow.
+
 ### 3.1 Artifact Registry
 
-- [ ] Tạo Artifact Registry repository:
+- [x] Tạo Artifact Registry repository:
   ```bash
   gcloud artifacts repositories create econnect \
     --repository-format=docker \
@@ -220,20 +241,21 @@ jobs:
             --platform managed \
             --service-account econnect-server@$PROJECT_ID.iam.gserviceaccount.com \
             --add-cloudsql-instances $PROJECT_ID:$REGION:econnect-db \
-            --set-secrets="JWT_SECRET=JWT_SECRET:latest,DATABASE_URL=DATABASE_URL:latest,ADMIN_CREATE_SECRET=ADMIN_CREATE_SECRET:latest" \
+            --update-env-vars="APP_ENV=production,STRICT_STARTUP_VALIDATION=false,GCS_FORCE_REMOTE=true" \
+            --update-secrets="JWT_SECRET=JWT_SECRET:latest,DATABASE_URL=DATABASE_URL:latest,ADMIN_CREATE_SECRET=ADMIN_CREATE_SECRET:latest" \
             --allow-unauthenticated \
             --min-instances 0 \
             --max-instances 10
 ```
 
-- [ ] Tạo file workflow
-- [ ] Setup Workload Identity Federation (thay vì dùng service account JSON key):
+- [x] Tạo file workflow
+- [x] Setup Workload Identity Federation (thay vì dùng service account JSON key):
   ```bash
   gcloud iam workload-identity-pools create github-pool \
     --location global \
     --display-name "GitHub Actions Pool"
   ```
-- [ ] Thêm `WIF_PROVIDER` và `WIF_SERVICE_ACCOUNT` vào GitHub Secrets
+- [x] Thêm `WIF_PROVIDER` và `WIF_SERVICE_ACCOUNT` vào GitHub Secrets
 
 ### 3.3 Deploy Lần Đầu (Thủ công)
 
@@ -249,7 +271,8 @@ jobs:
     --image asia-southeast1-docker.pkg.dev/econnect-prod/econnect/server:v1 \
     --region asia-southeast1 \
     --add-cloudsql-instances econnect-prod:asia-southeast1:econnect-db \
-    --set-secrets="JWT_SECRET=JWT_SECRET:latest,DATABASE_URL=DATABASE_URL:latest,ADMIN_CREATE_SECRET=ADMIN_CREATE_SECRET:latest" \
+    --update-env-vars="APP_ENV=production,STRICT_STARTUP_VALIDATION=false,GCS_FORCE_REMOTE=true" \
+    --update-secrets="JWT_SECRET=JWT_SECRET:latest,DATABASE_URL=DATABASE_URL:latest,ADMIN_CREATE_SECRET=ADMIN_CREATE_SECRET:latest" \
     --service-account econnect-server@econnect-prod.iam.gserviceaccount.com \
     --allow-unauthenticated
   ```

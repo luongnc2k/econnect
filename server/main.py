@@ -1,10 +1,11 @@
 import asyncio
 from contextlib import asynccontextmanager, suppress
 import os
-import os
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from database import engine
 from job_runner import internal_job_runner_enabled, run_internal_job_runner
@@ -96,8 +97,6 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-CORS_ORIGINS = [o.strip() for o in os.getenv("CORS_ORIGINS", "*").split(",")]
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins,
@@ -116,9 +115,10 @@ app.include_router(payments.router, prefix="/payments")
 app.include_router(notifications.router, prefix="/notifications")
 app.include_router(locations.router, prefix="/locations")
 
-uploads_dir = Path(os.getenv("LOCAL_UPLOAD_ROOT", "uploads"))
-uploads_dir.mkdir(parents=True, exist_ok=True)
-app.mount("/static", StaticFiles(directory=uploads_dir), name="static")
+if app_environment() != "production":
+    uploads_dir = Path(os.getenv("LOCAL_UPLOAD_ROOT", "uploads"))
+    uploads_dir.mkdir(parents=True, exist_ok=True)
+    app.mount("/static", StaticFiles(directory=uploads_dir), name="static")
 
 
 @app.get("/health/live")

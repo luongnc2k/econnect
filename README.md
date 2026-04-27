@@ -16,6 +16,7 @@ econnect/
 ## Tài liệu
 
 - [Tương tác admin với hệ thống](docs/admin-operations.md)
+- [Deploy server lên Google Cloud](docs/deploy-gcp.md)
 - [Checklist production](docs/production-checklist.md)
 - [Điều hướng client](docs/routing.md)
 - [ERD](docs/erd.md)
