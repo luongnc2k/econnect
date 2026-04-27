@@ -1,11 +1,10 @@
 import asyncio
 from contextlib import asynccontextmanager, suppress
 import os
-from pathlib import Path
+import os
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 
 from database import engine
 from job_runner import internal_job_runner_enabled, run_internal_job_runner
@@ -96,6 +95,8 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+
+CORS_ORIGINS = [o.strip() for o in os.getenv("CORS_ORIGINS", "*").split(",")]
 
 app.add_middleware(
     CORSMiddleware,

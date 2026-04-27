@@ -1,11 +1,11 @@
 fastapi
 SQLAlchemy
-psycopg2
+psycopg2-binary
 bcrypt
 PyJWT
 uvicorn[standard]
 python-dotenv
-minio
+google-cloud-storage
 python-multipart
 payos==1.1.0
 httpx
