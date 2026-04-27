@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:client/core/providers/current_user_notifier.dart';
+import 'package:client/core/widgets/learning_material_card.dart';
 import 'package:client/features/payments/repositories/payments_remote_repository.dart';
 import 'package:client/features/student/model/class_session.dart';
 import 'package:client/features/tutor/model/enrolled_student.dart';
@@ -21,7 +22,8 @@ class TutorClassDetailScreen extends ConsumerStatefulWidget {
       _TutorClassDetailScreenState();
 }
 
-class _TutorClassDetailScreenState extends ConsumerState<TutorClassDetailScreen> {
+class _TutorClassDetailScreenState
+    extends ConsumerState<TutorClassDetailScreen> {
   bool _isCancelling = false;
   bool _isCancelled = false;
   late String _statusLabel;
@@ -73,7 +75,9 @@ class _TutorClassDetailScreenState extends ConsumerState<TutorClassDetailScreen>
               const SizedBox(height: 12),
               const Text('• Học viên đã đăng ký thành công sẽ được thông báo.'),
               const SizedBox(height: 6),
-              const Text('• Học phí của các học viên đã đăng ký sẽ được hoàn lại.'),
+              const Text(
+                '• Học phí của các học viên đã đăng ký sẽ được hoàn lại.',
+              ),
               const SizedBox(height: 6),
               const Text('• Bạn sẽ không được hoàn lại phí tạo buổi học.'),
             ],
@@ -143,7 +147,9 @@ class _TutorClassDetailScreenState extends ConsumerState<TutorClassDetailScreen>
   }
 
   void _showSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -185,7 +191,8 @@ class _TutorClassDetailScreenState extends ConsumerState<TutorClassDetailScreen>
                           color: cs.primaryContainer,
                           textColor: cs.onPrimaryContainer,
                         ),
-                      if (widget.session.tags.isNotEmpty) const SizedBox(width: 8),
+                      if (widget.session.tags.isNotEmpty)
+                        const SizedBox(width: 8),
                       _Chip(
                         label: _statusLabel,
                         color: _isCancelled
@@ -208,6 +215,13 @@ class _TutorClassDetailScreenState extends ConsumerState<TutorClassDetailScreen>
                   _InfoGrid(session: widget.session),
                   const SizedBox(height: 20),
                   _ClassCodeCard(code: widget.session.classCode, cs: cs),
+                  if (widget.session.hasLearningMaterial) ...[
+                    const SizedBox(height: 16),
+                    LearningMaterialCard(
+                      materialUrl: widget.session.materialUrl!,
+                      fileName: widget.session.materialFileName,
+                    ),
+                  ],
                   if (_canCancelClass || _isCancelled) ...[
                     const SizedBox(height: 16),
                     _CancelClassCard(
@@ -305,11 +319,7 @@ class _ThumbnailPlaceholder extends StatelessWidget {
     return Container(
       color: cs.surfaceContainerHighest,
       child: Center(
-        child: Icon(
-          Icons.image_outlined,
-          size: 48,
-          color: cs.onSurfaceVariant,
-        ),
+        child: Icon(Icons.image_outlined, size: 48, color: cs.onSurfaceVariant),
       ),
     );
   }
@@ -617,9 +627,7 @@ class _CancelClassCard extends StatelessWidget {
                       ),
                     )
                   : const Icon(Icons.cancel_outlined),
-              label: Text(
-                isLoading ? 'Đang hủy buổi học...' : 'Hủy buổi học',
-              ),
+              label: Text(isLoading ? 'Đang hủy buổi học...' : 'Hủy buổi học'),
             ),
           ],
         ],

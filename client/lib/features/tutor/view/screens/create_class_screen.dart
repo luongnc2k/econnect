@@ -13,6 +13,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:fpdart/fpdart.dart' show Either, Left, Right;
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -43,6 +44,10 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
   Uint8List? _thumbnailBytes;
   String? _thumbnailFileName;
   String? _thumbnailFilePath;
+  Uint8List? _materialBytes;
+  String? _materialFileName;
+  String? _materialFilePath;
+  int? _materialSize;
   PaymentTransactionStatus? _transaction;
   Timer? _pollTimer;
   bool _pollingPayment = false;
@@ -59,6 +64,8 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
   String? _locationError;
   static const _maxPollAttempts = 90;
   static const _maxConsecutivePollErrors = 3;
+  static const _maxMaterialSizeBytes = 10 * 1024 * 1024;
+  static const _allowedMaterialExtensions = {'pdf', 'doc', 'docx'};
 
   static const _levels = [
     ('beginner', 'Cơ bản'),
@@ -238,6 +245,61 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
     });
   }
 
+  Future<void> _pickMaterial() async {
+    final result = await FilePicker.platform.pickFiles(
+      allowMultiple: false,
+      type: FileType.custom,
+      allowedExtensions: _allowedMaterialExtensions.toList(),
+      withData: true,
+    );
+    if (result == null || result.files.isEmpty) {
+      return;
+    }
+
+    final file = result.files.single;
+    final extension = _extensionOf(file.name);
+    if (!_allowedMaterialExtensions.contains(extension)) {
+      _showMessage('Chỉ hỗ trợ tài liệu PDF, DOC hoặc DOCX.');
+      return;
+    }
+
+    if (file.size > _maxMaterialSizeBytes) {
+      _showMessage('Tài liệu học không được vượt quá 10MB.');
+      return;
+    }
+
+    final bytes = file.bytes;
+    if (bytes == null) {
+      _showMessage('Không đọc được tài liệu đã chọn. Vui lòng thử lại.');
+      return;
+    }
+
+    setState(() {
+      _materialBytes = bytes;
+      _materialFileName = file.name;
+      _materialFilePath = kIsWeb ? null : file.path;
+      _materialSize = file.size;
+    });
+  }
+
+  void _clearMaterial() {
+    setState(() {
+      _materialBytes = null;
+      _materialFileName = null;
+      _materialFilePath = null;
+      _materialSize = null;
+    });
+  }
+
+  String _extensionOf(String fileName) {
+    final normalized = fileName.trim().toLowerCase();
+    final dotIndex = normalized.lastIndexOf('.');
+    if (dotIndex == -1 || dotIndex == normalized.length - 1) {
+      return '';
+    }
+    return normalized.substring(dotIndex + 1);
+  }
+
   Future<void> _handlePrimaryPaymentAction(CreateClassState vmState) async {
     if (_hasPendingPaymentTransaction && !_pollingPayment) {
       await _resumePendingPayment();
@@ -325,9 +387,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
     if (!_startTime!.isAfter(DateTime.now())) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'Giờ bắt đầu phải sau thời điểm hiện tại',
-          ),
+          content: Text('Giờ bắt đầu phải sau thời điểm hiện tại'),
         ),
       );
       return;
@@ -365,6 +425,9 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
           thumbnailBytes: _thumbnailBytes,
           thumbnailFileName: _thumbnailFileName,
           thumbnailFilePath: _thumbnailFilePath,
+          materialBytes: _materialBytes,
+          materialFileName: _materialFileName,
+          materialFilePath: _materialFilePath,
         );
 
     if (!mounted || payment == null) {
@@ -530,10 +593,9 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
     required String token,
     required String transactionRef,
   }) {
-    return ref.read(paymentsRemoteRepositoryProvider).getTransactionStatus(
-          token: token,
-          transactionRef: transactionRef,
-        );
+    return ref
+        .read(paymentsRemoteRepositoryProvider)
+        .getTransactionStatus(token: token, transactionRef: transactionRef);
   }
 
   Future<void> _handleTransactionStatusUpdate(
@@ -617,6 +679,13 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
             _ThumbnailPicker(
               thumbnailBytes: _thumbnailBytes,
               onPick: _pickThumbnail,
+            ),
+            const SizedBox(height: 12),
+            _MaterialPicker(
+              fileName: _materialFileName,
+              fileSize: _materialSize,
+              onPick: _pickMaterial,
+              onClear: _clearMaterial,
             ),
             const SizedBox(height: 20),
             const _SectionLabel('Thông tin buổi học'),
@@ -1174,6 +1243,85 @@ class _DateTimeButton extends StatelessWidget {
             color: value != null ? null : colorScheme.onSurfaceVariant,
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _MaterialPicker extends StatelessWidget {
+  final String? fileName;
+  final int? fileSize;
+  final VoidCallback onPick;
+  final VoidCallback onClear;
+
+  const _MaterialPicker({
+    required this.fileName,
+    required this.fileSize,
+    required this.onPick,
+    required this.onClear,
+  });
+
+  String _formatSize(int? bytes) {
+    if (bytes == null) {
+      return 'PDF, DOC hoặc DOCX, tối đa 10MB';
+    }
+    final mb = bytes / (1024 * 1024);
+    return '${mb.toStringAsFixed(mb >= 1 ? 1 : 2)}MB';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final hasFile = fileName != null && fileName!.trim().isNotEmpty;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colorScheme.outlineVariant),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.upload_file_outlined, color: colorScheme.onSurfaceVariant),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  hasFile ? fileName!.trim() : 'Tài liệu học (tùy chọn)',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  hasFile
+                      ? _formatSize(fileSize)
+                      : 'PDF, DOC hoặc DOCX, tối đa 10MB',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (hasFile)
+            IconButton(
+              tooltip: 'Gỡ tài liệu',
+              onPressed: onClear,
+              icon: const Icon(Icons.close_rounded),
+            ),
+          OutlinedButton(
+            onPressed: onPick,
+            child: Text(hasFile ? 'Đổi file' : 'Chọn file'),
+          ),
+        ],
       ),
     );
   }

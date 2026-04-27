@@ -52,6 +52,8 @@ void main() {
       expect(fakeTutorRepo.getLearningLocationsCalls, 1);
       expect(find.text('Đang tải danh sách địa điểm học...'), findsNothing);
       expect(find.byType(DropdownButtonFormField<String>), findsOneWidget);
+      expect(find.text('Tài liệu học (tùy chọn)'), findsOneWidget);
+      expect(find.text('PDF, DOC hoặc DOCX, tối đa 10MB'), findsOneWidget);
     },
   );
 

@@ -17,6 +17,8 @@ class ClassCreate(BaseModel):
     max_participants: int
     price: Decimal
     thumbnail_url: Optional[str] = None
+    material_url: Optional[str] = None
+    material_file_name: Optional[str] = Field(default=None, max_length=255)
 
     @field_validator("min_participants")
     @classmethod
@@ -75,7 +77,13 @@ class ClassCreate(BaseModel):
             raise ValueError("khong duoc de trong")
         return normalized
 
-    @field_validator("description", "thumbnail_url", mode="before")
+    @field_validator(
+        "description",
+        "thumbnail_url",
+        "material_url",
+        "material_file_name",
+        mode="before",
+    )
     @classmethod
     def optional_text_trimmed(cls, value: object) -> Optional[str]:
         if value is None:

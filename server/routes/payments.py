@@ -959,6 +959,8 @@ def create_class_payment_request(
         creation_fee_amount=creation_fee,
         creation_payment_status="pending",
         thumbnail_url=class_data.thumbnail_url,
+        material_url=class_data.material_url,
+        material_file_name=class_data.material_file_name,
         status="draft",
         tutor_payout_status="pending",
         tutor_payout_amount=Decimal("0"),

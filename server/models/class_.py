@@ -33,6 +33,8 @@ class Class(Base):
     creation_payment_reference = Column(TEXT, nullable=True)
     creation_paid_at = Column(DateTime(timezone=True), nullable=True)
     thumbnail_url = Column(TEXT, nullable=True)
+    material_url = Column(TEXT, nullable=True)
+    material_file_name = Column(VARCHAR(255), nullable=True)
     status = Column(TEXT, default="draft", nullable=False)  # draft | scheduled | ongoing | completed | cancelled
     cancellation_reason = Column(TEXT, nullable=True)
     cancelled_at = Column(DateTime(timezone=True), nullable=True)

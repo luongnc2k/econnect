@@ -231,6 +231,48 @@ void main() {
     },
   );
 
+  testWidgets('student can see and open tutor uploaded class material', (
+    tester,
+  ) async {
+    fakeStudentRepo.bookingStatusResult = const StudentClassBookingStatus(
+      classId: 'class-1',
+      hasBooking: true,
+      isRegistered: true,
+      bookingStatus: 'confirmed',
+      paymentStatus: 'paid',
+      escrowStatus: 'held',
+    );
+
+    await tester.pumpWidget(
+      _buildApp(
+        child: ClassDetailScreen(
+          session: _sampleClassSession(
+            materialUrl:
+                'http://127.0.0.1:8000/static/class-materials/lesson.pdf',
+            materialFileName: 'lesson.pdf',
+          ),
+        ),
+        fakeRepo: fakeRepo,
+        fakeStudentRepo: fakeStudentRepo,
+        user: _sampleUser(role: 'student'),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Tài liệu buổi học'), findsOneWidget);
+    expect(find.text('lesson.pdf'), findsOneWidget);
+
+    final openButton = find.widgetWithText(OutlinedButton, 'Mở');
+    await tester.ensureVisible(openButton);
+    await tester.tap(openButton);
+    await tester.pump();
+
+    expect(
+      fakeUrlLauncher.launchedUrls,
+      contains('http://127.0.0.1:8000/static/class-materials/lesson.pdf'),
+    );
+  });
+
   testWidgets(
     'student can submit tutor review after class ends and sees hotline',
     (tester) async {
@@ -390,8 +432,11 @@ Widget _buildApp({
   );
 }
 
-ClassSession _sampleClassSession() {
-  return const ClassSession(
+ClassSession _sampleClassSession({
+  String? materialUrl,
+  String? materialFileName,
+}) {
+  return ClassSession(
     id: 'class-1',
     classCode: 'CLS-260316-ABCD',
     title: 'English Mock Class',
@@ -404,6 +449,8 @@ ClassSession _sampleClassSession() {
     priceText: '50000 VND',
     statusText: 'OPEN',
     description: 'Mock payment flow',
+    materialUrl: materialUrl,
+    materialFileName: materialFileName,
     dateText: '16/03/2026',
     slotText: '3 / 6',
     levelText: 'Intermediate',

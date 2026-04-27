@@ -37,6 +37,8 @@ class ClassResponse(BaseModel):
     tutor_confirmed_at: Optional[datetime] = None
     price: Decimal
     thumbnail_url: Optional[str] = None
+    material_url: Optional[str] = None
+    material_file_name: Optional[str] = None
     status: str
     topic: str
     teacher: TeacherBrief

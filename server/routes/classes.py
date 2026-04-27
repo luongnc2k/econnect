@@ -195,6 +195,8 @@ def _to_class_response(
         tutor_confirmed_at=cls.tutor_confirmed_at,
         price=cls.price,
         thumbnail_url=cls.thumbnail_url,
+        material_url=cls.material_url,
+        material_file_name=cls.material_file_name,
         status=cls.status,
         topic=topic_name,
         teacher=TeacherBrief(
@@ -768,6 +770,8 @@ def create_class(
         creation_fee_amount=creation_fee,
         creation_payment_status="paid",
         thumbnail_url=body.thumbnail_url,
+        material_url=body.material_url,
+        material_file_name=body.material_file_name,
         status="scheduled",
         tutor_payout_status="pending",
         tutor_payout_amount=0,

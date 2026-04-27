@@ -31,6 +31,16 @@ UPLOAD_ROOT.mkdir(parents=True, exist_ok=True)
 BUCKET_THUMBNAILS = "class-thumbnails"
 BUCKET_AVATARS = "user-avatars"
 BUCKET_TEACHER_DOCS = "teacher-docs"
+BUCKET_CLASS_MATERIALS = "class-materials"
+
+CONTENT_TYPE_EXTENSIONS = {
+    "image/jpeg": "jpeg",
+    "image/png": "png",
+    "image/webp": "webp",
+    "application/pdf": "pdf",
+    "application/msword": "doc",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+}
 
 if Minio is not None and urllib3 is not None:
     client = Minio(
@@ -70,11 +80,15 @@ def _ensure_bucket(bucket: str) -> None:
         client.set_bucket_policy(bucket, policy)
 
 
+def _extension_for_content_type(content_type: str) -> str:
+    return CONTENT_TYPE_EXTENSIONS.get(content_type, content_type.split("/")[-1])
+
+
 def _upload(bucket: str, file_data: bytes, content_type: str) -> str:
     if client is None:
         raise RuntimeError("MinIO client is not available")
     _ensure_bucket(bucket)
-    ext = content_type.split("/")[-1]
+    ext = _extension_for_content_type(content_type)
     object_name = f"{uuid.uuid4()}.{ext}"
     client.put_object(
         bucket,
@@ -87,7 +101,7 @@ def _upload(bucket: str, file_data: bytes, content_type: str) -> str:
 
 
 def _local_upload(folder: str, file_data: bytes, content_type: str) -> str:
-    ext = content_type.split("/")[-1]
+    ext = _extension_for_content_type(content_type)
     object_name = f"{uuid.uuid4()}.{ext}"
     target_dir = UPLOAD_ROOT / folder
     target_dir.mkdir(parents=True, exist_ok=True)
@@ -158,5 +172,19 @@ def upload_teacher_document(file_data: bytes, content_type: str) -> str:
 def delete_teacher_document(url: str) -> None:
     if f"/{BUCKET_TEACHER_DOCS}/" in url:
         _delete(BUCKET_TEACHER_DOCS, url)
+    else:
+        _local_delete(url)
+
+
+def upload_class_material(file_data: bytes, content_type: str) -> str:
+    try:
+        return _upload(BUCKET_CLASS_MATERIALS, file_data, content_type)
+    except Exception:
+        return _local_upload(BUCKET_CLASS_MATERIALS, file_data, content_type)
+
+
+def delete_class_material(url: str) -> None:
+    if f"/{BUCKET_CLASS_MATERIALS}/" in url:
+        _delete(BUCKET_CLASS_MATERIALS, url)
     else:
         _local_delete(url)

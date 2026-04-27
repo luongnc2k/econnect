@@ -32,6 +32,10 @@ class CreateClassViewModel extends Notifier<CreateClassState> {
     Uint8List? thumbnailBytes,
     String? thumbnailFileName,
     String? thumbnailFilePath,
+    String? materialUrl,
+    Uint8List? materialBytes,
+    String? materialFileName,
+    String? materialFilePath,
   }) async {
     final token = ref.read(currentUserProvider)?.token;
     if (token == null) {
@@ -61,6 +65,23 @@ class CreateClassViewModel extends Notifier<CreateClassState> {
       }
     }
 
+    String? finalMaterialUrl = materialUrl;
+    if (materialBytes != null && materialFileName != null) {
+      final uploadResult = await tutorRepo.uploadClassMaterial(
+        token: token,
+        fileName: materialFileName,
+        fileBytes: materialBytes,
+        filePath: materialFilePath,
+      );
+      switch (uploadResult) {
+        case Left(value: final failure):
+          state = state.copyWith(isSubmitting: false, error: failure.message);
+          return null;
+        case Right(value: final url):
+          finalMaterialUrl = url;
+      }
+    }
+
     final body = <String, dynamic>{
       'topic': topic,
       'title': title,
@@ -75,6 +96,14 @@ class CreateClassViewModel extends Notifier<CreateClassState> {
       'price': price,
       ...?switch (finalThumbnailUrl) {
         final String thumbnailUrl => {'thumbnail_url': thumbnailUrl},
+        _ => null,
+      },
+      ...?switch (finalMaterialUrl) {
+        final String materialUrl => {
+          'material_url': materialUrl,
+          if (materialFileName != null && materialFileName.trim().isNotEmpty)
+            'material_file_name': materialFileName.trim(),
+        },
         _ => null,
       },
     };

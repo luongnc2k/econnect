@@ -35,6 +35,8 @@ class ClassSessionMapper {
       priceText: formatPrice(studentPrice),
       totalPriceText: formatPrice(totalPrice),
       imageUrl: normalizeBackendAssetUrl(m['thumbnail_url'] as String?),
+      materialUrl: normalizeBackendAssetUrl(m['material_url'] as String?),
+      materialFileName: m['material_file_name'] as String?,
       statusText: mapStatus(m['status'] as String),
       countdownText: remaining > 0 ? 'Còn $remaining chỗ' : 'Hết chỗ',
       tags: topic.isEmpty ? const [] : [topic],

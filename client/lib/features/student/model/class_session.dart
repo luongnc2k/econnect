@@ -15,6 +15,8 @@ class ClassSession {
   final String priceText;
   final String? totalPriceText;
   final String? imageUrl;
+  final String? materialUrl;
+  final String? materialFileName;
   final String statusText;
   final String? countdownText;
   final List<String> tags;
@@ -48,6 +50,8 @@ class ClassSession {
     required this.priceText,
     this.totalPriceText,
     this.imageUrl,
+    this.materialUrl,
+    this.materialFileName,
     this.statusText = 'OPEN',
     this.countdownText,
     this.tags = const [],
@@ -86,5 +90,10 @@ class ClassSession {
 
     final trailing = timeText.substring(separatorIndex + 3).trim();
     return trailing.isEmpty ? null : trailing;
+  }
+
+  bool get hasLearningMaterial {
+    final url = materialUrl?.trim();
+    return url != null && url.isNotEmpty;
   }
 }

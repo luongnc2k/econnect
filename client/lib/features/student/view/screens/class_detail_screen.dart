@@ -4,6 +4,7 @@ import 'package:client/core/failure/failure.dart';
 import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/core/router/app_router.dart';
 import 'package:client/core/utils.dart';
+import 'package:client/core/widgets/learning_material_card.dart';
 import 'package:client/core/widgets/app_tag_chip.dart';
 import 'package:client/core/widgets/status_badge.dart';
 import 'package:client/features/payments/model/payment_transaction_status.dart';
@@ -670,6 +671,13 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen>
                     ],
                     const SizedBox(height: 16),
                     ClassDetailInfoGrid(session: session),
+                    if (session.hasLearningMaterial) ...[
+                      const SizedBox(height: 12),
+                      LearningMaterialCard(
+                        materialUrl: session.materialUrl!,
+                        fileName: session.materialFileName,
+                      ),
+                    ],
                     const SizedBox(height: 16),
                     if (statusCardData != null)
                       _StudentRegistrationStatusCard(data: statusCardData),

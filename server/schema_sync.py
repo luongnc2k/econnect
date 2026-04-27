@@ -11,6 +11,7 @@ def sync_schema(engine: Engine) -> None:
     _ensure_student_profile_bank_columns(engine)
     _ensure_tutor_reviews_table(engine)
     _ensure_class_topic_column(engine)
+    _ensure_class_material_columns(engine)
     _ensure_class_payment_columns(engine)
     _ensure_booking_payment_columns(engine)
     _ensure_payment_columns(engine)
@@ -103,6 +104,17 @@ def _ensure_class_topic_column(engine: Engine) -> None:
                 """
             )
         )
+
+
+def _ensure_class_material_columns(engine: Engine) -> None:
+    _ensure_columns(
+        engine,
+        "classes",
+        {
+            "material_url": "TEXT",
+            "material_file_name": "VARCHAR(255)",
+        },
+    )
 
 
 def _ensure_class_payment_columns(engine: Engine) -> None:

@@ -47,6 +47,8 @@ def test_payment_flow_creates_class_confirms_tuition_and_restricts_transaction_a
                 "max_participants": 2,
                 "price": "200000",
                 "thumbnail_url": "https://example.com/thumb.jpg",
+                "material_url": "https://example.com/lesson.pdf",
+                "material_file_name": "lesson.pdf",
             }
         },
     )
@@ -143,6 +145,8 @@ def test_payment_flow_creates_class_confirms_tuition_and_restricts_transaction_a
     assert cls.current_participants == 1
     assert cls.location_name == "Online Payment Room"
     assert cls.location_address == "Google Meet"
+    assert cls.material_url == "https://example.com/lesson.pdf"
+    assert cls.material_file_name == "lesson.pdf"
     assert cls.location_notes == "Phòng online, học viên kiểm tra mic trước 10 phút."
     assert booking.status == "confirmed"
     assert booking.escrow_status == "held"
@@ -161,6 +165,8 @@ def test_payment_flow_creates_class_confirms_tuition_and_restricts_transaction_a
     class_detail_body = class_detail_response.json()
     assert class_detail_body["location_name"] == "Online Payment Room"
     assert class_detail_body["location_address"] == "Google Meet"
+    assert class_detail_body["material_url"] == "https://example.com/lesson.pdf"
+    assert class_detail_body["material_file_name"] == "lesson.pdf"
     assert (
         class_detail_body["location_notes"]
         == "Phòng online, học viên kiểm tra mic trước 10 phút."

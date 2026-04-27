@@ -216,4 +216,45 @@ class TutorRemoteRepository {
       return Left(AppFailure(e.toString()));
     }
   }
+
+  Future<Either<AppFailure, String>> uploadClassMaterial({
+    required String token,
+    required String fileName,
+    required Uint8List fileBytes,
+    String? filePath,
+  }) async {
+    try {
+      final formData = FormData.fromMap({
+        'file': await buildUploadMultipartFile(
+          fileName: fileName,
+          fileBytes: fileBytes,
+          filePath: filePath,
+        ),
+      });
+
+      final response = await _dio.post(
+        '/upload/class-material',
+        data: formData,
+        options: Options(headers: {'x-auth-token': token}),
+      );
+
+      final data = response.data;
+      if (response.statusCode == 200 &&
+          data is Map<String, dynamic> &&
+          data['url'] != null) {
+        return Right(data['url'].toString());
+      }
+
+      return Left(AppFailure('Upload tài liệu học thất bại'));
+    } on DioException catch (e) {
+      final detail = (e.response?.data as Map<String, dynamic>?)?['detail'];
+      return Left(
+        AppFailure(
+          detail?.toString() ?? e.message ?? 'Upload tài liệu học thất bại',
+        ),
+      );
+    } catch (e) {
+      return Left(AppFailure(e.toString()));
+    }
+  }
 }
