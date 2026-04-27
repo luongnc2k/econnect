@@ -64,7 +64,7 @@ jobs:
             --platform managed \
             --service-account econnect-server@$PROJECT_ID.iam.gserviceaccount.com \
             --add-cloudsql-instances $PROJECT_ID:$REGION:econnect-db \
-            --update-env-vars="APP_ENV=production,STRICT_STARTUP_VALIDATION=false,GCS_FORCE_REMOTE=true" \
+            --update-env-vars="APP_ENV=production,STRICT_STARTUP_VALIDATION=false,GCS_FORCE_REMOTE=true,GCS_PROJECT=$PROJECT_ID,SERVER_PUBLIC_URL=https://api.econnect.vn,PAYMENT_PUBLIC_BASE_URL=https://api.econnect.vn" \
             --update-secrets="JWT_SECRET=JWT_SECRET:latest,DATABASE_URL=DATABASE_URL:latest,ADMIN_CREATE_SECRET=ADMIN_CREATE_SECRET:latest" \
             --allow-unauthenticated \
             --min-instances 0 \

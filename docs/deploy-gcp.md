@@ -178,6 +178,7 @@ Repo hiện có workflow GitHub Actions `.github/workflows/deploy-server.yml` đ
 - Workflow hiện có bước `Validate backend startup imports` trước khi build/push image để bắt sớm nhóm lỗi import/startup tương tự.
 - Workflow dùng `--update-env-vars` để đặt `APP_ENV=production`, `STRICT_STARTUP_VALIDATION=false`, `GCS_FORCE_REMOTE=true` cho Cloud Run mà không xóa các biến môi trường khác.
 - Workflow dùng `--update-secrets` thay cho `--set-secrets` để không xóa các secret đã cấu hình ngoài workflow.
+- Workflow thủ công `.github/workflows/configure-cloud-run-domain.yml` dùng cùng Workload Identity Federation để tạo/kiểm tra domain mapping `api.econnect.vn` và in ra DNS records cần cấu hình.
 
 ### 3.1 Artifact Registry
 
@@ -241,7 +242,7 @@ jobs:
             --platform managed \
             --service-account econnect-server@$PROJECT_ID.iam.gserviceaccount.com \
             --add-cloudsql-instances $PROJECT_ID:$REGION:econnect-db \
-            --update-env-vars="APP_ENV=production,STRICT_STARTUP_VALIDATION=false,GCS_FORCE_REMOTE=true" \
+            --update-env-vars="APP_ENV=production,STRICT_STARTUP_VALIDATION=false,GCS_FORCE_REMOTE=true,GCS_PROJECT=$PROJECT_ID,SERVER_PUBLIC_URL=https://api.econnect.vn,PAYMENT_PUBLIC_BASE_URL=https://api.econnect.vn" \
             --update-secrets="JWT_SECRET=JWT_SECRET:latest,DATABASE_URL=DATABASE_URL:latest,ADMIN_CREATE_SECRET=ADMIN_CREATE_SECRET:latest" \
             --allow-unauthenticated \
             --min-instances 0 \
@@ -271,7 +272,7 @@ jobs:
     --image asia-southeast1-docker.pkg.dev/econnect-prod/econnect/server:v1 \
     --region asia-southeast1 \
     --add-cloudsql-instances econnect-prod:asia-southeast1:econnect-db \
-    --update-env-vars="APP_ENV=production,STRICT_STARTUP_VALIDATION=false,GCS_FORCE_REMOTE=true" \
+    --update-env-vars="APP_ENV=production,STRICT_STARTUP_VALIDATION=false,GCS_FORCE_REMOTE=true,GCS_PROJECT=econnect-prod,SERVER_PUBLIC_URL=https://api.econnect.vn,PAYMENT_PUBLIC_BASE_URL=https://api.econnect.vn" \
     --update-secrets="JWT_SECRET=JWT_SECRET:latest,DATABASE_URL=DATABASE_URL:latest,ADMIN_CREATE_SECRET=ADMIN_CREATE_SECRET:latest" \
     --service-account econnect-server@econnect-prod.iam.gserviceaccount.com \
     --allow-unauthenticated
@@ -288,14 +289,30 @@ jobs:
 
 ### 4.1 Custom Domain
 
-- [ ] Map domain `api.econnect.vn` vào Cloud Run service:
+- [ ] Chạy workflow thủ công **Configure Cloud Run Domain** trên GitHub Actions để tạo domain mapping `api.econnect.vn` và in DNS records cần cấu hình.
+- [ ] Hoặc map domain bằng local `gcloud` đã đăng nhập:
   ```bash
-  gcloud run domain-mappings create \
+  gcloud components install beta
+  gcloud beta run domain-mappings create \
+    --project econnect-prod \
     --service econnect-server \
     --domain api.econnect.vn \
-    --region asia-southeast1
+    --region asia-southeast1 \
+    --platform managed
+
+  gcloud beta run domain-mappings describe api.econnect.vn \
+    --project econnect-prod \
+    --region asia-southeast1 \
+    --platform managed \
+    --format="yaml(status.conditions,status.resourceRecords)"
   ```
-- [ ] Cập nhật DNS record theo hướng dẫn từ lệnh trên
+- [ ] Trong DNS provider của `econnect.vn`, xóa record hiện tại `api.econnect.vn A 103.75.187.242`.
+- [ ] Thêm đúng DNS record được in trong `status.resourceRecords` của workflow/lệnh `describe`. Với subdomain, Cloud Run thường yêu cầu CNAME tới Google host, nhưng ưu tiên tuyệt đối record được Google trả về.
+- [ ] Chờ DNS/certificate được provision rồi smoke test:
+  ```bash
+  curl -I https://api.econnect.vn/health/live
+  curl https://api.econnect.vn/health/live
+  ```
 - [ ] Cập nhật `SERVER_URL` trong Flutter client (`client/lib/core/constants/server_constant.dart`)
 
 ### 4.2 Monitoring & Alerting
