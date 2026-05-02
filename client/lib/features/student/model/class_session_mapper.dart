@@ -2,9 +2,11 @@ import 'package:client/core/utils/backend_asset_url.dart';
 import 'package:client/features/student/model/class_session.dart';
 
 class ClassSessionMapper {
+  static const _vietnamTimeOffset = Duration(hours: 7);
+
   static ClassSession fromMap(Map<String, dynamic> m) {
-    final startTime = DateTime.parse(m['start_time']).toLocal();
-    final endTime = DateTime.parse(m['end_time']).toLocal();
+    final startTime = parseBackendTime(m['start_time']);
+    final endTime = parseBackendTime(m['end_time']);
     final maxSlots = (m['max_participants'] as num).toInt();
     final current = (m['current_participants'] as num).toInt();
     final remaining = maxSlots - current;
@@ -49,6 +51,21 @@ class ClassSessionMapper {
           : null,
       teacherSessionCount: teacher['total_sessions'] as int?,
       teacherReviewCount: teacher['total_reviews'] as int?,
+    );
+  }
+
+  static DateTime parseBackendTime(Object value) {
+    final utcTime = DateTime.parse(value.toString()).toUtc();
+    final vietnamTime = utcTime.add(_vietnamTimeOffset);
+    return DateTime(
+      vietnamTime.year,
+      vietnamTime.month,
+      vietnamTime.day,
+      vietnamTime.hour,
+      vietnamTime.minute,
+      vietnamTime.second,
+      vietnamTime.millisecond,
+      vietnamTime.microsecond,
     );
   }
 
