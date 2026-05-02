@@ -290,6 +290,12 @@ jobs:
 ### 4.1 Custom Domain
 
 - [ ] Chạy workflow thủ công **Configure Cloud Run Domain** trên GitHub Actions để tạo domain mapping `api.econnect.vn` và in DNS records cần cấu hình.
+- [ ] Nếu workflow báo `The provided domain does not appear to be verified`, xác minh base domain cho principal đang tạo mapping trước:
+  ```bash
+  gcloud domains list-user-verified
+  gcloud domains verify econnect.vn
+  ```
+  Sau đó thêm DNS TXT record Google yêu cầu trong DNS provider. Nếu dùng GitHub Actions để tạo mapping, đảm bảo service account đang nằm trong GitHub secret `WIF_SERVICE_ACCOUNT` cũng được thêm làm verified owner của `econnect.vn` trong Google Search Console / Webmaster Central, hoặc tạo domain mapping bằng chính tài khoản Google đã verify domain.
 - [ ] Hoặc map domain bằng local `gcloud` đã đăng nhập:
   ```bash
   gcloud components install beta
@@ -300,7 +306,8 @@ jobs:
     --region asia-southeast1 \
     --platform managed
 
-  gcloud beta run domain-mappings describe api.econnect.vn \
+  gcloud beta run domain-mappings describe \
+    --domain api.econnect.vn \
     --project econnect-prod \
     --region asia-southeast1 \
     --platform managed \

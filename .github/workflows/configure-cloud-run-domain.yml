@@ -31,7 +31,8 @@ jobs:
         run: |
           set -euo pipefail
 
-          if gcloud beta run domain-mappings describe "$DOMAIN" \
+          if gcloud beta run domain-mappings describe \
+            --domain "$DOMAIN" \
             --project "$PROJECT_ID" \
             --region "$REGION" \
             --platform managed >/tmp/domain-mapping.json 2>/tmp/domain-mapping.err; then
@@ -48,7 +49,8 @@ jobs:
 
       - name: Print required DNS records
         run: |
-          gcloud beta run domain-mappings describe "$DOMAIN" \
+          gcloud beta run domain-mappings describe \
+            --domain "$DOMAIN" \
             --project "$PROJECT_ID" \
             --region "$REGION" \
             --platform managed \
