@@ -97,6 +97,7 @@ from models.teacher_specialty import TeacherSpecialty  # noqa: F401
 from models.topic import Topic  # noqa: F401
 from models.tutor_review import TutorReview  # noqa: F401
 from models.user import User  # noqa: F401
+from schema_sync import sync_schema
 
 
 @pytest.fixture(autouse=True)
@@ -105,6 +106,7 @@ def reset_database():
         pytest.skip(f"Test database is unavailable: {_TEST_DATABASE_UNAVAILABLE_REASON}")
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
+    sync_schema(engine)
     yield
     Base.metadata.drop_all(bind=engine)
 

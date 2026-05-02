@@ -423,6 +423,7 @@ def _serialize_payout_balance_response(
 
 
 def _sync_class_participants(db: Session, class_id: str) -> int:
+    db.flush()
     active_count = (
         db.query(func.count(Booking.id))
         .filter(Booking.class_id == class_id, Booking.status.in_(["confirmed", "completed"]))

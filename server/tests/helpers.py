@@ -155,6 +155,23 @@ def seed_teacher_profile(
     bank_account_number: str = "0123456789",
     bank_account_holder: str = "Teacher Seed",
 ) -> TeacherProfile:
+    existing = db.query(TeacherProfile).filter(TeacherProfile.user_id == teacher_id).first()
+    if existing:
+        existing.bank_name = bank_name
+        existing.bank_bin = bank_bin
+        existing.bank_account_number = bank_account_number
+        existing.bank_account_holder = bank_account_holder
+        if not existing.native_language:
+            existing.native_language = "English"
+        if not existing.bio:
+            existing.bio = "Experienced tutor"
+        existing.certifications = existing.certifications or ["TESOL"]
+        existing.years_experience = existing.years_experience or 5
+        existing.verification_docs = existing.verification_docs or ["https://example.com/doc.pdf"]
+        db.commit()
+        db.refresh(existing)
+        return existing
+
     teacher_profile = TeacherProfile(
         user_id=teacher_id,
         native_language="English",

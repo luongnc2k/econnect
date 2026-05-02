@@ -4,7 +4,7 @@ from datetime import timedelta
 
 from fastapi import Depends, Header, HTTPException
 from sqlalchemy.orm import Session
-from pydantic_schemas.user_create import UserCreate
+from pydantic_schemas.user_create import AdminUserCreate, UserCreate
 from pydantic_schemas.user_login import UserLogin
 from pydantic_schemas.user_response import LoginResponse, UserResponse
 from models.teacher_profile import TeacherProfile
@@ -102,7 +102,7 @@ def login_user(user: UserLogin, db: Session = Depends(get_db)):
 
 @router.post("/create-admin", response_model=UserResponse, status_code=201)
 def create_admin(
-    user: UserCreate,
+    user: AdminUserCreate,
     x_admin_secret: str = Header(),
     db: Session = Depends(get_db),
 ):

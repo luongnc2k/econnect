@@ -956,6 +956,7 @@ def test_cancel_underfilled_classes_uses_active_bookings_instead_of_stale_cached
     db_session,
     monkeypatch,
 ):
+    monkeypatch.setenv("CANCEL_UNDERFILLED_CLASSES_HOURS", "4")
     now = datetime.now(timezone.utc)
     seeded = seed_paid_class_with_held_bookings(
         db_session,

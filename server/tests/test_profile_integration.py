@@ -503,5 +503,7 @@ def test_teacher_verify_payout_bank_account_returns_actionable_ip_error(
         "payOS từ chối kiểm tra vì IP máy chủ hiện tại chưa được thêm vào "
         "Kênh chuyển tiền > Quản lý IP. Nếu bạn đang chạy local/ngrok, hãy đổi "
         "PAYOS_PAYOUT_MOCK_MODE=true trong server/.env rồi restart backend. "
-        "Nếu muốn kiểm tra thật, hãy thêm public outbound IP của backend vào my.payos.vn."
+        "Nếu muốn kiểm tra thật, hãy thêm public outbound IP của backend vào my.payos.vn. "
+        "Nếu máy local ưu tiên IPv6 và bạn chỉ allowlist IPv4, hãy bật thêm "
+        "PAYOS_PAYOUT_FORCE_IPV4=true."
     )
