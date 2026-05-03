@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 class ServerConstant {
   static const String _serverUrlOverride = String.fromEnvironment(
     'SERVER_URL',
-    defaultValue: 'https://econnect-server-6uhpsgm7fq-as.a.run.app',
+    defaultValue: '',
   );
 
   static String get serverURL => resolveServerUrl(

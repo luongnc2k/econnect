@@ -195,11 +195,15 @@ flutter run --dart-define=SERVER_URL=http://127.0.0.1:8000
 
 # Máy thật cùng mạng LAN
 flutter run --dart-define=SERVER_URL=http://<LAN_IP_CUA_MAY_DEV>:8000
+
+# Build release trỏ vào Cloud Run production
+flutter build apk --release \
+  --dart-define=SERVER_URL=https://econnect-server-6uhpsgm7fq-as.a.run.app
 ```
 
 Điểm quan trọng:
 
-- `SERVER_URL` là địa chỉ local hoặc LAN để app nói chuyện với backend
+- `SERVER_URL` mặc định rỗng — app dev fallback về `10.0.2.2` (Android) hoặc `127.0.0.1`. Release build **bắt buộc** truyền `--dart-define=SERVER_URL=<URL_PRODUCTION>` (xem `docs/production-checklist.md`)
 - `SERVER_PUBLIC_URL` và `PAYMENT_PUBLIC_BASE_URL` là URL public để payOS callback về
 - `STATIC_PUBLIC_URL` là base URL backend dùng để sinh link `/static/...` khi upload local fallback, và nên trùng với `SERVER_URL` mà client truy cập được
 - nếu URL `ngrok` đổi, bạn phải restart backend và confirm webhook lại

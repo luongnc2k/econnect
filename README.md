@@ -144,6 +144,10 @@ flutter run --dart-define=SERVER_URL=http://10.0.2.2:8000
 # May that / thiet bi khac cung mang LAN
 flutter run --dart-define=SERVER_URL=http://<LAN_IP_CUA_MAY_DEV>:8000
 
+# Build release tro vao Cloud Run (BAT BUOC truyen SERVER_URL)
+flutter build apk --release \
+  --dart-define=SERVER_URL=https://econnect-server-6uhpsgm7fq-as.a.run.app
+
 # Ví dụ chạy client có bật FCM trên Android/iOS
 flutter run \
   --dart-define=FCM_API_KEY=... \

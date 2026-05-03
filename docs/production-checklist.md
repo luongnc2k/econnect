@@ -53,7 +53,7 @@ Checklist này dùng để chốt release cho cả backend, mobile app, và lu�
 
 ## 5. Phát hành mobile app
 
-- [ ] Release build truyền `--dart-define=SERVER_URL=https://api.your-domain.com`
+- [ ] Release build truyền `--dart-define=SERVER_URL=https://econnect-server-6uhpsgm7fq-as.a.run.app` (URL Cloud Run hiện tại) hoặc custom domain đã map. Bắt buộc — không truyền sẽ fail check `isReleaseReady` trong `main.dart` vì `defaultValue` của `SERVER_URL` là `''`.
 - [ ] Release build không còn `ENABLE_MANUAL_TEST_MOCKS=true`
 - [ ] `dart analyze`
 - [ ] `flutter test`
