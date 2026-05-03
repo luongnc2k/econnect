@@ -9,9 +9,10 @@ import 'package:fpdart/fpdart.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 
-final notificationsRemoteRepositoryProvider = Provider<NotificationsRemoteRepository>(
-  (_) => NotificationsRemoteRepository(),
-);
+final notificationsRemoteRepositoryProvider =
+    Provider<NotificationsRemoteRepository>(
+      (_) => NotificationsRemoteRepository(),
+    );
 
 class NotificationsRemoteRepository {
   Future<Either<AppFailure, List<AppNotification>>> getNotifications({
@@ -33,9 +34,9 @@ class NotificationsRemoteRepository {
         queryParameters['unread_only'] = 'true';
       }
 
-      final uri = Uri.parse('${ServerConstant.serverURL}/notifications').replace(
-        queryParameters: queryParameters,
-      );
+      final uri = Uri.parse(
+        '${ServerConstant.serverURL}/notifications',
+      ).replace(queryParameters: queryParameters);
       final response = await http.get(uri, headers: {'x-auth-token': token});
       if (response.statusCode != 200) {
         return Left(_decodeFailure(response));
@@ -59,9 +60,7 @@ class NotificationsRemoteRepository {
     bool unreadOnly = false,
   }) async {
     try {
-      final queryParameters = <String, String>{
-        'limit': '$limit',
-      };
+      final queryParameters = <String, String>{'limit': '$limit'};
       if (cursor != null && cursor.isNotEmpty) {
         queryParameters['cursor'] = cursor;
       }
@@ -72,9 +71,9 @@ class NotificationsRemoteRepository {
         queryParameters['unread_only'] = 'true';
       }
 
-      final uri = Uri.parse('${ServerConstant.serverURL}/notifications/cursor').replace(
-        queryParameters: queryParameters,
-      );
+      final uri = Uri.parse(
+        '${ServerConstant.serverURL}/notifications/cursor',
+      ).replace(queryParameters: queryParameters);
       final response = await http.get(uri, headers: {'x-auth-token': token});
       if (response.statusCode != 200) {
         return Left(_decodeFailure(response));
@@ -91,7 +90,9 @@ class NotificationsRemoteRepository {
     required String token,
   }) async {
     try {
-      final uri = Uri.parse('${ServerConstant.serverURL}/notifications/unread-count');
+      final uri = Uri.parse(
+        '${ServerConstant.serverURL}/notifications/unread-count',
+      );
       final response = await http.get(uri, headers: {'x-auth-token': token});
       if (response.statusCode != 200) {
         return Left(_decodeFailure(response));
@@ -111,17 +112,17 @@ class NotificationsRemoteRepository {
     String? deviceLabel,
   }) async {
     try {
-      final uri = Uri.parse('${ServerConstant.serverURL}/notifications/push-tokens');
+      final uri = Uri.parse(
+        '${ServerConstant.serverURL}/notifications/push-tokens',
+      );
       final response = await http.post(
         uri,
-        headers: {
-          'x-auth-token': token,
-          'Content-Type': 'application/json',
-        },
+        headers: {'x-auth-token': token, 'Content-Type': 'application/json'},
         body: jsonEncode({
           'token': pushToken,
           'platform': platform,
-          if (deviceLabel != null && deviceLabel.isNotEmpty) 'device_label': deviceLabel,
+          if (deviceLabel != null && deviceLabel.isNotEmpty)
+            'device_label': deviceLabel,
         }),
       );
       if (response.statusCode != 200) {
@@ -140,13 +141,12 @@ class NotificationsRemoteRepository {
     required String pushToken,
   }) async {
     try {
-      final uri = Uri.parse('${ServerConstant.serverURL}/notifications/push-tokens/unregister');
+      final uri = Uri.parse(
+        '${ServerConstant.serverURL}/notifications/push-tokens/unregister',
+      );
       final response = await http.post(
         uri,
-        headers: {
-          'x-auth-token': token,
-          'Content-Type': 'application/json',
-        },
+        headers: {'x-auth-token': token, 'Content-Type': 'application/json'},
         body: jsonEncode({'token': pushToken}),
       );
       if (response.statusCode != 200) {
@@ -165,7 +165,9 @@ class NotificationsRemoteRepository {
     required String notificationId,
   }) async {
     try {
-      final uri = Uri.parse('${ServerConstant.serverURL}/notifications/$notificationId/read');
+      final uri = Uri.parse(
+        '${ServerConstant.serverURL}/notifications/$notificationId/read',
+      );
       final response = await http.post(uri, headers: {'x-auth-token': token});
       if (response.statusCode != 200) {
         return Left(_decodeFailure(response));
@@ -178,12 +180,29 @@ class NotificationsRemoteRepository {
     }
   }
 
+  Future<Either<AppFailure, int>> deleteAll({required String token}) async {
+    try {
+      final uri = Uri.parse('${ServerConstant.serverURL}/notifications');
+      final response = await http.delete(uri, headers: {'x-auth-token': token});
+      if (response.statusCode != 200) {
+        return Left(_decodeFailure(response));
+      }
+
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      return Right((body['deleted_count'] as num?)?.toInt() ?? 0);
+    } catch (e) {
+      return Left(AppFailure(e.toString()));
+    }
+  }
+
   Future<Either<AppFailure, TutorTeachingConfirmationResult>> confirmTeaching({
     required String token,
     required String classId,
   }) async {
     try {
-      final uri = Uri.parse('${ServerConstant.serverURL}/payments/classes/$classId/confirm-teaching');
+      final uri = Uri.parse(
+        '${ServerConstant.serverURL}/payments/classes/$classId/confirm-teaching',
+      );
       final response = await http.post(uri, headers: {'x-auth-token': token});
       if (response.statusCode != 200) {
         return Left(_decodeFailure(response));
@@ -199,7 +218,10 @@ class NotificationsRemoteRepository {
   AppFailure _decodeFailure(http.Response response) {
     try {
       final map = jsonDecode(response.body) as Map<String, dynamic>;
-      return AppFailure(map['detail']?.toString() ?? 'Có lỗi xảy ra', response.statusCode);
+      return AppFailure(
+        map['detail']?.toString() ?? 'Có lỗi xảy ra',
+        response.statusCode,
+      );
     } catch (_) {
       return AppFailure('Có lỗi xảy ra', response.statusCode);
     }

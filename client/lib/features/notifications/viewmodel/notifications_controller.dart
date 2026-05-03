@@ -246,6 +246,38 @@ class NotificationsController extends Notifier<NotificationsState>
     }
   }
 
+  Future<AppFailure?> deleteAllNotifications() async {
+    final user = ref.read(currentUserProvider);
+    if (user == null || state.isDeletingAll) {
+      return null;
+    }
+
+    state = state.copyWith(isDeletingAll: true, clearError: true);
+    final result = await ref
+        .read(notificationsRemoteRepositoryProvider)
+        .deleteAll(token: user.token);
+
+    switch (result) {
+      case Left(value: final failure):
+        state = state.copyWith(isDeletingAll: false, error: failure.message);
+        return failure;
+      case Right():
+        state = state.copyWith(
+          notifications: const [],
+          unreadCount: 0,
+          hasMore: false,
+          isDeletingAll: false,
+          hydratedFromCache: false,
+          clearNextCursor: true,
+          clearError: true,
+        );
+        await ref
+            .read(notificationsLocalRepositoryProvider)
+            .clearInbox(user.id);
+        return null;
+    }
+  }
+
   Future<Either<AppFailure, String>> confirmTeaching(
     AppNotification notification,
   ) async {

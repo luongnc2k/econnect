@@ -328,6 +328,59 @@ class NotificationsScreen extends ConsumerWidget {
     );
   }
 
+  Future<void> _confirmDeleteAll(
+    BuildContext context,
+    WidgetRef ref,
+    NotificationsState state,
+  ) async {
+    if (state.isDeletingAll) {
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        final cs = Theme.of(dialogContext).colorScheme;
+        return AlertDialog(
+          title: const Text('Xóa tất cả thông báo?'),
+          content: const Text(
+            'Toàn bộ thông báo trong hộp thư của bạn sẽ bị xóa.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Hủy'),
+            ),
+            FilledButton.icon(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              style: FilledButton.styleFrom(
+                backgroundColor: cs.error,
+                foregroundColor: cs.onError,
+              ),
+              icon: const Icon(Icons.delete_sweep_rounded),
+              label: const Text('Xóa tất cả'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true || !context.mounted) {
+      return;
+    }
+
+    final failure = await ref
+        .read(notificationsControllerProvider.notifier)
+        .deleteAllNotifications();
+    if (!context.mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(failure?.message ?? 'Đã xóa tất cả thông báo.')),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
@@ -346,6 +399,19 @@ class NotificationsScreen extends ConsumerWidget {
             onPressed: () => controller.refresh(),
             tooltip: 'Làm mới',
             icon: const Icon(Icons.refresh_rounded),
+          ),
+          IconButton(
+            onPressed: state.isDeletingAll
+                ? null
+                : () => _confirmDeleteAll(context, ref, state),
+            tooltip: 'Xóa tất cả thông báo',
+            icon: state.isDeletingAll
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.delete_sweep_rounded),
           ),
           IconButton(
             onPressed: () => _showControlsSheet(context, ref, state),

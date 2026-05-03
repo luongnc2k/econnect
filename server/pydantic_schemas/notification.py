@@ -19,6 +19,11 @@ class NotificationUnreadCountResponse(BaseModel):
     unread_count: int
 
 
+class NotificationBulkDeleteResponse(BaseModel):
+    deleted_count: int
+    message: str
+
+
 class NotificationPageResponse(BaseModel):
     items: list[NotificationResponse] = Field(default_factory=list)
     next_cursor: Optional[str] = None

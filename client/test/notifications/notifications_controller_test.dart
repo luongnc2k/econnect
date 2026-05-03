@@ -17,6 +17,82 @@ import 'package:fpdart/fpdart.dart';
 
 void main() {
   testWidgets(
+    'delete all clears notifications, unread count, pagination, and cache',
+    (tester) async {
+      final fakeRemote = _FakeNotificationsRemoteRepository()
+        ..page = NotificationsPage(
+          items: [
+            _sampleNotification(id: 'notification-1', isRead: false),
+            _sampleNotification(id: 'notification-2', isRead: true),
+          ],
+          nextCursor: 'next-page',
+          hasMore: true,
+        )
+        ..unreadCount = 1;
+      final fakeLocal = _FakeNotificationsLocalRepository();
+      final fakeLive = _FakeNotificationsLiveRepository();
+
+      final container = ProviderContainer(
+        overrides: [
+          currentUserProvider.overrideWithValue(_sampleCurrentUser()),
+          notificationsRemoteRepositoryProvider.overrideWithValue(fakeRemote),
+          notificationsLocalRepositoryProvider.overrideWithValue(fakeLocal),
+          notificationsLiveRepositoryProvider.overrideWithValue(fakeLive),
+        ],
+      );
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const SizedBox.shrink(),
+        ),
+      );
+
+      final controller = container.read(
+        notificationsControllerProvider.notifier,
+      );
+      container.read(notificationsControllerProvider);
+      await tester.pump();
+      await tester.pump();
+
+      expect(
+        container.read(notificationsControllerProvider).notifications,
+        hasLength(2),
+      );
+      expect(container.read(notificationsControllerProvider).unreadCount, 1);
+      expect(container.read(notificationsControllerProvider).hasMore, isTrue);
+      expect(
+        container.read(notificationsControllerProvider).nextCursor,
+        'next-page',
+      );
+
+      final failure = await controller.deleteAllNotifications();
+
+      expect(failure, isNull);
+      expect(fakeRemote.deleteAllCalls, 1);
+      expect(fakeLocal.clearedUserIds, ['teacher-1']);
+      expect(
+        container.read(notificationsControllerProvider).notifications,
+        isEmpty,
+      );
+      expect(container.read(notificationsControllerProvider).unreadCount, 0);
+      expect(container.read(notificationsControllerProvider).hasMore, isFalse);
+      expect(
+        container.read(notificationsControllerProvider).nextCursor,
+        isNull,
+      );
+      expect(
+        container.read(notificationsControllerProvider).isDeletingAll,
+        isFalse,
+      );
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      container.dispose();
+      await tester.pump();
+    },
+  );
+
+  testWidgets(
     'notifications polling stops after live connect and resumes as fallback after disconnect',
     (tester) async {
       final fakeRemote = _FakeNotificationsRemoteRepository();
@@ -96,9 +172,32 @@ UserModel _sampleCurrentUser() {
   );
 }
 
+AppNotification _sampleNotification({
+  required String id,
+  required bool isRead,
+}) {
+  return AppNotification(
+    id: id,
+    type: 'payout_updated',
+    title: 'Payout updated',
+    body: 'Payout status changed',
+    data: const {},
+    isRead: isRead,
+    createdAt: DateTime(2026, 1, 1),
+  );
+}
+
 class _FakeNotificationsRemoteRepository extends NotificationsRemoteRepository {
   int pageCalls = 0;
   int unreadCountCalls = 0;
+  int deleteAllCalls = 0;
+  NotificationsPage page = const NotificationsPage(
+    items: [],
+    nextCursor: null,
+    hasMore: false,
+  );
+  int unreadCount = 0;
+  Either<AppFailure, int> deleteAllResult = const Right(0);
 
   @override
   Future<Either<AppFailure, NotificationsPage>> getNotificationsPage({
@@ -109,9 +208,7 @@ class _FakeNotificationsRemoteRepository extends NotificationsRemoteRepository {
     bool unreadOnly = false,
   }) async {
     pageCalls += 1;
-    return const Right(
-      NotificationsPage(items: [], nextCursor: null, hasMore: false),
-    );
+    return Right(page);
   }
 
   @override
@@ -119,11 +216,19 @@ class _FakeNotificationsRemoteRepository extends NotificationsRemoteRepository {
     required String token,
   }) async {
     unreadCountCalls += 1;
-    return const Right(0);
+    return Right(unreadCount);
+  }
+
+  @override
+  Future<Either<AppFailure, int>> deleteAll({required String token}) async {
+    deleteAllCalls += 1;
+    return deleteAllResult;
   }
 }
 
 class _FakeNotificationsLocalRepository extends NotificationsLocalRepository {
+  final List<String> clearedUserIds = [];
+
   @override
   Future<List<AppNotification>> getCachedNotifications(String userId) async {
     return const [];
@@ -140,6 +245,11 @@ class _FakeNotificationsLocalRepository extends NotificationsLocalRepository {
     required List<AppNotification> notifications,
     required int unreadCount,
   }) async {}
+
+  @override
+  Future<void> clearInbox(String userId) async {
+    clearedUserIds.add(userId);
+  }
 }
 
 class _FakeNotificationsLiveRepository extends NotificationsLiveRepository {

@@ -31,6 +31,7 @@ class NotificationsState {
   final bool hydratedFromCache;
   final String? nextCursor;
   final bool liveConnected;
+  final bool isDeletingAll;
 
   const NotificationsState({
     this.notifications = const [],
@@ -46,6 +47,7 @@ class NotificationsState {
     this.hydratedFromCache = false,
     this.nextCursor,
     this.liveConnected = false,
+    this.isDeletingAll = false,
   });
 
   NotificationsState copyWith({
@@ -65,6 +67,7 @@ class NotificationsState {
     String? nextCursor,
     bool clearNextCursor = false,
     bool? liveConnected,
+    bool? isDeletingAll,
   }) {
     return NotificationsState(
       notifications: notifications ?? this.notifications,
@@ -82,6 +85,7 @@ class NotificationsState {
       hydratedFromCache: hydratedFromCache ?? this.hydratedFromCache,
       nextCursor: clearNextCursor ? null : (nextCursor ?? this.nextCursor),
       liveConnected: liveConnected ?? this.liveConnected,
+      isDeletingAll: isDeletingAll ?? this.isDeletingAll,
     );
   }
 }

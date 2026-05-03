@@ -1291,6 +1291,71 @@ def test_notifications_cursor_endpoint_returns_stable_pages(client, db_session):
     assert [item["id"] for item in second_page["items"]] == ["notif-cursor-003"]
 
 
+def test_delete_all_notifications_removes_only_current_users_inbox(client, db_session):
+    teacher = seed_user(db_session, role="teacher", full_name="Teacher Delete Notifications")
+    other_user = seed_user(db_session, role="student", full_name="Student Keeps Notifications")
+    login_response = login_user(client, email=teacher.email)
+    assert login_response.status_code == 200
+    token = login_response.json()["token"]
+
+    teacher_first = Notification(
+        id="notif-delete-001",
+        user_id=teacher.id,
+        type="payout_updated",
+        title="Teacher one",
+        body="Teacher notification one",
+        is_read=False,
+        created_at=datetime.now(timezone.utc),
+    )
+    teacher_second = Notification(
+        id="notif-delete-002",
+        user_id=teacher.id,
+        type="refund_issued",
+        title="Teacher two",
+        body="Teacher notification two",
+        is_read=True,
+        read_at=datetime.now(timezone.utc),
+        created_at=datetime.now(timezone.utc) - timedelta(minutes=1),
+    )
+    other_notification = Notification(
+        id="notif-delete-other",
+        user_id=other_user.id,
+        type="class_cancelled",
+        title="Other",
+        body="Other user notification",
+        is_read=False,
+        created_at=datetime.now(timezone.utc),
+    )
+    db_session.add_all([teacher_first, teacher_second, other_notification])
+    db_session.commit()
+
+    response = client.delete("/notifications", headers=auth_headers(token))
+    assert response.status_code == 200
+    assert response.json()["deleted_count"] == 2
+
+    assert (
+        db_session.query(Notification)
+        .filter(Notification.user_id == teacher.id)
+        .count()
+    ) == 0
+    assert (
+        db_session.query(Notification)
+        .filter(Notification.user_id == other_user.id)
+        .count()
+    ) == 1
+
+    unread_count_response = client.get(
+        "/notifications/unread-count",
+        headers=auth_headers(token),
+    )
+    assert unread_count_response.status_code == 200
+    assert unread_count_response.json()["unread_count"] == 0
+
+    inbox_response = client.get("/notifications", headers=auth_headers(token))
+    assert inbox_response.status_code == 200
+    assert inbox_response.json() == []
+
+
 def test_push_token_register_and_unregister_flow(client, db_session):
     teacher = seed_user(db_session, role="teacher", full_name="Teacher Push Token")
     login_response = login_user(client, email=teacher.email)

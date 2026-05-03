@@ -22,6 +22,7 @@ from notification_service import (
     serialize_notification_data,
 )
 from pydantic_schemas.notification import (
+    NotificationBulkDeleteResponse,
     NotificationPageResponse,
     NotificationResponse,
     PushTokenRegisterRequest,
@@ -248,6 +249,25 @@ def get_unread_notification_count(
         .scalar()
     ) or 0
     return NotificationUnreadCountResponse(unread_count=int(unread_count))
+
+
+@router.delete("", response_model=NotificationBulkDeleteResponse)
+def delete_all_notifications(
+    db: Session = Depends(get_db),
+    user_dict: dict = Depends(auth_middleware),
+):
+    user = _get_user_or_404(db, user_dict["uid"])
+    deleted_count = (
+        db.query(Notification)
+        .filter(Notification.user_id == user.id)
+        .delete(synchronize_session=False)
+    )
+    db.commit()
+
+    return NotificationBulkDeleteResponse(
+        deleted_count=int(deleted_count or 0),
+        message="Da xoa tat ca thong bao",
+    )
 
 
 @router.get("", response_model=list[NotificationResponse])
