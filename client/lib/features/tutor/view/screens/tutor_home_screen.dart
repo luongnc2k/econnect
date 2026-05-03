@@ -24,12 +24,11 @@ class _TutorNavShellState extends ConsumerState<TutorNavShell> {
 
   late final List<Widget> _screens = [
     TutorHomeTab(
-      onProfileTap: () => setState(() => _currentIndex = 4),
+      onProfileTap: () => setState(() => _currentIndex = 3),
       onScheduleTap: () => setState(() => _currentIndex = 1),
     ),
     const TutorScheduleScreen(),
     const _TutorPaymentTab(),
-    const _PlaceholderTab(label: 'Học viên'),
     const _ProfileTab(),
   ];
 
@@ -70,11 +69,6 @@ class _TutorNavShellState extends ConsumerState<TutorNavShell> {
             icon: Icon(Icons.payments_outlined),
             selectedIcon: Icon(Icons.payments_rounded),
             label: 'Thanh toán',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.people_outline_rounded),
-            selectedIcon: Icon(Icons.people_rounded),
-            label: 'Học viên',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline_rounded),
@@ -298,19 +292,6 @@ class _SummaryRow extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _PlaceholderTab extends StatelessWidget {
-  final String label;
-
-  const _PlaceholderTab({required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Text(label, style: Theme.of(context).textTheme.titleMedium),
     );
   }
 }

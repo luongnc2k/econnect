@@ -1,5 +1,6 @@
 import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/core/router/app_router.dart';
+import 'package:client/features/schedule/view/widgets/schedule_calendar.dart';
 import 'package:client/features/student/model/class_session.dart';
 import 'package:client/features/student/repositories/student_remote_repository.dart';
 import 'package:client/features/student/view/widgets/upcoming_classlist_widget.dart';
@@ -18,6 +19,8 @@ class StudentScheduleScreen extends ConsumerStatefulWidget {
 }
 
 class _StudentScheduleScreenState extends ConsumerState<StudentScheduleScreen> {
+  late DateTime _selectedDate;
+  var _calendarMode = ScheduleCalendarViewMode.week;
   bool _showPast = false;
   bool _isLoading = true;
   String? _error;
@@ -26,11 +29,13 @@ class _StudentScheduleScreenState extends ConsumerState<StudentScheduleScreen> {
   @override
   void initState() {
     super.initState();
+    _selectedDate = ScheduleCalendar.dateOnly(DateTime.now());
     Future.microtask(() => _loadClasses());
   }
 
   Future<void> _loadClasses({bool? past}) async {
     final resolvedPast = past ?? _showPast;
+    final isSwitchingRange = past != null && past != _showPast;
     final token = ref.read(currentUserProvider)?.token;
     if (token == null || token.isEmpty) {
       if (!mounted) return;
@@ -46,6 +51,9 @@ class _StudentScheduleScreenState extends ConsumerState<StudentScheduleScreen> {
       _showPast = resolvedPast;
       _isLoading = true;
       _error = null;
+      if (isSwitchingRange) {
+        _selectedDate = ScheduleCalendar.dateOnly(DateTime.now());
+      }
     });
 
     final result = await ref
@@ -72,9 +80,20 @@ class _StudentScheduleScreenState extends ConsumerState<StudentScheduleScreen> {
     }
   }
 
+  List<ClassSession> _selectedDateClasses() {
+    final hasDatedClass = _classes.any(
+      (session) => session.startDateTime != null,
+    );
+    if (!hasDatedClass) {
+      return _classes;
+    }
+    return ScheduleCalendar.classesForDate(_classes, _selectedDate);
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final visibleClasses = _showPast ? _selectedDateClasses() : _classes;
 
     return SafeArea(
       child: Column(
@@ -98,46 +117,58 @@ class _StudentScheduleScreenState extends ConsumerState<StudentScheduleScreen> {
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            child: SegmentedButton<bool>(
+              segments: const [
+                ButtonSegment(
+                  value: false,
+                  icon: Icon(Icons.upcoming_outlined),
+                  label: Text('Sắp học'),
+                ),
+                ButtonSegment(
+                  value: true,
+                  icon: Icon(Icons.history_rounded),
+                  label: Text('Đã học'),
+                ),
+              ],
+              selected: {_showPast},
+              onSelectionChanged: (selection) {
+                final next = selection.first;
+                if (next == _showPast) {
+                  return;
+                }
+                _loadClasses(past: next);
+              },
+            ),
+          ),
+          if (_showPast)
+            ScheduleCalendar(
+              margin: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+              classes: _classes,
+              selectedDate: _selectedDate,
+              mode: _calendarMode,
+              onDateSelected: (date) {
+                setState(() => _selectedDate = ScheduleCalendar.dateOnly(date));
+              },
+              onModeChanged: (mode) {
+                setState(() => _calendarMode = mode);
+              },
+            ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
             child: Row(
               children: [
                 Expanded(
-                  child: SegmentedButton<bool>(
-                    segments: const [
-                      ButtonSegment(
-                        value: false,
-                        icon: Icon(Icons.upcoming_outlined),
-                        label: Text('Sắp học'),
-                      ),
-                      ButtonSegment(
-                        value: true,
-                        icon: Icon(Icons.history_rounded),
-                        label: Text('Đã học'),
-                      ),
-                    ],
-                    selected: {_showPast},
-                    onSelectionChanged: (selection) {
-                      final next = selection.first;
-                      if (next == _showPast) {
-                        return;
-                      }
-                      _loadClasses(past: next);
-                    },
+                  child: Text(
+                    _showPast
+                        ? ScheduleCalendar.selectedDateLabel(_selectedDate)
+                        : 'Buổi sắp học',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-            child: Row(
-              children: [
-                Text(
-                  _showPast ? 'Buổi đã học' : 'Buổi sắp học',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(width: 8),
                 if (!_isLoading)
                   Container(
                     padding: const EdgeInsets.symmetric(
@@ -145,15 +176,19 @@ class _StudentScheduleScreenState extends ConsumerState<StudentScheduleScreen> {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: cs.primaryContainer,
+                      color: visibleClasses.isEmpty
+                          ? cs.surfaceContainerHighest
+                          : cs.errorContainer,
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: Text(
-                      '${_classes.length} buổi',
+                      '${visibleClasses.length} buổi',
                       style: TextStyle(
                         fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: cs.onPrimaryContainer,
+                        fontWeight: FontWeight.w800,
+                        color: visibleClasses.isEmpty
+                            ? cs.onSurfaceVariant
+                            : cs.onErrorContainer,
                       ),
                     ),
                   ),
@@ -166,7 +201,7 @@ class _StudentScheduleScreenState extends ConsumerState<StudentScheduleScreen> {
                 ? const Center(child: CircularProgressIndicator())
                 : RefreshIndicator(
                     onRefresh: () => _loadClasses(),
-                    child: _buildBody(context),
+                    child: _buildBody(context, visibleClasses),
                   ),
           ),
         ],
@@ -174,8 +209,8 @@ class _StudentScheduleScreenState extends ConsumerState<StudentScheduleScreen> {
     );
   }
 
-  Widget _buildBody(BuildContext context) {
-    if (_error != null) {
+  Widget _buildBody(BuildContext context, List<ClassSession> selectedClasses) {
+    if (_error != null && _classes.isEmpty) {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
@@ -210,43 +245,60 @@ class _StudentScheduleScreenState extends ConsumerState<StudentScheduleScreen> {
     }
 
     if (_classes.isEmpty) {
-      return ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-        children: [
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              children: [
-                Icon(
-                  _showPast
-                      ? Icons.history_toggle_off_rounded
-                      : Icons.calendar_month_outlined,
-                  size: 36,
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  _showPast
-                      ? 'Bạn chưa có buổi học đã hoàn thành.'
-                      : 'Bạn chưa đăng ký buổi học nào sắp diễn ra.',
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          ),
-        ],
+      return _EmptyScheduleMessage(
+        icon: _showPast
+            ? Icons.history_toggle_off_rounded
+            : Icons.calendar_month_outlined,
+        message: _showPast
+            ? 'Bạn chưa có buổi học đã hoàn thành.'
+            : 'Bạn chưa đăng ký buổi học nào sắp diễn ra.',
+      );
+    }
+
+    if (selectedClasses.isEmpty) {
+      return const _EmptyScheduleMessage(
+        icon: Icons.event_available_outlined,
+        message: 'Ngày này chưa có lịch học.',
       );
     }
 
     return UpcomingClassListWidget(
-      classes: _classes,
+      classes: selectedClasses,
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+      physics: const AlwaysScrollableScrollPhysics(),
       onClassTap: (session) =>
           context.push(AppRoutes.classDetail, extra: session),
+    );
+  }
+}
+
+class _EmptyScheduleMessage extends StatelessWidget {
+  final IconData icon;
+  final String message;
+
+  const _EmptyScheduleMessage({required this.icon, required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+      children: [
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            children: [
+              Icon(icon, size: 36),
+              const SizedBox(height: 12),
+              Text(message, textAlign: TextAlign.center),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

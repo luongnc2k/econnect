@@ -4,6 +4,7 @@ import 'package:client/core/constants/server_constant.dart';
 import 'package:client/core/providers/theme_notifier.dart';
 import 'package:client/core/router/app_router.dart';
 import 'package:client/core/theme/theme.dart';
+import 'package:client/core/widgets/app_scroll_behavior.dart';
 import 'package:client/features/auth/model/user_model.dart';
 import 'package:client/features/auth/viewmodel/auth_viewmodel.dart';
 import 'package:client/features/notifications/push/notifications_push_service.dart';
@@ -65,10 +66,15 @@ class MyApp extends ConsumerWidget {
     return MaterialApp.router(
       title: 'econnect',
       debugShowCheckedModeBanner: false,
+      scrollBehavior: const AppScrollBehavior(),
       theme: AppTheme.lightThemeMode,
       darkTheme: AppTheme.darkThemeMode,
       themeMode: themeMode,
       routerConfig: router,
+      builder: (context, child) => ScrollConfiguration(
+        behavior: const AppScrollBehavior(),
+        child: child ?? const SizedBox.shrink(),
+      ),
     );
   }
 }
