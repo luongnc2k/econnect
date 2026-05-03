@@ -6,6 +6,7 @@ class TeacherCardWidget extends StatelessWidget {
   final String subtitle;
   final double rating;
   final int reviewCount;
+  final int sessionCount;
   final List<String> specialties;
   final String? avatarUrl;
   final String? badgeText;
@@ -17,6 +18,7 @@ class TeacherCardWidget extends StatelessWidget {
     required this.subtitle,
     required this.rating,
     required this.reviewCount,
+    required this.sessionCount,
     required this.specialties,
     this.avatarUrl,
     this.badgeText,
@@ -95,6 +97,22 @@ class TeacherCardWidget extends StatelessWidget {
                       const SizedBox(width: 6),
                       Text(
                         '($reviewCount đánh giá)',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Pallete.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      const Text(
+                        '·',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Pallete.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        '$sessionCount buổi dạy',
                         style: const TextStyle(
                           fontSize: 12,
                           color: Pallete.textSecondary,

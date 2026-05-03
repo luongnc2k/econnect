@@ -25,19 +25,17 @@ class UserProfileRepository implements IUserProfileRepository {
 
     try {
       if (token.isEmpty) {
-        throw Exception('Thieu token dang nhap');
+        throw Exception('Thiếu token đăng nhập');
       }
 
       final response = await dio.get(
         '/profile/$userId',
-        options: Options(
-          headers: {'x-auth-token': token},
-        ),
+        options: Options(headers: {'x-auth-token': token}),
       );
 
       final data = response.data;
       if (response.statusCode != 200 || data is! Map<String, dynamic>) {
-        throw Exception('Khong the tai ho so nguoi dung');
+        throw Exception('Không thể tải hồ sơ người dùng');
       }
 
       final mapped = {...data, 'token': token};
@@ -60,7 +58,6 @@ class UserProfileRepository implements IUserProfileRepository {
     }
     return StudentMyProfileModel.fromMap(mapped);
   }
-
 }
 
 final userProfileRepositoryProvider = Provider<IUserProfileRepository>((ref) {

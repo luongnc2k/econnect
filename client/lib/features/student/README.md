@@ -1,10 +1,10 @@
-# Student Feature
+# Tính Năng Student
 
-## Muc tieu
+## Mục tiêu
 
-Phuc vu trai nghiem chinh cho hoc vien: home feed, danh muc chu de, danh sach lop sap dien ra, chi tiet lop va dieu huong den cac tab lien quan.
+Phục vụ trải nghiệm chính cho học viên: home feed, danh mục chủ đề, danh sách lớp sắp diễn ra, chi tiết lớp và điều hướng đến các tab liên quan.
 
-## Pham vi
+## Phạm vi
 
 - `view/screens/student_nav_shell.dart`
 - `view/screens/student_home_screen.dart`
@@ -14,50 +14,50 @@ Phuc vu trai nghiem chinh cho hoc vien: home feed, danh muc chu de, danh sach lo
 - `repositories/student_remote_repository.dart`
 - `model/class_session*.dart`
 - `model/teacher_preview.dart`
-- `view/widgets/*` lien quan den class card, teacher card, header, filter
+- `view/widgets/*` liên quan đến class card, teacher card, header, filter
 
-## Luong chinh
+## Luồng chính
 
 ### 1. Student shell
 
 `StudentNavShell`
--> giu `IndexedStack`
+-> giữ `IndexedStack`
 -> 4 tab: home, user search, class search, profile
--> giu state tab khi chuyen qua lai.
+-> giữ state tab khi chuyển qua lại.
 
-### 2. Tai home feed
+### 2. Tải home feed
 
 `StudentHomeScreen`
 -> watch `studentHomeViewModelProvider`
 -> `StudentHomeViewModel.build`
--> neu co current user thi trigger `_loadClasses`
--> lay lop sap dien ra
--> map teacher preview tu class list
+-> nếu có current user thì trigger `_loadClasses`
+-> lấy lớp sắp diễn ra
+-> map teacher preview từ class list
 -> render header, search entry, category filter, upcoming classes, featured teachers.
 
 ### 3. Filter theo category
 
-User chon category
+Người dùng chọn category
 -> `selectCategory`
 -> map category sang topic slug
--> goi lai `_loadClasses`
--> refresh danh sach lop va danh sach teacher.
+-> gọi lại `_loadClasses`
+-> refresh danh sách lớp và danh sách giáo viên.
 
-### 4. Xem chi tiet lop
+### 4. Xem chi tiết lớp
 
-Tap class item
+Chạm vào class item
 -> route sang `class_detail_screen.dart`
--> hien thong tin giao vien, tags, mo ta, avatar hoc vien da dang ky va thong tin bo sung.
+-> hiển thị thông tin giáo viên, tags, mô tả, avatar học viên đã đăng ký và thông tin bổ sung.
 
-## Thiet ke
+## Thiết kế
 
-- Student feature tap trung vao consumption flow cua hoc vien.
-- `StudentHomeViewModel` la orchestration point cho home data.
-- `student_remote_repository.dart` chua call API, con widget layer chi render state da duoc xu ly.
-- Teacher preview duoc suy ra tu class list, khong can endpoint rieng cho home.
-- `IndexedStack` duoc chon de giu state cua tung tab trong student shell.
+- Student feature tập trung vào consumption flow của học viên.
+- `StudentHomeViewModel` là orchestration point cho dữ liệu trang chủ.
+- `student_remote_repository.dart` chứa call API, còn widget layer chỉ render state đã được xử lý.
+- Teacher preview được suy ra từ class list, không cần endpoint riêng cho home.
+- `IndexedStack` được chọn để giữ state của từng tab trong student shell.
 
-## Phu thuoc
+## Phụ thuộc
 
 - `currentUserProvider`
 - `features/search`
@@ -65,7 +65,7 @@ Tap class item
 - `go_router`
 - `ManualTestMocks` cho local/manual testing
 
-## Luu y
+## Lưu ý
 
-- Search da duoc tach ra `features/search`, student chi con dong vai tro entry point va host navigation.
-- Mot so text hien tai trong code co dau hieu encoding chua dong nhat, can don dep rieng neu muon chinh sua UI text.
+- Search đã được tách ra `features/search`, student chỉ còn đóng vai trò entry point và host navigation.
+- Một số text hiện tại trong code có dấu hiệu encoding chưa đồng nhất, cần dọn riêng nếu muốn chỉnh sửa UI text.

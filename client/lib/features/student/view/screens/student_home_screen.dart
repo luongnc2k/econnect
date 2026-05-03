@@ -1,10 +1,10 @@
 import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/core/router/app_router.dart';
 import 'package:client/core/utils.dart';
+import 'package:client/features/search/view/widgets/search_bar_widget.dart';
 import 'package:client/features/student/view/widgets/category_filter_widget.dart';
 import 'package:client/features/student/view/widgets/featured_teacher_list_widget.dart';
 import 'package:client/features/student/view/widgets/home_header_widget.dart';
-import 'package:client/features/search/view/widgets/search_bar_widget.dart';
 import 'package:client/features/student/view/widgets/section_header_widget.dart';
 import 'package:client/features/student/view/widgets/upcoming_classlist_widget.dart';
 import 'package:client/features/student/viewmodel/student_home_viewmodel.dart';
@@ -42,7 +42,6 @@ class StudentHomeScreen extends ConsumerWidget {
     return SafeArea(
       child: CustomScrollView(
         slivers: [
-          // Header — cuộn theo
           SliverToBoxAdapter(
             child: Padding(
               padding: EdgeInsets.fromLTRB(hPad, 16, hPad, 0),
@@ -51,71 +50,54 @@ class StudentHomeScreen extends ConsumerWidget {
                 userName: user?.fullName ?? 'Bạn',
                 avatarUrl: user?.avatarUrl,
                 onAvatarTap: onAvatarTap,
-                onNotificationTap: () {},
+                onNotificationTap: () => context.push(AppRoutes.notifications),
               ),
             ),
           ),
-
-          // Search + Category — sticky
           SliverPersistentHeader(
             pinned: true,
             delegate: _StickyFilterDelegate(
               scaffoldColor: Theme.of(context).scaffoldBackgroundColor,
               horizontalPadding: hPad,
-              categories: studentHomeCategories,
+              categories: state.categories,
               selectedCategory: state.selectedCategory,
               onSearchTap: onSearchTap,
-              onCategorySelected: (val) => ref
+              onCategorySelected: (value) => ref
                   .read(studentHomeViewModelProvider.notifier)
-                  .selectCategory(val),
+                  .selectCategory(value),
             ),
           ),
-
-          // Lớp học sắp diễn ra
           SliverToBoxAdapter(
             child: Padding(
-              padding: EdgeInsets.fromLTRB(
-                hPad,
-                0,
-                hPad,
-                0,
-              ),
+              padding: EdgeInsets.fromLTRB(hPad, 0, hPad, 0),
               child: SectionHeaderWidget(
-                title: 'Lớp học sắp diễn ra',
+                title: 'Danh sách buổi học',
                 actionText: 'Tất cả',
                 onActionTap: onClassesTap,
               ),
             ),
           ),
-
           SliverToBoxAdapter(
             child: Padding(
-              padding: EdgeInsets.only(left: hPad),
+              padding: EdgeInsets.fromLTRB(hPad, 8, hPad, 0),
               child: state.isLoading
                   ? const _ClassListSkeleton()
                   : state.error != null
-                      ? _ErrorBanner(message: state.error!)
-                      : state.classes.isEmpty
-                          ? const _EmptyClasses()
-                          : UpcomingClassListWidget(
-                              classes: state.classes,
-                              onClassTap: (session) => context.go(
-                                AppRoutes.classDetail,
-                                extra: session,
-                              ),
-                            ),
+                  ? _ErrorBanner(message: state.error!)
+                  : state.classes.isEmpty
+                  ? const _EmptyClasses()
+                  : UpcomingClassListWidget(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      classes: state.classes,
+                      onClassTap: (session) =>
+                          context.go(AppRoutes.classDetail, extra: session),
+                    ),
             ),
           ),
-
-          // Giảng viên nổi bật
           SliverToBoxAdapter(
             child: Padding(
-              padding: EdgeInsets.fromLTRB(
-                hPad,
-                _sectionSpacing,
-                hPad,
-                16,
-              ),
+              padding: EdgeInsets.fromLTRB(hPad, _sectionSpacing, hPad, 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -146,15 +128,12 @@ class _ClassListSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final h = (MediaQuery.of(context).size.height * 0.42).clamp(320.0, 460.0);
-    return SizedBox(
-      height: h,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: 3,
-        separatorBuilder: (_, _) => const SizedBox(width: 12),
-        itemBuilder: (context, _) => Container(
-          width: 240,
+    return Column(
+      children: List.generate(
+        3,
+        (_) => Container(
+          height: 174,
+          margin: const EdgeInsets.only(bottom: 12),
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(16),
@@ -167,6 +146,7 @@ class _ClassListSkeleton extends StatelessWidget {
 
 class _ErrorBanner extends StatelessWidget {
   final String message;
+
   const _ErrorBanner({required this.message});
 
   @override
@@ -193,7 +173,6 @@ class _EmptyClasses extends StatelessWidget {
   }
 }
 
-// height = top padding (12) + SearchBar (50) + gap (12) + CategoryFilter (36) + bottom padding (12)
 const double _stickyHeight = 12 + 50 + 12 + 36 + 12;
 
 class _StickyFilterDelegate extends SliverPersistentHeaderDelegate {
@@ -228,14 +207,19 @@ class _StickyFilterDelegate extends SliverPersistentHeaderDelegate {
     return ColoredBox(
       color: scaffoldColor,
       child: Padding(
-        padding: EdgeInsets.fromLTRB(horizontalPadding, 12, horizontalPadding, 12),
+        padding: EdgeInsets.fromLTRB(
+          horizontalPadding,
+          12,
+          horizontalPadding,
+          12,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             SearchBarWidget(
               onTap: onSearchTap,
               readOnly: true,
-              hintText: 'Tim user theo ten hoac so dien thoai',
+              hintText: 'Tìm người dùng hoặc nhập mã lớp',
             ),
             const SizedBox(height: 12),
             CategoryFilterWidget(
@@ -251,7 +235,21 @@ class _StickyFilterDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   bool shouldRebuild(_StickyFilterDelegate old) =>
+      categories.length != old.categories.length ||
+      !_sameCategories(categories, old.categories) ||
       selectedCategory != old.selectedCategory ||
       scaffoldColor != old.scaffoldColor ||
       horizontalPadding != old.horizontalPadding;
+
+  bool _sameCategories(List<String> left, List<String> right) {
+    if (left.length != right.length) {
+      return false;
+    }
+    for (var index = 0; index < left.length; index++) {
+      if (left[index] != right[index]) {
+        return false;
+      }
+    }
+    return true;
+  }
 }

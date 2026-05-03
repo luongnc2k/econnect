@@ -1,40 +1,40 @@
-# Tutor Feature
+# Tính Năng Tutor
 
-## Muc tieu
+## Mục tiêu
 
-Cung cap shell rieng cho giao vien sau khi dang nhap.
+Cung cấp shell riêng cho giáo viên sau khi đăng nhập.
 
-## Pham vi
+## Phạm vi
 
 - `view/screens/tutor_home_screen.dart`
 
-## Luong chinh
+## Luồng chính
 
 `HomePage`
--> neu role la `tutor`
+-> nếu role là `tutor`
 -> render `TutorNavShell`
--> shell hien co 4 tab: home, teaching schedule, students, profile.
+-> shell hiện có 4 tab: home, teaching schedule, students, profile.
 
-## Trang thai hien tai
+## Trạng thái hiện tại
 
-- Tab `home` da co UI co ban va greeting theo user hien tai.
-- Tab `profile` hien tai cho phep dang xuat nhanh.
-- Tab `teaching schedule` va `students` dang la placeholder.
+- Tab `home` đã có UI cơ bản và lời chào theo người dùng hiện tại.
+- Tab `profile` hiện tại cho phép đăng xuất nhanh.
+- Tab `teaching schedule` và `students` đang là placeholder.
 
-## Thiet ke
+## Thiết kế
 
-- Feature dang o giai doan scaffold, chu yeu de giu cho routing theo role chay thong suot.
-- `TutorNavShell` dung `IndexedStack` giong student shell de giu state tab.
-- Da ket noi san voi `currentUserProvider`, `themeModeProvider` va `AuthViewModel.logout`.
+- Feature đang ở giai đoạn scaffold, chủ yếu để giữ cho routing theo role chạy thông suốt.
+- `TutorNavShell` dùng `IndexedStack` giống student shell để giữ state tab.
+- Đã kết nối sẵn với `currentUserProvider`, `themeModeProvider` và `AuthViewModel.logout`.
 
-## Phu thuoc
+## Phụ thuộc
 
 - `features/home`
 - `features/auth`
 - `core/providers/current_user_notifier.dart`
 - `core/providers/theme_notifier.dart`
 
-## Mo rong
+## Mở rộng
 
-- Co the tach tung tab thanh feature con khi luong giao vien duoc xay dung day du.
-- Neu profile tutor can dung chung voi profile feature, nen thay `_ProfileTab` bang `MyProfileView`.
+- Có thể tách từng tab thành feature con khi luồng giáo viên được xây dựng đầy đủ.
+- Nếu profile tutor cần dùng chung với profile feature, nên thay `_ProfileTab` bằng `MyProfileView`.

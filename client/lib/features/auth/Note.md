@@ -8,5 +8,4 @@ Server
       ↓
 AuthLocalRepository (lưu token)
       ↓
-Cập nhật state → UI rebuild
-
+Cập nhật state → UI dựng lại

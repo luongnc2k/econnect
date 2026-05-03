@@ -1,9 +1,10 @@
+import 'package:client/core/router/app_router.dart';
 import 'package:client/features/search/view/screens/class_search_screen.dart';
-import 'package:client/features/search/view/screens/user_search_screen.dart';
 import 'package:client/features/profile/view/widgets/my_profile_view.dart';
 import 'package:client/features/student/view/screens/student_home_screen.dart';
+import 'package:client/features/student/view/screens/student_schedule_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 class StudentNavShell extends StatefulWidget {
   const StudentNavShell({super.key});
@@ -18,10 +19,10 @@ class _StudentNavShellState extends State<StudentNavShell> {
   late final List<Widget> _screens = [
     StudentHomeScreen(
       onAvatarTap: () => setState(() => _currentIndex = 3),
-      onSearchTap: () => setState(() => _currentIndex = 1),
+      onSearchTap: () => context.push(AppRoutes.studentSearch),
       onClassesTap: () => setState(() => _currentIndex = 2),
     ),
-    const UserSearchScreen(),
+    const StudentScheduleScreen(),
     const ClassSearchScreen(),
     const MyProfileTab(),
   ];
@@ -29,10 +30,7 @@ class _StudentNavShellState extends State<StudentNavShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _screens,
-      ),
+      body: IndexedStack(index: _currentIndex, children: _screens),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
         onDestinationSelected: (index) {
@@ -42,22 +40,22 @@ class _StudentNavShellState extends State<StudentNavShell> {
           NavigationDestination(
             icon: Icon(Icons.home_outlined),
             selectedIcon: Icon(Icons.home_rounded),
-            label: 'Trang chu',
+            label: 'Trang chủ',
           ),
           NavigationDestination(
-            icon: Icon(Icons.search_outlined),
-            selectedIcon: Icon(Icons.search_rounded),
-            label: 'Tim kiem',
+            icon: Icon(Icons.calendar_month_outlined),
+            selectedIcon: Icon(Icons.calendar_month_rounded),
+            label: 'Lịch học',
           ),
           NavigationDestination(
             icon: Icon(Icons.menu_book_outlined),
             selectedIcon: Icon(Icons.menu_book_rounded),
-            label: 'Lop hoc',
+            label: 'Buổi học',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline_rounded),
             selectedIcon: Icon(Icons.person_rounded),
-            label: 'Ho so',
+            label: 'Hồ sơ',
           ),
         ],
       ),
@@ -70,8 +68,6 @@ class MyProfileTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const SafeArea(
-      child: MyProfileView(),
-    );
+    return const SafeArea(child: MyProfileView());
   }
 }

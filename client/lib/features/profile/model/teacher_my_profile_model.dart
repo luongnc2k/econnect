@@ -2,13 +2,22 @@ import 'package:client/features/auth/model/user_model.dart';
 
 class TeacherMyProfileModel extends UserModel {
   final String? specialization;
+  final String? bankName;
+  final String? bankBin;
+  final String? bankAccountNumber;
+  final String? bankAccountHolder;
   final int yearsOfExperience;
   final double rating;
   final int totalStudents;
   final String? bio;
-  final double? hourlyRate;
   final List<String> certifications;
   final List<String> verificationDocs;
+
+  bool get hasPayoutBankAccount =>
+      _hasValue(bankName) &&
+      _hasValue(bankBin) &&
+      _hasValue(bankAccountNumber) &&
+      _hasValue(bankAccountHolder);
 
   TeacherMyProfileModel({
     required super.id,
@@ -23,11 +32,14 @@ class TeacherMyProfileModel extends UserModel {
     super.updatedAt,
     required super.token,
     this.specialization,
+    this.bankName,
+    this.bankBin,
+    this.bankAccountNumber,
+    this.bankAccountHolder,
     this.yearsOfExperience = 0,
     this.rating = 0,
     this.totalStudents = 0,
     this.bio,
-    this.hourlyRate,
     this.certifications = const [],
     this.verificationDocs = const [],
   });
@@ -52,15 +64,16 @@ class TeacherMyProfileModel extends UserModel {
           : null,
       token: map['token'] ?? '',
       specialization: map['specialization'] as String?,
+      bankName: map['bank_name'] as String?,
+      bankBin: map['bank_bin'] as String?,
+      bankAccountNumber: map['bank_account_number'] as String?,
+      bankAccountHolder: map['bank_account_holder'] as String?,
       yearsOfExperience:
           int.tryParse(map['years_of_experience']?.toString() ?? '0') ?? 0,
       rating: map['rating'] == null ? 0 : (map['rating'] as num).toDouble(),
       totalStudents:
           int.tryParse(map['total_students']?.toString() ?? '0') ?? 0,
       bio: map['bio'] as String?,
-      hourlyRate: map['hourly_rate'] == null
-          ? null
-          : (map['hourly_rate'] as num).toDouble(),
       certifications: (map['certifications'] as List<dynamic>? ?? const [])
           .map((item) => item.toString())
           .where((item) => item.trim().isNotEmpty)
@@ -77,11 +90,14 @@ class TeacherMyProfileModel extends UserModel {
     final map = super.toMap();
     map.addAll({
       'specialization': specialization,
+      'bank_name': bankName,
+      'bank_bin': bankBin,
+      'bank_account_number': bankAccountNumber,
+      'bank_account_holder': bankAccountHolder,
       'years_of_experience': yearsOfExperience,
       'rating': rating,
       'total_students': totalStudents,
       'bio': bio,
-      'hourly_rate': hourlyRate,
       'certifications': certifications,
       'verification_docs': verificationDocs,
     });
@@ -102,11 +118,14 @@ class TeacherMyProfileModel extends UserModel {
     DateTime? updatedAt,
     String? token,
     String? specialization,
+    String? bankName,
+    String? bankBin,
+    String? bankAccountNumber,
+    String? bankAccountHolder,
     int? yearsOfExperience,
     double? rating,
     int? totalStudents,
     String? bio,
-    double? hourlyRate,
     List<String>? certifications,
     List<String>? verificationDocs,
   }) {
@@ -123,13 +142,18 @@ class TeacherMyProfileModel extends UserModel {
       updatedAt: updatedAt ?? this.updatedAt,
       token: token ?? this.token,
       specialization: specialization ?? this.specialization,
+      bankName: bankName ?? this.bankName,
+      bankBin: bankBin ?? this.bankBin,
+      bankAccountNumber: bankAccountNumber ?? this.bankAccountNumber,
+      bankAccountHolder: bankAccountHolder ?? this.bankAccountHolder,
       yearsOfExperience: yearsOfExperience ?? this.yearsOfExperience,
       rating: rating ?? this.rating,
       totalStudents: totalStudents ?? this.totalStudents,
       bio: bio ?? this.bio,
-      hourlyRate: hourlyRate ?? this.hourlyRate,
       certifications: certifications ?? this.certifications,
       verificationDocs: verificationDocs ?? this.verificationDocs,
     );
   }
+
+  static bool _hasValue(String? value) => (value ?? '').trim().isNotEmpty;
 }

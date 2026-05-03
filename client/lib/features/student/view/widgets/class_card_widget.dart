@@ -36,129 +36,120 @@ class ClassCardWidget extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(14),
       child: Container(
-        width: 280,
         decoration: BoxDecoration(
           color: cs.surfaceContainer,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(color: cs.outlineVariant, width: 1),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(child: _buildThumbnail(cs)),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (tags.isNotEmpty) ...[
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: tags.map((tag) => AppTagChip(label: tag)).toList(),
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(width: 108, height: 136, child: _buildThumbnail(cs)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (tags.isNotEmpty) ...[
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: tags
+                            .map((tag) => AppTagChip(label: tag))
+                            .toList(),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                    Text(
+                      title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: cs.onSurface,
+                        height: 1.2,
+                      ),
                     ),
-                    const SizedBox(height: 10),
-                  ],
-                  Text(
-                    title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
-                      color: cs.onSurface,
-                      height: 1.2,
-                    ),
-                  ),
-                  if (classCode != null && classCode!.isNotEmpty) ...[
-                    const SizedBox(height: 6),
-                    InkWell(
-                      borderRadius: BorderRadius.circular(8),
-                      onTap: () async {
-                        await Clipboard.setData(ClipboardData(text: classCode!));
-                        if (!context.mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Da copy ma lop $classCode')),
-                        );
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 2),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Flexible(
-                              child: Text(
-                                classCode!,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: cs.primary,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 0.4,
+                    if (classCode != null && classCode!.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      InkWell(
+                        borderRadius: BorderRadius.circular(8),
+                        onTap: () async {
+                          await Clipboard.setData(
+                            ClipboardData(text: classCode!),
+                          );
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Đã copy mã lớp $classCode'),
+                            ),
+                          );
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 2),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  classCode!,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: cs.primary,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0.4,
+                                  ),
                                 ),
                               ),
-                            ),
-                            const SizedBox(width: 4),
-                            Icon(
-                              Icons.content_copy_rounded,
-                              size: 12,
-                              color: cs.primary,
-                            ),
-                          ],
+                              const SizedBox(width: 4),
+                              Icon(
+                                Icons.content_copy_rounded,
+                                size: 12,
+                                color: cs.primary,
+                              ),
+                            ],
+                          ),
                         ),
                       ),
+                    ],
+                    const SizedBox(height: 6),
+                    _MetaRow(icon: Icons.place_outlined, text: location),
+                    const SizedBox(height: 6),
+                    _MetaRow(
+                      icon: Icons.account_circle_outlined,
+                      text: teacherName,
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: _InfoColumn(
+                            label: 'Thời gian',
+                            value: timeText,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _InfoColumn(
+                            label: 'Phí tham gia',
+                            value: priceText,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
-                  const SizedBox(height: 6),
-                  Text(
-                    location,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: cs.onSurfaceVariant,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.account_circle_outlined,
-                        size: 16,
-                        color: cs.onSurfaceVariant,
-                      ),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          teacherName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: 12, color: cs.onSurface),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: _InfoColumn(label: 'Thời gian', value: timeText),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _InfoColumn(label: 'Phí tham gia', value: priceText),
-                      ),
-                    ],
-                  ),
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -166,7 +157,7 @@ class ClassCardWidget extends StatelessWidget {
 
   Widget _buildThumbnail(ColorScheme cs) {
     return ClipRRect(
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+      borderRadius: BorderRadius.circular(12),
       child: Container(
         width: double.infinity,
         color: cs.surfaceContainerHighest,
@@ -181,15 +172,11 @@ class ClassCardWidget extends StatelessWidget {
                     )
                   : _PlaceholderImage(cs: cs),
             ),
-            Positioned(
-              top: 10,
-              left: 10,
-              child: StatusBadge(label: statusText),
-            ),
+            Positioned(top: 8, left: 8, child: StatusBadge(label: statusText)),
             if (countdownText != null && countdownText!.isNotEmpty)
               Positioned(
-                top: 10,
-                right: 10,
+                top: 8,
+                right: 8,
                 child: _OutlineBadge(label: countdownText!),
               ),
           ],
@@ -211,17 +198,14 @@ class _InfoColumn extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
-        ),
-        const SizedBox(height: 4),
+        Text(label, style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant)),
+        const SizedBox(height: 3),
         Text(
           value,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            fontSize: 14,
+            fontSize: 13,
             fontWeight: FontWeight.w600,
             color: cs.onSurface,
             height: 1.2,
@@ -232,6 +216,37 @@ class _InfoColumn extends StatelessWidget {
   }
 }
 
+class _MetaRow extends StatelessWidget {
+  final IconData icon;
+  final String text;
+
+  const _MetaRow({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 14, color: cs.onSurfaceVariant),
+        const SizedBox(width: 5),
+        Expanded(
+          child: Text(
+            text,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 11,
+              color: cs.onSurfaceVariant,
+              fontWeight: FontWeight.w500,
+              height: 1.3,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
 
 class _OutlineBadge extends StatelessWidget {
   final String label;
@@ -242,7 +257,7 @@ class _OutlineBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: cs.surfaceContainer,
         borderRadius: BorderRadius.circular(20),
@@ -251,7 +266,7 @@ class _OutlineBadge extends StatelessWidget {
       child: Text(
         label,
         style: TextStyle(
-          fontSize: 10,
+          fontSize: 9,
           color: cs.onSurface,
           fontWeight: FontWeight.w600,
         ),

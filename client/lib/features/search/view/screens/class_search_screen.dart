@@ -1,9 +1,11 @@
+import 'dart:async';
+
 import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/core/router/app_router.dart';
+import 'package:client/features/search/view/widgets/search_bar_widget.dart';
 import 'package:client/features/student/model/class_session.dart';
 import 'package:client/features/student/repositories/student_remote_repository.dart';
 import 'package:client/features/student/view/widgets/upcoming_classlist_widget.dart';
-import 'package:client/features/search/view/widgets/search_bar_widget.dart';
 import 'package:client/testing/manual_test_mocks.dart';
 import 'package:fpdart/fpdart.dart' show Left, Right;
 import 'package:flutter/material.dart';
@@ -18,24 +20,38 @@ class ClassSearchScreen extends ConsumerStatefulWidget {
 }
 
 class _ClassSearchScreenState extends ConsumerState<ClassSearchScreen> {
+  static const _searchDebounceDuration = Duration(milliseconds: 350);
+
   final _controller = TextEditingController();
+  Timer? _searchDebounce;
   List<ClassSession> _classes = const [];
   bool _isLoading = true;
   String? _error;
+  int _activeSearchRequestId = 0;
 
   @override
   void initState() {
     super.initState();
-    Future.microtask(() => _loadClasses());
+    Future.microtask(() => _loadClasses(requestId: ++_activeSearchRequestId));
   }
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _controller.dispose();
     super.dispose();
   }
 
-  Future<void> _loadClasses([String query = '']) async {
+  void _scheduleLoadClasses(String query) {
+    _searchDebounce?.cancel();
+    final requestId = ++_activeSearchRequestId;
+    _searchDebounce = Timer(_searchDebounceDuration, () {
+      unawaited(_loadClasses(query: query, requestId: requestId));
+    });
+  }
+
+  Future<void> _loadClasses({String query = '', int? requestId}) async {
+    final effectiveRequestId = requestId ?? ++_activeSearchRequestId;
     setState(() {
       _isLoading = true;
       _error = null;
@@ -48,22 +64,21 @@ class _ClassSearchScreenState extends ConsumerState<ClassSearchScreen> {
 
     if (isClassCodeQuery) {
       final result = await repository.getClassByCode(token, normalized);
+      if (!mounted || effectiveRequestId != _activeSearchRequestId) return;
       switch (result) {
         case Left(value: final failure):
           final fallback = ManualTestMocks.enabled
               ? ManualTestMocks.mockClasses.where((item) {
-                  return (item.classCode ?? '').toUpperCase() == normalized.toUpperCase();
+                  return (item.classCode ?? '').toUpperCase() ==
+                      normalized.toUpperCase();
                 }).toList()
               : const <ClassSession>[];
-
-          if (!mounted) return;
           setState(() {
             _classes = fallback;
             _error = fallback.isEmpty ? failure.message : null;
             _isLoading = false;
           });
         case Right(value: final foundClass):
-          if (!mounted) return;
           setState(() {
             _classes = [foundClass];
             _isLoading = false;
@@ -72,7 +87,11 @@ class _ClassSearchScreenState extends ConsumerState<ClassSearchScreen> {
       return;
     }
 
-    final result = await repository.getUpcomingClasses(token, query: normalized);
+    final result = await repository.getUpcomingClasses(
+      token,
+      query: normalized,
+    );
+    if (!mounted || effectiveRequestId != _activeSearchRequestId) return;
 
     switch (result) {
       case Left(value: final failure):
@@ -81,18 +100,16 @@ class _ClassSearchScreenState extends ConsumerState<ClassSearchScreen> {
                 final keyword = normalized.toLowerCase();
                 if (keyword.isEmpty) return true;
                 return item.title.toLowerCase().contains(keyword) ||
-                    (item.classCode ?? '').toLowerCase().contains(keyword);
+                    (item.classCode ?? '').toLowerCase().contains(keyword) ||
+                    item.tags.any((tag) => tag.toLowerCase().contains(keyword));
               }).toList()
             : const <ClassSession>[];
-
-        if (!mounted) return;
         setState(() {
           _classes = fallback;
           _error = fallback.isEmpty ? failure.message : null;
           _isLoading = false;
         });
       case Right(value: final classes):
-        if (!mounted) return;
         setState(() {
           _classes = classes;
           _isLoading = false;
@@ -110,8 +127,8 @@ class _ClassSearchScreenState extends ConsumerState<ClassSearchScreen> {
           children: [
             SearchBarWidget(
               controller: _controller,
-              hintText: 'Tim theo ma lop hoac ten lop',
-              onChanged: _loadClasses,
+              hintText: 'Tìm theo mã lớp hoặc tên lớp',
+              onChanged: _scheduleLoadClasses,
             ),
             const SizedBox(height: 12),
             if (_error != null)
@@ -126,14 +143,12 @@ class _ClassSearchScreenState extends ConsumerState<ClassSearchScreen> {
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : _classes.isEmpty
-                      ? const Center(child: Text('Khong tim thay lop hoc'))
-                      : UpcomingClassListWidget(
-                          classes: _classes,
-                          onClassTap: (session) => context.push(
-                            AppRoutes.classDetail,
-                            extra: session,
-                          ),
-                        ),
+                  ? const Center(child: Text('Không tìm thấy lớp học'))
+                  : UpcomingClassListWidget(
+                      classes: _classes,
+                      onClassTap: (session) =>
+                          context.push(AppRoutes.classDetail, extra: session),
+                    ),
             ),
           ],
         ),

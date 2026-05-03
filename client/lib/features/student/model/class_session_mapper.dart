@@ -1,13 +1,23 @@
+import 'package:client/core/utils/backend_asset_url.dart';
 import 'package:client/features/student/model/class_session.dart';
 
 class ClassSessionMapper {
+  static const _vietnamTimeOffset = Duration(hours: 7);
+
   static ClassSession fromMap(Map<String, dynamic> m) {
-    final startTime = DateTime.parse(m['start_time']).toLocal();
-    final endTime = DateTime.parse(m['end_time']).toLocal();
+    final startTime = parseBackendTime(m['start_time']);
+    final endTime = parseBackendTime(m['end_time']);
     final maxSlots = (m['max_participants'] as num).toInt();
     final current = (m['current_participants'] as num).toInt();
     final remaining = maxSlots - current;
-    final topic = m['topic'] as Map<String, dynamic>;
+    final totalPrice = _toWholeVnd(m['price']);
+    final studentPrice = ((totalPrice / maxSlots).round()).toInt();
+    final rawTopic = m['topic'];
+    final topic = switch (rawTopic) {
+      final Map<String, dynamic> topicMap =>
+        topicMap['name']?.toString().trim() ?? '',
+      _ => rawTopic?.toString().trim() ?? '',
+    };
     final teacher = m['teacher'] as Map<String, dynamic>;
 
     return ClassSession(
@@ -15,17 +25,23 @@ class ClassSessionMapper {
       classCode: m['class_code'] as String?,
       title: m['title'] as String,
       location: m['location_name'] as String,
+      locationAddress: m['location_address'] as String?,
+      locationNotes: m['location_notes'] as String?,
       teacherId: teacher['id'] as String?,
       teacherName: teacher['full_name'] as String,
       teacherAvatarUrl: teacher['avatar_url'] as String?,
       startDateTime: startTime,
       endDateTime: endTime,
       timeText: formatTime(startTime),
-      priceText: formatPrice(m['price']),
-      imageUrl: m['thumbnail_url'] as String?,
+      endTimeText: formatTime(endTime),
+      priceText: formatPrice(studentPrice),
+      totalPriceText: formatPrice(totalPrice),
+      imageUrl: normalizeBackendAssetUrl(m['thumbnail_url'] as String?),
+      materialUrl: normalizeBackendAssetUrl(m['material_url'] as String?),
+      materialFileName: m['material_file_name'] as String?,
       statusText: mapStatus(m['status'] as String),
       countdownText: remaining > 0 ? 'Còn $remaining chỗ' : 'Hết chỗ',
-      tags: [topic['name'] as String],
+      tags: topic.isEmpty ? const [] : [topic],
       description: m['description'] as String?,
       dateText: formatDate(startTime),
       slotText: '$current/$maxSlots đã đăng ký',
@@ -34,6 +50,22 @@ class ClassSessionMapper {
           ? double.tryParse(teacher['rating_avg'].toString())
           : null,
       teacherSessionCount: teacher['total_sessions'] as int?,
+      teacherReviewCount: teacher['total_reviews'] as int?,
+    );
+  }
+
+  static DateTime parseBackendTime(Object value) {
+    final utcTime = DateTime.parse(value.toString()).toUtc();
+    final vietnamTime = utcTime.add(_vietnamTimeOffset);
+    return DateTime(
+      vietnamTime.year,
+      vietnamTime.month,
+      vietnamTime.day,
+      vietnamTime.hour,
+      vietnamTime.minute,
+      vietnamTime.second,
+      vietnamTime.millisecond,
+      vietnamTime.microsecond,
     );
   }
 
@@ -56,29 +88,36 @@ class ClassSessionMapper {
   }
 
   static String formatPrice(dynamic price) {
-    final str = double.parse(price.toString()).toInt().toString();
+    final str = _toWholeVnd(price).toString();
     final buf = StringBuffer();
     for (int i = 0; i < str.length; i++) {
-      if (i > 0 && (str.length - i) % 3 == 0) buf.write('.');
+      if (i > 0 && (str.length - i) % 3 == 0) {
+        buf.write('.');
+      }
       buf.write(str[i]);
     }
     return '${buf.toString()}đ';
   }
 
+  static int _toWholeVnd(dynamic price) {
+    final parsed = num.parse(price.toString());
+    return parsed.round();
+  }
+
   static String mapStatus(String status) => switch (status) {
-        'scheduled' => 'OPEN',
-        'ongoing'   => 'LIVE',
-        'completed' => 'DONE',
-        'cancelled' => 'HUỶ',
-        _           => status.toUpperCase(),
-      };
+    'scheduled' => 'OPEN',
+    'ongoing' => 'LIVE',
+    'completed' => 'DONE',
+    'cancelled' => 'HUỶ',
+    _ => status.toUpperCase(),
+  };
 
   static String mapLevel(String level) => switch (level) {
-        'beginner'     => 'Beginner',
-        'intermediate' => 'Intermediate+',
-        'advanced'     => 'Advanced',
-        _              => level,
-      };
+    'beginner' => 'Beginner',
+    'intermediate' => 'Intermediate+',
+    'advanced' => 'Advanced',
+    _ => level,
+  };
 
   static int _dayDiff(DateTime dt) {
     final now = DateTime.now();

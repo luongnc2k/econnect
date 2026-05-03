@@ -1,11 +1,13 @@
 import 'dart:typed_data';
 
 import 'package:client/core/network/dio_provider.dart';
+import 'package:client/core/network/multipart_file_helper.dart';
 import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/features/auth/model/user_model.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../model/payout_bank_account_verification_result.dart';
 import '../model/student_my_profile_model.dart';
 import '../model/teacher_my_profile_model.dart';
 
@@ -22,6 +24,10 @@ abstract class IMyProfileRepository {
     required Uint8List fileBytes,
     String? filePath,
   });
+  Future<PayoutBankAccountVerificationResult> verifyPayoutBankAccount({
+    required String bankBin,
+    required String bankAccountNumber,
+  });
 }
 
 class MyProfileRepository implements IMyProfileRepository {
@@ -36,27 +42,25 @@ class MyProfileRepository implements IMyProfileRepository {
     final token = currentUser?.token ?? '';
 
     if (token.isEmpty) {
-      throw Exception('Thieu token dang nhap');
+      throw Exception('Thiếu token đăng nhập');
     }
 
     final response = await dio.get(
       '/profile/me',
-      options: Options(
-        headers: {'x-auth-token': token},
-      ),
+      options: Options(headers: {'x-auth-token': token}),
     );
 
     final data = response.data;
     if (response.statusCode != 200 || data is! Map<String, dynamic>) {
-      throw Exception('Khong the tai ho so');
+      throw Exception('Không thể tải hồ sơ');
     }
 
     final mapped = {...data, 'token': token};
     final profile = _mapProfile(mapped);
 
-    ref.read(currentUserProvider.notifier).setUser(
-          UserModel.fromMap(mapped).copyWith(token: token),
-        );
+    ref
+        .read(currentUserProvider.notifier)
+        .setUser(UserModel.fromMap(mapped).copyWith(token: token));
 
     return profile;
   }
@@ -67,28 +71,26 @@ class MyProfileRepository implements IMyProfileRepository {
     final token = currentUser?.token ?? '';
 
     if (token.isEmpty) {
-      throw Exception('Thieu token dang nhap');
+      throw Exception('Thiếu token đăng nhập');
     }
 
     final response = await dio.put(
       '/profile/me',
       data: profile.toMap(),
-      options: Options(
-        headers: {'x-auth-token': token},
-      ),
+      options: Options(headers: {'x-auth-token': token}),
     );
 
     final data = response.data;
     if (response.statusCode != 200 || data is! Map<String, dynamic>) {
-      throw Exception('Cap nhat ho so that bai');
+      throw Exception('Cập nhật hồ sơ thất bại');
     }
 
     final mapped = {...data, 'token': token};
     final updatedProfile = _mapProfile(mapped);
 
-    ref.read(currentUserProvider.notifier).setUser(
-          UserModel.fromMap(mapped).copyWith(token: token),
-        );
+    ref
+        .read(currentUserProvider.notifier)
+        .setUser(UserModel.fromMap(mapped).copyWith(token: token));
 
     return updatedProfile;
   }
@@ -103,23 +105,21 @@ class MyProfileRepository implements IMyProfileRepository {
     final token = currentUser?.token ?? '';
 
     if (token.isEmpty) {
-      throw Exception('Thieu token dang nhap');
+      throw Exception('Thiếu token đăng nhập');
     }
 
     final formData = FormData.fromMap({
-      'file': filePath != null
-          ? await MultipartFile.fromFile(filePath, filename: fileName)
-          : MultipartFile.fromBytes(fileBytes, filename: fileName),
+      'file': await buildUploadMultipartFile(
+        fileName: fileName,
+        fileBytes: fileBytes,
+        filePath: filePath,
+      ),
     });
 
     final response = await dio.post(
       '/upload/avatar',
       data: formData,
-      options: Options(
-        headers: {
-          'x-auth-token': token,
-        },
-      ),
+      options: Options(headers: {'x-auth-token': token}),
     );
 
     final data = response.data;
@@ -130,7 +130,7 @@ class MyProfileRepository implements IMyProfileRepository {
       return data['url'].toString();
     }
 
-    throw Exception('Upload avatar that bai');
+    throw Exception('Upload avatar thất bại');
   }
 
   @override
@@ -143,21 +143,21 @@ class MyProfileRepository implements IMyProfileRepository {
     final token = currentUser?.token ?? '';
 
     if (token.isEmpty) {
-      throw Exception('Thieu token dang nhap');
+      throw Exception('Thiếu token đăng nhập');
     }
 
     final formData = FormData.fromMap({
-      'file': filePath != null
-          ? await MultipartFile.fromFile(filePath, filename: fileName)
-          : MultipartFile.fromBytes(fileBytes, filename: fileName),
+      'file': await buildUploadMultipartFile(
+        fileName: fileName,
+        fileBytes: fileBytes,
+        filePath: filePath,
+      ),
     });
 
     final response = await dio.post(
       '/upload/teacher-document',
       data: formData,
-      options: Options(
-        headers: {'x-auth-token': token},
-      ),
+      options: Options(headers: {'x-auth-token': token}),
     );
 
     final data = response.data;
@@ -167,7 +167,44 @@ class MyProfileRepository implements IMyProfileRepository {
       return data['url'].toString();
     }
 
-    throw Exception('Upload teacher document that bai');
+    throw Exception('Upload tài liệu giảng viên thất bại');
+  }
+
+  @override
+  Future<PayoutBankAccountVerificationResult> verifyPayoutBankAccount({
+    required String bankBin,
+    required String bankAccountNumber,
+  }) async {
+    final currentUser = ref.read(currentUserProvider);
+    final token = currentUser?.token ?? '';
+
+    if (token.isEmpty) {
+      throw Exception('Thiếu token đăng nhập');
+    }
+
+    try {
+      final response = await dio.post(
+        '/profile/me/payout-bank-account/verify',
+        data: {'bank_bin': bankBin, 'bank_account_number': bankAccountNumber},
+        options: Options(headers: {'x-auth-token': token}),
+      );
+
+      final data = response.data;
+      if (response.statusCode != 200 || data is! Map<String, dynamic>) {
+        throw Exception('Không thể kiểm tra tài khoản ngân hàng');
+      }
+
+      return PayoutBankAccountVerificationResult.fromMap(data);
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      if (data is Map<String, dynamic>) {
+        throw Exception(
+          data['detail']?.toString() ??
+              'Không thể kiểm tra tài khoản ngân hàng',
+        );
+      }
+      throw Exception(e.message ?? 'Không thể kiểm tra tài khoản ngân hàng');
+    }
   }
 
   UserModel _mapProfile(Map<String, dynamic> map) {

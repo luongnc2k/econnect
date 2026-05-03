@@ -1,5 +1,6 @@
 // ignore_for_file: avoid_print
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:client/core/constants/server_constant.dart';
@@ -17,28 +18,60 @@ AuthRemoteRepository authRemoteRepository(Ref ref) {
 }
 
 class AuthRemoteRepository {
+  static const _requestTimeout = Duration(seconds: 15);
+
   Future<Either<AppFailure, UserModel>> signup({
     required String name,
     required String email,
     required String password,
     required String role,
+    String? bankName,
+    String? bankBin,
+    String? bankAccountNumber,
+    String? bankAccountHolder,
   }) async {
     try {
-      final response = await http.post(
-        Uri.parse('${ServerConstant.serverURL}/auth/signup'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'full_name': name, 'email': email, 'password': password, 'role': role}),
-      );
+      final response = await http
+          .post(
+            Uri.parse('${ServerConstant.serverURL}/auth/signup'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'full_name': name,
+              'email': email,
+              'password': password,
+              'role': role,
+              ...?(bankName == null ? null : {'bank_name': bankName}),
+              ...?(bankBin == null ? null : {'bank_bin': bankBin}),
+              ...?(bankAccountNumber == null
+                  ? null
+                  : {'bank_account_number': bankAccountNumber}),
+              ...?(bankAccountHolder == null
+                  ? null
+                  : {'bank_account_holder': bankAccountHolder}),
+            }),
+          )
+          .timeout(_requestTimeout);
 
-      final resBodyMap = jsonDecode(response.body) as Map<String, dynamic>;
+      final resBodyMap = _decodeResponseBody(response.body);
 
       if (response.statusCode != 201) {
-        return Left(AppFailure(resBodyMap['detail']));
+        return Left(
+          AppFailure(
+            resBodyMap['detail']?.toString() ?? 'Đăng ký thất bại',
+            response.statusCode,
+          ),
+        );
       }
 
       return Right(UserModel.fromMap(resBodyMap));
+    } on TimeoutException {
+      return Left(
+        AppFailure(ServerConstant.connectionHelpText(action: 'đăng ký')),
+      );
     } catch (e) {
-      return Left(AppFailure(e.toString()));
+      return Left(
+        AppFailure(_networkFailureMessage(action: 'đăng ký', error: e)),
+      );
     }
   }
 
@@ -47,49 +80,103 @@ class AuthRemoteRepository {
     required String password,
   }) async {
     try {
-      final response = await http.post(
-        Uri.parse('${ServerConstant.serverURL}/auth/login'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'email': email, 'password': password}),
-      );
+      final response = await http
+          .post(
+            Uri.parse('${ServerConstant.serverURL}/auth/login'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'email': email, 'password': password}),
+          )
+          .timeout(_requestTimeout);
 
-      final resBodyMap = jsonDecode(response.body) as Map<String, dynamic>;
+      final resBodyMap = _decodeResponseBody(response.body);
 
       if (response.statusCode != 200) {
-        return Left(AppFailure(resBodyMap['detail']));
+        return Left(
+          AppFailure(
+            resBodyMap['detail']?.toString() ?? 'Đăng nhập thất bại',
+            response.statusCode,
+          ),
+        );
       }
       return Right(
         UserModel.fromMap(
           resBodyMap['user'],
         ).copyWith(token: resBodyMap['token']),
       );
+    } on TimeoutException {
+      return Left(
+        AppFailure(ServerConstant.connectionHelpText(action: 'đăng nhập')),
+      );
     } catch (e) {
-      return Left(AppFailure(e.toString()));
+      return Left(
+        AppFailure(_networkFailureMessage(action: 'đăng nhập', error: e)),
+      );
     }
   }
 
   Future<Either<AppFailure, UserModel>> getCurrentUserData(String token) async {
     try {
-      final response = await http.get(
-        Uri.parse('${ServerConstant.serverURL}/auth/'),
-        headers: {
-          'Content-Type': 'application/json',
-          'x-auth-token': token
-        },
-      );
+      final response = await http
+          .get(
+            Uri.parse('${ServerConstant.serverURL}/auth/'),
+            headers: {
+              'Content-Type': 'application/json',
+              'x-auth-token': token,
+            },
+          )
+          .timeout(_requestTimeout);
 
-      final resBodyMap = jsonDecode(response.body) as Map<String, dynamic>;
+      final resBodyMap = _decodeResponseBody(response.body);
 
       if (response.statusCode != 200) {
-        return Left(AppFailure(resBodyMap['detail'], response.statusCode));
+        return Left(
+          AppFailure(
+            resBodyMap['detail']?.toString() ??
+                'Không thể tải thông tin người dùng',
+            response.statusCode,
+          ),
+        );
       }
-      return Right(
-        UserModel.fromMap(resBodyMap).copyWith(
-          token: token,
+      return Right(UserModel.fromMap(resBodyMap).copyWith(token: token));
+    } on TimeoutException {
+      return Left(
+        AppFailure(
+          ServerConstant.connectionHelpText(action: 'tải phiên đăng nhập'),
         ),
       );
     } catch (e) {
-      return Left(AppFailure(e.toString()));
+      return Left(
+        AppFailure(
+          _networkFailureMessage(action: 'tải phiên đăng nhập', error: e),
+        ),
+      );
     }
+  }
+
+  Map<String, dynamic> _decodeResponseBody(String body) {
+    if (body.trim().isEmpty) {
+      return const {};
+    }
+
+    final decoded = jsonDecode(body);
+    if (decoded is Map<String, dynamic>) {
+      return decoded;
+    }
+
+    return const {};
+  }
+
+  String _networkFailureMessage({
+    required String action,
+    required Object error,
+  }) {
+    final raw = error.toString().toLowerCase();
+    if (raw.contains('socketexception') ||
+        raw.contains('clientexception') ||
+        raw.contains('connection refused') ||
+        raw.contains('failed host lookup')) {
+      return ServerConstant.connectionHelpText(action: action);
+    }
+    return 'Không thể $action. $error';
   }
 }

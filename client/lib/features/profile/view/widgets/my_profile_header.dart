@@ -22,12 +22,12 @@ class MyProfileHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final avatar = profile.avatarUrl;
-    final hasAvatar = avatar != null && avatar.trim().isNotEmpty;
+    final avatar = profile.avatarUrl?.trim();
+    final hasAvatar = avatar != null && avatar.isNotEmpty;
 
     ImageProvider? imageProvider;
     if (hasAvatar) {
-      if (_isNetworkUrl(avatar!)) {
+      if (_isNetworkUrl(avatar)) {
         imageProvider = NetworkImage(avatar);
       } else {
         imageProvider = FileImage(File(avatar));
@@ -87,11 +87,17 @@ class MyProfileHeader extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: [
-              Chip(label: Text(profile.role == 'teacher' ? 'Teacher' : 'Student')),
+              Chip(
+                label: Text(profile.role == 'teacher' ? 'Teacher' : 'Student'),
+              ),
               if (profile is TeacherMyProfileModel)
                 Chip(
                   avatar: const Icon(Icons.star, size: 18, color: Colors.amber),
-                  label: Text((profile as TeacherMyProfileModel).rating.toStringAsFixed(1)),
+                  label: Text(
+                    (profile as TeacherMyProfileModel).rating.toStringAsFixed(
+                      1,
+                    ),
+                  ),
                 ),
             ],
           ),

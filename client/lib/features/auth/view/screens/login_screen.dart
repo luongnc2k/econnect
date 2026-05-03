@@ -1,14 +1,17 @@
+import 'package:client/core/router/app_router.dart';
 import 'package:client/core/theme/app_pallete.dart';
 import 'package:client/core/utils.dart';
-import 'package:client/features/auth/view/screens/signup_screen.dart';
 import 'package:client/features/auth/view/widgets/auth_gradient_button.dart';
 import 'package:client/features/auth/view/widgets/auth_logo.dart';
 import 'package:client/features/auth/view/widgets/auth_scroll_body.dart';
 import 'package:client/features/auth/view/widgets/custom_field.dart';
+import 'package:client/features/profile/model/student_my_profile_model.dart';
+import 'package:client/features/profile/model/teacher_my_profile_model.dart';
+import 'package:client/features/profile/viewmodel/my_profile_viewmodel.dart';
 import 'package:client/features/auth/viewmodel/auth_viewmodel.dart';
-import 'package:client/features/home/view/pages/home_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -21,6 +24,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   final formKey = GlobalKey<FormState>();
+  bool _handledLoginRoute = false;
 
   @override
   void dispose() {
@@ -38,20 +42,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     ref.listen(authViewModelProvider, (_, next) {
       next?.when(
         data: (data) {
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(builder: (context) => const HomePage()),
-            (_) => false,
-          );
+          if (!mounted) return;
+          if (_handledLoginRoute) {
+            return;
+          }
+          _handledLoginRoute = true;
+          context.go(_resolvePostLoginRoute(data.role));
         },
         error: (error, st) {
+          if (!mounted) return;
+          _handledLoginRoute = false;
           showSnackBar(context, error.toString());
         },
         loading: () {},
       );
     });
 
-    final titleSize = (MediaQuery.of(context).size.width * 0.09).clamp(28.0, 40.0);
+    final titleSize = (MediaQuery.of(context).size.width * 0.09).clamp(
+      28.0,
+      40.0,
+    );
 
     return Scaffold(
       body: AuthScrollBody(
@@ -84,10 +94,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
               const SizedBox(height: 28),
 
-              CustomField(
-                hintText: 'Email',
-                controller: emailController,
-              ),
+              CustomField(hintText: 'Email', controller: emailController),
 
               const SizedBox(height: 15),
 
@@ -119,12 +126,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
               GestureDetector(
                 onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const SignupScreen(),
-                    ),
-                  );
+                  context.push(AppRoutes.signup);
                 },
                 child: RichText(
                   text: TextSpan(
@@ -147,5 +149,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ),
       ),
     );
+  }
+
+  String _resolvePostLoginRoute(String role) {
+    final profile = ref.read(myProfileViewModelProvider).profile;
+    if (profile is TeacherMyProfileModel && !profile.hasPayoutBankAccount) {
+      return AppRoutes.teacherBankSetup;
+    }
+    if (profile is StudentMyProfileModel && !profile.hasBankAccount) {
+      return AppRoutes.studentBankSetup;
+    }
+    return AppRoutes.homeForRole(role);
   }
 }

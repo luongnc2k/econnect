@@ -1,5 +1,7 @@
 import 'package:client/core/providers/theme_notifier.dart';
 import 'package:client/core/theme/app_pallete.dart';
+import 'package:client/features/notifications/view/widgets/notification_bell_button.dart';
+import 'package:client/features/notifications/viewmodel/notifications_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -22,6 +24,7 @@ class HomeHeaderWidget extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = ref.watch(themeModeProvider) == ThemeMode.dark;
+    final unreadCount = ref.watch(unreadNotificationsCountProvider);
 
     return Row(
       children: [
@@ -73,9 +76,9 @@ class HomeHeaderWidget extends ConsumerWidget {
           onPressed: () => ref.read(themeModeProvider.notifier).toggle(),
           icon: Icon(isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded),
         ),
-        IconButton(
+        NotificationBellButton(
+          unreadCount: unreadCount,
           onPressed: onNotificationTap,
-          icon: const Icon(Icons.notifications_rounded),
         ),
       ],
     );

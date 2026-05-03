@@ -1,38 +1,52 @@
+import 'dart:async';
+
 import 'package:client/core/providers/current_user_notifier.dart';
+import 'package:client/testing/manual_test_mocks.dart';
 import 'package:client/features/tutor/model/tutor_home_state.dart';
 import 'package:client/features/tutor/repositories/tutor_remote_repository.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fpdart/fpdart.dart' show Left, Right;
 
 final tutorHomeViewModelProvider =
     NotifierProvider<TutorHomeViewModel, TutorHomeState>(
-  TutorHomeViewModel.new,
-);
+      TutorHomeViewModel.new,
+    );
 
-class TutorHomeViewModel extends Notifier<TutorHomeState> {
+class TutorHomeViewModel extends Notifier<TutorHomeState>
+    with WidgetsBindingObserver {
+  bool _observerRegistered = false;
+  bool _resumeRefreshInFlight = false;
+
   @override
   TutorHomeState build() {
+    ref.onDispose(_dispose);
+    _registerLifecycleObserver();
     final user = ref.watch(currentUserProvider);
     if (user != null) {
       Future.microtask(() => _loadAll(user.token));
     }
-    return const TutorHomeState(
+    return TutorHomeState(
       isLoading: true,
       isLoadingPast: true,
-      isLoadingIncome: true,
+      featuredTeachers: ManualTestMocks.enabled
+          ? ManualTestMocks.mockTeachers
+          : const [],
     );
   }
 
-  Future<void> _loadAll(String token) async {
+  Future<void> _loadAll(String token, {bool silent = false}) async {
     await Future.wait([
-      _loadUpcoming(token),
-      _loadPast(token),
-      _loadIncome(token),
+      _loadUpcoming(token, silent: silent),
+      _loadPast(token, silent: silent),
+      _loadFeaturedTeachers(token),
     ]);
   }
 
-  Future<void> _loadUpcoming(String token) async {
-    state = state.copyWith(isLoading: true, clearError: true);
+  Future<void> _loadUpcoming(String token, {bool silent = false}) async {
+    state = silent
+        ? state.copyWith(clearError: true)
+        : state.copyWith(isLoading: true, clearError: true);
     final repo = ref.read(tutorRemoteRepositoryProvider);
     final result = await repo.getMyClasses(token, past: false);
     switch (result) {
@@ -43,8 +57,10 @@ class TutorHomeViewModel extends Notifier<TutorHomeState> {
     }
   }
 
-  Future<void> _loadPast(String token) async {
-    state = state.copyWith(isLoadingPast: true);
+  Future<void> _loadPast(String token, {bool silent = false}) async {
+    if (!silent) {
+      state = state.copyWith(isLoadingPast: true);
+    }
     final repo = ref.read(tutorRemoteRepositoryProvider);
     final result = await repo.getMyClasses(token, past: true);
     switch (result) {
@@ -55,21 +71,63 @@ class TutorHomeViewModel extends Notifier<TutorHomeState> {
     }
   }
 
-  Future<void> _loadIncome(String token) async {
-    state = state.copyWith(isLoadingIncome: true);
+  Future<void> _loadFeaturedTeachers(String token) async {
     final repo = ref.read(tutorRemoteRepositoryProvider);
-    final result = await repo.getIncomeStats(token);
+    final result = await repo.getFeaturedTeachers(token, limit: 5);
     switch (result) {
       case Left():
-        state = state.copyWith(isLoadingIncome: false);
-      case Right(value: final income):
-        state = state.copyWith(isLoadingIncome: false, income: income);
+        if (ManualTestMocks.enabled) {
+          state = state.copyWith(
+            featuredTeachers: ManualTestMocks.mockTeachers,
+          );
+        }
+      case Right(value: final teachers):
+        state = state.copyWith(
+          featuredTeachers: teachers.isEmpty && ManualTestMocks.enabled
+              ? ManualTestMocks.mockTeachers
+              : teachers,
+        );
     }
   }
 
-  Future<void> refresh() async {
+  Future<void> refresh({bool silent = false}) async {
     final user = ref.read(currentUserProvider);
     if (user == null) return;
-    await _loadAll(user.token);
+    await _loadAll(user.token, silent: silent);
+  }
+
+  void _registerLifecycleObserver() {
+    if (_observerRegistered) {
+      return;
+    }
+    WidgetsBinding.instance.addObserver(this);
+    _observerRegistered = true;
+  }
+
+  void _dispose() {
+    if (!_observerRegistered) {
+      return;
+    }
+    WidgetsBinding.instance.removeObserver(this);
+    _observerRegistered = false;
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed || _resumeRefreshInFlight) {
+      return;
+    }
+
+    final user = ref.read(currentUserProvider);
+    if (user == null) {
+      return;
+    }
+
+    _resumeRefreshInFlight = true;
+    unawaited(
+      refresh(silent: true).whenComplete(() {
+        _resumeRefreshInFlight = false;
+      }),
+    );
   }
 }

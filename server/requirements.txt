@@ -3,7 +3,11 @@ SQLAlchemy
 psycopg2-binary
 bcrypt
 PyJWT
-uvicorn
+uvicorn[standard]
 python-dotenv
 google-cloud-storage
 python-multipart
+payos==1.1.0
+httpx
+pytest
+firebase-admin

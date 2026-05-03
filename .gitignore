@@ -13,6 +13,9 @@
 .buildlog/
 .history
 
+# Backend environment files
+server/.env
+
 
 
 # Flutter repo-specific
@@ -51,6 +54,7 @@ flutter_*.png
 linked_*.ds
 unlinked.ds
 unlinked_spec.ds
+pytest-cache-files-*/
 
 # Android related
 **/android/**/gradle-wrapper.jar

@@ -4,41 +4,68 @@ import uuid
 from pathlib import Path
 from urllib.parse import urlparse
 
-import urllib3
-from minio import Minio
-from minio.error import S3Error
+try:
+    import urllib3
+    from minio import Minio
+    from minio.error import S3Error
+except ImportError:  # pragma: no cover - local file fallback remains available
+    urllib3 = None
+    Minio = None
+
+    class S3Error(Exception):
+        pass
+
+def _env_url(name: str, default: str) -> str:
+    return (os.getenv(name, default) or "").strip().rstrip("/")
+
 
 MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "localhost:9000")
-MINIO_PUBLIC_URL = os.getenv("MINIO_PUBLIC_URL", "http://localhost:9000")
+MINIO_PUBLIC_URL = _env_url("MINIO_PUBLIC_URL", "http://localhost:9000")
 MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY", "minioadmin")
 MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY", "minioadmin123")
-SERVER_PUBLIC_URL = os.getenv("SERVER_PUBLIC_URL", "http://127.0.0.1:8000")
+SERVER_PUBLIC_URL = _env_url("SERVER_PUBLIC_URL", "http://127.0.0.1:8000")
+STATIC_PUBLIC_URL = _env_url("STATIC_PUBLIC_URL", "")
 UPLOAD_ROOT = Path(os.getenv("LOCAL_UPLOAD_ROOT", "uploads"))
 UPLOAD_ROOT.mkdir(parents=True, exist_ok=True)
 
 BUCKET_THUMBNAILS = "class-thumbnails"
 BUCKET_AVATARS = "user-avatars"
 BUCKET_TEACHER_DOCS = "teacher-docs"
+BUCKET_CLASS_MATERIALS = "class-materials"
 
-client = Minio(
-    MINIO_ENDPOINT,
-    access_key=MINIO_ACCESS_KEY,
-    secret_key=MINIO_SECRET_KEY,
-    secure=False,
-    http_client=urllib3.PoolManager(
-        timeout=urllib3.Timeout(connect=2.0, read=5.0),
-        retries=urllib3.Retry(
-            total=0,
-            connect=0,
-            read=0,
-            redirect=0,
-            status=0,
+CONTENT_TYPE_EXTENSIONS = {
+    "image/jpeg": "jpeg",
+    "image/png": "png",
+    "image/webp": "webp",
+    "application/pdf": "pdf",
+    "application/msword": "doc",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+}
+
+if Minio is not None and urllib3 is not None:
+    client = Minio(
+        MINIO_ENDPOINT,
+        access_key=MINIO_ACCESS_KEY,
+        secret_key=MINIO_SECRET_KEY,
+        secure=False,
+        http_client=urllib3.PoolManager(
+            timeout=urllib3.Timeout(connect=2.0, read=5.0),
+            retries=urllib3.Retry(
+                total=0,
+                connect=0,
+                read=0,
+                redirect=0,
+                status=0,
+            ),
         ),
-    ),
-)
+    )
+else:
+    client = None
 
 
 def _ensure_bucket(bucket: str) -> None:
+    if client is None:
+        raise RuntimeError("MinIO client is not available")
     if not client.bucket_exists(bucket):
         client.make_bucket(bucket)
         policy = f"""{{
@@ -53,9 +80,15 @@ def _ensure_bucket(bucket: str) -> None:
         client.set_bucket_policy(bucket, policy)
 
 
+def _extension_for_content_type(content_type: str) -> str:
+    return CONTENT_TYPE_EXTENSIONS.get(content_type, content_type.split("/")[-1])
+
+
 def _upload(bucket: str, file_data: bytes, content_type: str) -> str:
+    if client is None:
+        raise RuntimeError("MinIO client is not available")
     _ensure_bucket(bucket)
-    ext = content_type.split("/")[-1]
+    ext = _extension_for_content_type(content_type)
     object_name = f"{uuid.uuid4()}.{ext}"
     client.put_object(
         bucket,
@@ -68,16 +101,19 @@ def _upload(bucket: str, file_data: bytes, content_type: str) -> str:
 
 
 def _local_upload(folder: str, file_data: bytes, content_type: str) -> str:
-    ext = content_type.split("/")[-1]
+    ext = _extension_for_content_type(content_type)
     object_name = f"{uuid.uuid4()}.{ext}"
     target_dir = UPLOAD_ROOT / folder
     target_dir.mkdir(parents=True, exist_ok=True)
     target_path = target_dir / object_name
     target_path.write_bytes(file_data)
-    return f"{SERVER_PUBLIC_URL}/static/{folder}/{object_name}"
+    public_base_url = STATIC_PUBLIC_URL or SERVER_PUBLIC_URL
+    return f"{public_base_url}/static/{folder}/{object_name}"
 
 
 def _delete(bucket: str, url: str) -> None:
+    if client is None:
+        return
     try:
         object_name = url.split(f"/{bucket}/")[-1]
         client.remove_object(bucket, object_name)
@@ -136,5 +172,19 @@ def upload_teacher_document(file_data: bytes, content_type: str) -> str:
 def delete_teacher_document(url: str) -> None:
     if f"/{BUCKET_TEACHER_DOCS}/" in url:
         _delete(BUCKET_TEACHER_DOCS, url)
+    else:
+        _local_delete(url)
+
+
+def upload_class_material(file_data: bytes, content_type: str) -> str:
+    try:
+        return _upload(BUCKET_CLASS_MATERIALS, file_data, content_type)
+    except Exception:
+        return _local_upload(BUCKET_CLASS_MATERIALS, file_data, content_type)
+
+
+def delete_class_material(url: str) -> None:
+    if f"/{BUCKET_CLASS_MATERIALS}/" in url:
+        _delete(BUCKET_CLASS_MATERIALS, url)
     else:
         _local_delete(url)

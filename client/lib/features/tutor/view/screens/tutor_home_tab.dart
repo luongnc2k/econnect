@@ -2,9 +2,9 @@ import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/core/router/app_router.dart';
 import 'package:client/core/utils.dart';
 import 'package:client/features/student/model/class_session.dart';
+import 'package:client/features/student/view/widgets/featured_teacher_list_widget.dart';
 import 'package:client/features/student/view/widgets/home_header_widget.dart';
 import 'package:client/features/student/view/widgets/section_header_widget.dart';
-import 'package:client/features/tutor/view/widgets/income_dashboard_widget.dart';
 import 'package:client/features/tutor/view/widgets/tutor_class_card_widget.dart';
 import 'package:client/features/tutor/viewmodel/tutor_home_viewmodel.dart';
 import 'package:flutter/material.dart';
@@ -49,7 +49,8 @@ class TutorHomeTab extends ConsumerWidget {
 
     return SafeArea(
       child: RefreshIndicator(
-        onRefresh: () => ref.read(tutorHomeViewModelProvider.notifier).refresh(),
+        onRefresh: () =>
+            ref.read(tutorHomeViewModelProvider.notifier).refresh(),
         child: CustomScrollView(
           slivers: [
             // ── Header ──────────────────────────────────────────────
@@ -61,7 +62,8 @@ class TutorHomeTab extends ConsumerWidget {
                   userName: user?.fullName ?? 'Giảng viên',
                   avatarUrl: user?.avatarUrl,
                   onAvatarTap: onProfileTap,
-                  onNotificationTap: () {},
+                  onNotificationTap: () =>
+                      context.push(AppRoutes.notifications),
                 ),
               ),
             ),
@@ -77,17 +79,6 @@ class TutorHomeTab extends ConsumerWidget {
                   ),
                 ),
               ),
-
-            // ── Income dashboard ─────────────────────────────────────
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(hPad, 16, hPad, 0),
-                child: IncomeDashboardWidget(
-                  income: state.income,
-                  isLoading: state.isLoadingIncome,
-                ),
-              ),
-            ),
 
             // ── Lớp học sắp dạy ─────────────────────────────────────
             SliverToBoxAdapter(
@@ -147,10 +138,34 @@ class TutorHomeTab extends ConsumerWidget {
                 child: Padding(
                   padding: EdgeInsets.fromLTRB(hPad, 10, hPad, 0),
                   child: _SeeMoreButton(
-                    count: state.upcomingClasses.length -
+                    count:
+                        state.upcomingClasses.length -
                         todayClasses.length -
                         _maxHomeClasses,
                     onTap: onScheduleTap,
+                  ),
+                ),
+              ),
+
+            if (state.featuredTeachers.isNotEmpty)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(hPad, 16, hPad, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SectionHeaderWidget(title: 'Giảng viên nổi bật'),
+                      const SizedBox(height: 12),
+                      FeaturedTeacherListWidget(
+                        teachers: state.featuredTeachers,
+                        onTeacherTap: (teacher) => context.push(
+                          AppRoutes.userProfile.replaceFirst(
+                            ':userId',
+                            teacher.id,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -218,7 +233,7 @@ class _EmptyClasses extends StatelessWidget {
           const SizedBox(height: 16),
           FilledButton.tonal(
             onPressed: onCreateClass,
-            child: const Text('Tạo lớp học ngay'),
+            child: const Text('Tạo buổi học ngay'),
           ),
         ],
       ),
@@ -286,8 +301,11 @@ class _TodayBanner extends StatelessWidget {
                 ],
               ),
             ),
-            Icon(Icons.chevron_right_rounded,
-                size: 18, color: cs.onTertiaryContainer),
+            Icon(
+              Icons.chevron_right_rounded,
+              size: 18,
+              color: cs.onTertiaryContainer,
+            ),
           ],
         ),
       ),

@@ -1,0 +1,134 @@
+import 'package:client/core/failure/failure.dart';
+import 'package:client/core/providers/current_user_notifier.dart';
+import 'package:client/core/theme/theme.dart';
+import 'package:client/features/auth/model/user_model.dart';
+import 'package:client/features/tutor/model/learning_location.dart';
+import 'package:client/features/tutor/repositories/tutor_remote_repository.dart';
+import 'package:client/features/tutor/view/screens/create_class_screen.dart';
+import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:fpdart/fpdart.dart';
+
+void main() {
+  testWidgets(
+    'create class screen loads learning locations from server response',
+    (tester) async {
+      final fakeTutorRepo = _FakeTutorRemoteRepository(
+        locations: const [
+          LearningLocation(
+            id: 'loc-1',
+            name: 'Remote Location 01',
+            address: '12 Nguyen Van Linh',
+            notes: 'Tang 2',
+            isActive: true,
+          ),
+          LearningLocation(
+            id: 'loc-2',
+            name: 'Remote Location 02',
+            address: '34 Le Loi',
+            notes: null,
+            isActive: true,
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            currentUserProvider.overrideWithValue(_sampleUser()),
+            tutorRemoteRepositoryProvider.overrideWithValue(fakeTutorRepo),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.lightThemeMode,
+            home: const CreateClassScreen(),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(fakeTutorRepo.getLearningLocationsCalls, 1);
+      expect(find.text('Đang tải danh sách địa điểm học...'), findsNothing);
+      expect(find.byType(DropdownButtonFormField<String>), findsOneWidget);
+      expect(find.text('Tài liệu học (tùy chọn)'), findsOneWidget);
+      expect(find.text('PDF, DOC hoặc DOCX, tối đa 10MB'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'create class screen asks tutor to confirm the non-refundable creation fee before payment',
+    (tester) async {
+      final fakeTutorRepo = _FakeTutorRemoteRepository(
+        locations: const [
+          LearningLocation(
+            id: 'loc-1',
+            name: 'Remote Location 01',
+            address: '12 Nguyen Van Linh',
+            notes: 'Tang 2',
+            isActive: true,
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            currentUserProvider.overrideWithValue(_sampleUser()),
+            tutorRemoteRepositoryProvider.overrideWithValue(fakeTutorRepo),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.lightThemeMode,
+            home: const CreateClassScreen(),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+      await tester.drag(find.byType(ListView), const Offset(0, -1200));
+      await tester.pumpAndSettle();
+
+      final primaryButton = find.text('Tạo buổi học và thanh toán');
+      await tester.ensureVisible(primaryButton);
+      await tester.tap(primaryButton);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Xác nhận trước khi thanh toán'), findsOneWidget);
+      expect(
+        find.text(
+          'Sau khi thanh toán sẽ không được hoàn phí tạo lớp nếu hủy lớp. Bạn có muốn tiếp tục không?',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Quay lại'), findsOneWidget);
+      expect(find.text('Tôi đã hiểu'), findsOneWidget);
+    },
+  );
+}
+
+UserModel _sampleUser() {
+  return UserModel(
+    id: 'teacher-1',
+    email: 'teacher@example.com',
+    fullName: 'Teacher Demo',
+    role: 'teacher',
+    isActive: true,
+    token: 'token-123',
+  );
+}
+
+class _FakeTutorRemoteRepository extends TutorRemoteRepository {
+  final List<LearningLocation> locations;
+  int getLearningLocationsCalls = 0;
+
+  _FakeTutorRemoteRepository({required this.locations}) : super(Dio());
+
+  @override
+  Future<Either<AppFailure, List<LearningLocation>>> getLearningLocations(
+    String token,
+  ) async {
+    getLearningLocationsCalls += 1;
+    return Right(locations);
+  }
+}

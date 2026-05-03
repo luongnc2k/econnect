@@ -6,27 +6,32 @@ import 'package:client/features/student/model/enrolled_student_preview.dart';
 import 'package:client/features/student/model/teacher_preview.dart';
 
 class ManualTestMocks {
-  static const enabled =
-      bool.fromEnvironment('ENABLE_MANUAL_TEST_MOCKS', defaultValue: false);
+  static const enabled = bool.fromEnvironment(
+    'ENABLE_MANUAL_TEST_MOCKS',
+    defaultValue: false,
+  );
 
   static const mockClasses = [
     ClassSession(
       id: 'a1b2c3d4-e5f6-7890-abcd-111122223333',
       classCode: 'CLS-250305-A1B2',
       teacherId: 'teacher-james-wilson',
-      title: 'Luyen noi Business English',
-      location: 'HighLand Coffee Cau Giay',
+      title: 'Luyện nói Business English',
+      location: 'Không gian học nhóm 01',
+      locationAddress: '56 Dịch Vọng Hậu, Cầu Giấy, Hà Nội',
+      locationNotes: 'Phòng họp nhỏ, vào từ sảnh chính và lên tầng 2.',
       teacherName: 'Alexander Ng',
-      timeText: '18:30 Hom nay',
-      priceText: '120.000d',
+      timeText: '18:30 Hôm nay',
+      priceText: '120.000đ',
+      totalPriceText: '720.000đ',
       statusText: 'OPEN',
-      countdownText: 'Con 3 cho',
-      tags: ['Kinh doanh', 'Giao tiep'],
+      countdownText: 'Còn 3 chỗ',
+      tags: ['Kinh doanh', 'Giao tiếp'],
       description:
-          'Buoi luyen tap giao tiep tieng Anh trong moi truong kinh doanh. '
-          'Thao luan case study thuc te, roleplay tinh huong thuong luong va thuyet trinh.',
-      dateText: 'Hom nay, 05/03',
-      slotText: '3/6 da dang ky',
+          'Buổi luyện tập giao tiếp tiếng Anh trong môi trường kinh doanh. '
+          'Thảo luận case study thực tế, roleplay tình huống thương lượng và thuyết trình.',
+      dateText: 'Hôm nay, 05/03',
+      slotText: '3/6 đã đăng ký',
       levelText: 'Intermediate+',
       teacherRating: 0.0,
       teacherSessionCount: 150,
@@ -43,18 +48,22 @@ class ManualTestMocks {
       classCode: 'CLS-250306-B2C3',
       teacherId: 'teacher-anna-lee',
       title: 'IELTS Speaking Practice',
-      location: 'The Coffee House Hoan Kiem',
+      location: 'Không gian học nhóm 02',
+      locationAddress: '24 Đinh Tiên Hoàng, Hoàn Kiếm, Hà Nội',
+      locationNotes:
+          'Mang theo tai nghe và đến trước 10 phút để ổn định chỗ ngồi.',
       teacherName: 'Sarah Johnson',
-      timeText: '09:00 Ngay mai',
-      priceText: '150.000d',
+      timeText: '09:00 Ngày mai',
+      priceText: '150.000đ',
+      totalPriceText: '900.000đ',
       statusText: 'OPEN',
-      countdownText: 'Con 2 cho',
+      countdownText: 'Còn 2 chỗ',
       tags: ['IELTS', 'Speaking'],
       description:
-          'Luyen tap ky nang noi IELTS theo format thuc te. '
-          'Tap trung vao Part 2 va Part 3, phan hoi chi tiet tu giang vien co kinh nghiem.',
-      dateText: 'Ngay mai, 06/03',
-      slotText: '4/6 da dang ky',
+          'Luyện tập kỹ năng nói IELTS theo format thực tế. '
+          'Tập trung vào Part 2 và Part 3, phản hồi chi tiết từ giảng viên có kinh nghiệm.',
+      dateText: 'Ngày mai, 06/03',
+      slotText: '4/6 đã đăng ký',
       levelText: 'Upper-Intermediate',
       teacherRating: 0.0,
       teacherSessionCount: 230,
@@ -72,18 +81,20 @@ class ManualTestMocks {
     TeacherPreview(
       id: 'teacher-james-wilson',
       name: 'James Wilson',
-      subtitle: 'Giang vien giao tiep va phat am',
+      subtitle: 'Giảng viên giao tiếp và phát âm',
       rating: 0.0,
       reviewCount: 128,
+      sessionCount: 150,
       specialties: ['Pronunciation', 'Business English', 'IELTS'],
       badgeText: 'Expert',
     ),
     TeacherPreview(
       id: 'teacher-anna-lee',
       name: 'Anna Lee',
-      subtitle: 'Chuyen luyen phan xa giao tiep cho nguoi di lam',
+      subtitle: 'Chuyên luyện phản xạ giao tiếp cho người đi làm',
       rating: 0.0,
       reviewCount: 96,
+      sessionCount: 230,
       specialties: ['Speaking', 'Communication'],
       badgeText: 'Top Rated',
     ),
@@ -185,11 +196,13 @@ class ManualTestMocks {
           isActive: true,
           token: '',
           specialization: 'Business English',
+          bankName: 'Vietcombank',
+          bankAccountNumber: '0011002233445',
+          bankAccountHolder: 'JAMES WILSON',
           yearsOfExperience: 7,
           rating: 0.0,
           totalStudents: 128,
-          bio: 'Chuyen day giao tiep va phat am cho nguoi di lam.',
-          hourlyRate: 250000,
+          bio: 'Chuyên dạy giao tiếp và phát âm cho người đi làm.',
           certifications: const ['TESOL', 'IELTS Trainer'],
         );
       case 'teacher-anna-lee':
@@ -203,11 +216,13 @@ class ManualTestMocks {
           isActive: true,
           token: '',
           specialization: 'Speaking Coach',
+          bankName: 'Techcombank',
+          bankAccountNumber: '1903004455667',
+          bankAccountHolder: 'ANNA LEE',
           yearsOfExperience: 5,
           rating: 0.0,
           totalStudents: 96,
-          bio: 'Tap trung luyen phan xa giao tiep va phat am tu nhien.',
-          hourlyRate: 220000,
+          bio: 'Tập trung luyện phản xạ giao tiếp và phát âm tự nhiên.',
           certifications: const ['TEFL', 'Communication Coaching'],
         );
       case 'student-minh-tran':

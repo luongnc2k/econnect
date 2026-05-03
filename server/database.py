@@ -1,7 +1,12 @@
 import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from dotenv import load_dotenv
+
+try:
+    from dotenv import load_dotenv
+except ImportError:  # pragma: no cover - optional fallback when env vars are injected externally
+    def load_dotenv(*args, **kwargs):
+        return False
 
 load_dotenv()
 

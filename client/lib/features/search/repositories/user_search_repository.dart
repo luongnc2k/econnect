@@ -25,20 +25,18 @@ class UserSearchRepository implements IUserSearchRepository {
 
     try {
       if (token.isEmpty) {
-        throw Exception('Thieu token dang nhap');
+        throw Exception('Thiếu token đăng nhập');
       }
 
       final response = await dio.get(
         '/users/search',
         queryParameters: {'q': keyword},
-        options: Options(
-          headers: {'x-auth-token': token},
-        ),
+        options: Options(headers: {'x-auth-token': token}),
       );
 
       final data = response.data;
       if (response.statusCode != 200 || data is! List) {
-        throw Exception('Khong the tim user');
+        throw Exception('Không thể tìm người dùng');
       }
 
       final results = data
