@@ -143,74 +143,107 @@ class ScheduleCalendar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final maxHeight = (MediaQuery.sizeOf(context).height * 0.25)
+        .clamp(156.0, 220.0)
+        .toDouble();
 
-    return Container(
-      margin: margin,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainer,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: cs.outlineVariant),
-      ),
-      child: Column(
-        children: [
-          SegmentedButton<ScheduleCalendarViewMode>(
-            segments: const [
-              ButtonSegment(
-                value: ScheduleCalendarViewMode.week,
-                icon: Icon(Icons.view_week_rounded),
-                label: Text('Tuần'),
-              ),
-              ButtonSegment(
-                value: ScheduleCalendarViewMode.month,
-                icon: Icon(Icons.calendar_month_rounded),
-                label: Text('Tháng'),
-              ),
-            ],
-            selected: {mode},
-            onSelectionChanged: (selection) => onModeChanged(selection.first),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              IconButton.filledTonal(
-                onPressed: () => onDateSelected(_shiftedDate(-1)),
-                icon: const Icon(Icons.chevron_left_rounded),
-                tooltip: 'Kỳ trước',
-              ),
-              Expanded(
-                child: Text(
-                  _periodLabel(),
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: maxHeight),
+      child: Container(
+        margin: margin,
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: cs.surfaceContainer,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: cs.outlineVariant),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SegmentedButton<ScheduleCalendarViewMode>(
+              showSelectedIcon: false,
+              style: const ButtonStyle(
+                visualDensity: VisualDensity.compact,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                padding: WidgetStatePropertyAll(
+                  EdgeInsets.symmetric(horizontal: 10),
                 ),
               ),
-              IconButton.filledTonal(
-                onPressed: () => onDateSelected(_shiftedDate(1)),
-                icon: const Icon(Icons.chevron_right_rounded),
-                tooltip: 'Kỳ sau',
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton.icon(
-              onPressed: () => onDateSelected(dateOnly(DateTime.now())),
-              icon: const Icon(Icons.my_location_rounded),
-              label: const Text('Hôm nay'),
+              segments: const [
+                ButtonSegment(
+                  value: ScheduleCalendarViewMode.week,
+                  icon: Icon(Icons.view_week_rounded, size: 18),
+                  label: Text('Tuần'),
+                ),
+                ButtonSegment(
+                  value: ScheduleCalendarViewMode.month,
+                  icon: Icon(Icons.calendar_month_rounded, size: 18),
+                  label: Text('Tháng'),
+                ),
+              ],
+              selected: {mode},
+              onSelectionChanged: (selection) => onModeChanged(selection.first),
             ),
-          ),
-          const SizedBox(height: 4),
-          switch (mode) {
-            ScheduleCalendarViewMode.week => _buildWeekView(context),
-            ScheduleCalendarViewMode.month => _buildMonthView(context),
-          },
-        ],
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                IconButton.filledTonal(
+                  onPressed: () => onDateSelected(_shiftedDate(-1)),
+                  icon: const Icon(Icons.chevron_left_rounded),
+                  iconSize: 20,
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints.tightFor(
+                    width: 34,
+                    height: 34,
+                  ),
+                  tooltip: 'Kỳ trước',
+                ),
+                Expanded(
+                  child: Text(
+                    _periodLabel(),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                IconButton.filledTonal(
+                  onPressed: () => onDateSelected(_shiftedDate(1)),
+                  icon: const Icon(Icons.chevron_right_rounded),
+                  iconSize: 20,
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints.tightFor(
+                    width: 34,
+                    height: 34,
+                  ),
+                  tooltip: 'Kỳ sau',
+                ),
+                const SizedBox(width: 4),
+                IconButton.filledTonal(
+                  onPressed: () => onDateSelected(dateOnly(DateTime.now())),
+                  icon: const Icon(Icons.my_location_rounded),
+                  iconSize: 18,
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints.tightFor(
+                    width: 34,
+                    height: 34,
+                  ),
+                  tooltip: 'Hôm nay',
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            switch (mode) {
+              ScheduleCalendarViewMode.week => _buildWeekView(context),
+              ScheduleCalendarViewMode.month => _buildMonthView(context),
+            },
+          ],
+        ),
       ),
     );
   }
@@ -220,25 +253,28 @@ class ScheduleCalendar extends StatelessWidget {
     final today = dateOnly(DateTime.now());
     final days = List.generate(7, (index) => start.add(Duration(days: index)));
 
-    return Row(
-      children: [
-        for (final day in days)
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 2),
-              child: _CalendarDayCell(
-                date: day,
-                classCount: classesForDate(classes, day).length,
-                isSelected: day == _normalizedSelectedDate,
-                isToday: day == today,
-                hasClass: _activeDates.contains(day),
-                inCurrentMonth: true,
-                compact: false,
-                onTap: () => onDateSelected(day),
+    return SizedBox(
+      height: 50,
+      child: Row(
+        children: [
+          for (final day in days)
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 1),
+                child: _CalendarDayCell(
+                  date: day,
+                  classCount: classesForDate(classes, day).length,
+                  isSelected: day == _normalizedSelectedDate,
+                  isToday: day == today,
+                  hasClass: _activeDates.contains(day),
+                  inCurrentMonth: true,
+                  compact: true,
+                  onTap: () => onDateSelected(day),
+                ),
               ),
             ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -257,15 +293,15 @@ class ScheduleCalendar extends StatelessWidget {
     if (monthClassDates.isEmpty) {
       return Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(10),
         ),
         child: Text(
-          'ThÃ¡ng nÃ y chÆ°a cÃ³ lá»‹ch.',
+          'Tháng này chưa có lịch.',
           textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
             color: Theme.of(context).colorScheme.onSurfaceVariant,
             fontWeight: FontWeight.w600,
           ),
@@ -273,21 +309,23 @@ class ScheduleCalendar extends StatelessWidget {
       );
     }
 
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: [
-          for (final day in monthClassDates)
-            _MonthClassDayChip(
-              date: day,
-              classCount: classesForDate(classes, day).length,
-              isSelected: day == selected,
-              isToday: day == today,
-              onTap: () => onDateSelected(day),
-            ),
-        ],
+    return SizedBox(
+      height: 54,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: EdgeInsets.zero,
+        itemCount: monthClassDates.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 6),
+        itemBuilder: (context, index) {
+          final day = monthClassDates[index];
+          return _MonthClassDayChip(
+            date: day,
+            classCount: classesForDate(classes, day).length,
+            isSelected: day == selected,
+            isToday: day == today,
+            onTap: () => onDateSelected(day),
+          );
+        },
       ),
     );
   }
@@ -321,44 +359,49 @@ class _MonthClassDayChip extends StatelessWidget {
         key: ValueKey(
           'schedule-calendar-day-${ScheduleCalendar.dateKey(date)}',
         ),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         onTap: onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 160),
-          constraints: const BoxConstraints(minWidth: 74),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          constraints: const BoxConstraints(minWidth: 58),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
           decoration: BoxDecoration(
             color: background,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(10),
             border: Border.all(color: borderColor, width: isToday ? 1.3 : 1),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
                 ScheduleCalendar._weekdayLabels[date.weekday - 1],
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
                   color: foreground,
+                  fontSize: 10,
                   fontWeight: FontWeight.w800,
+                  height: 1,
                 ),
               ),
-              const SizedBox(height: 2),
+              const SizedBox(height: 3),
               Text(
                 '${date.day}',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
                   color: foreground,
                   fontWeight: FontWeight.w900,
                   height: 1,
                 ),
               ),
-              const SizedBox(height: 2),
+              const SizedBox(height: 1),
               Text(
-                '$classCount lá»›p',
+                '$classCount lớp',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
                   color: foreground,
+                  fontSize: 10,
                   fontWeight: FontWeight.w800,
+                  height: 1,
                 ),
               ),
             ],
@@ -417,9 +460,9 @@ class _CalendarDayCell extends StatelessWidget {
         onTap: onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 160),
-          height: compact ? 46 : 72,
+          height: compact ? 50 : 72,
           padding: EdgeInsets.symmetric(
-            horizontal: compact ? 4 : 6,
+            horizontal: compact ? 2 : 6,
             vertical: compact ? 4 : 6,
           ),
           decoration: BoxDecoration(
@@ -433,27 +476,30 @@ class _CalendarDayCell extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              if (!compact)
-                Text(
-                  ScheduleCalendar._weekdayLabels[date.weekday - 1],
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: foreground,
-                    fontWeight: FontWeight.w700,
-                  ),
+              Text(
+                ScheduleCalendar._weekdayLabels[date.weekday - 1],
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: foreground,
+                  fontSize: compact ? 9 : null,
+                  fontWeight: FontWeight.w700,
+                  height: compact ? 1 : null,
                 ),
-              if (!compact) const SizedBox(height: 2),
+              ),
+              SizedBox(height: compact ? 3 : 2),
               Text(
                 '${date.day}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
                   color: foreground,
+                  fontSize: compact ? 14 : null,
                   fontWeight: FontWeight.w900,
+                  height: compact ? 1 : null,
                 ),
               ),
-              const SizedBox(height: 2),
+              SizedBox(height: compact ? 1 : 2),
               SizedBox(
                 height: compact ? 6 : 14,
                 child: hasClass
