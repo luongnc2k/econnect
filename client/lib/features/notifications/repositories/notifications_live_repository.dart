@@ -8,16 +8,14 @@ import 'package:client/features/notifications/repositories/notification_socket_t
 import 'package:fpdart/fpdart.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-final notificationsLiveRepositoryProvider = Provider<NotificationsLiveRepository>(
-  (_) => NotificationsLiveRepository(),
-);
+final notificationsLiveRepositoryProvider =
+    Provider<NotificationsLiveRepository>((_) => NotificationsLiveRepository());
 
 class NotificationsLiveRepository {
   final NotificationSocketTransport _transport;
 
-  NotificationsLiveRepository({
-    NotificationSocketTransport? transport,
-  }) : _transport = transport ?? createNotificationSocketTransport();
+  NotificationsLiveRepository({NotificationSocketTransport? transport})
+    : _transport = transport ?? createNotificationSocketTransport();
 
   Future<Either<AppFailure, NotificationsLiveConnection>> connect({
     required String token,
@@ -52,10 +50,15 @@ class NotificationsLiveRepository {
         },
       );
 
+      var closed = false;
       return Right(
         NotificationsLiveConnection(
           events: controller.stream,
           close: () async {
+            if (closed) {
+              return;
+            }
+            closed = true;
             await subscription.cancel();
             await socket.close();
             if (!controller.isClosed) {

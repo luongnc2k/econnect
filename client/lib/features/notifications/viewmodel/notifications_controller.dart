@@ -36,9 +36,13 @@ class NotificationsController extends Notifier<NotificationsState>
   bool _isAppActive = true;
   bool _connectingLiveUpdates = false;
   bool _stateReady = false;
+  bool _disposed = false;
+
+  bool get _canUseRef => !_disposed && ref.mounted;
 
   @override
   NotificationsState build() {
+    _disposed = false;
     ref.onDispose(_dispose);
     _registerLifecycleObserver();
 
@@ -56,8 +60,17 @@ class NotificationsController extends Notifier<NotificationsState>
       unawaited(_disposeLiveUpdates(updateState: false));
       _activeUserId = user.id;
       Future.microtask(() async {
+        if (!_canUseRef) {
+          return;
+        }
         await _hydrateFromCache(user.id);
+        if (!_canUseRef) {
+          return;
+        }
         await refresh();
+        if (!_canUseRef) {
+          return;
+        }
         _startPolling();
         _startLiveUpdates();
       });
@@ -79,7 +92,7 @@ class NotificationsController extends Notifier<NotificationsState>
       userId,
     );
 
-    if (cachedNotifications.isEmpty) {
+    if (!_canUseRef || cachedNotifications.isEmpty) {
       return;
     }
 
@@ -93,6 +106,10 @@ class NotificationsController extends Notifier<NotificationsState>
   }
 
   Future<void> refresh({bool silent = false}) async {
+    if (!_canUseRef) {
+      return;
+    }
+
     final user = ref.read(currentUserProvider);
     if (user == null) {
       return;
@@ -116,6 +133,10 @@ class NotificationsController extends Notifier<NotificationsState>
     final unreadCountResult = await remoteRepository.getUnreadCount(
       token: user.token,
     );
+
+    if (!_canUseRef) {
+      return;
+    }
 
     var unreadCount = state.unreadCount;
     if (unreadCountResult is Right<AppFailure, int>) {
@@ -148,6 +169,10 @@ class NotificationsController extends Notifier<NotificationsState>
   }
 
   Future<void> loadMore() async {
+    if (!_canUseRef) {
+      return;
+    }
+
     final user = ref.read(currentUserProvider);
     final nextCursor = state.nextCursor;
     if (user == null ||
@@ -170,6 +195,10 @@ class NotificationsController extends Notifier<NotificationsState>
           notificationType: filter.notificationType,
           unreadOnly: filter.unreadOnly,
         );
+
+    if (!_canUseRef) {
+      return;
+    }
 
     switch (result) {
       case Left(value: final failure):
@@ -211,6 +240,10 @@ class NotificationsController extends Notifier<NotificationsState>
   }
 
   Future<AppFailure?> markAsRead(AppNotification notification) async {
+    if (!_canUseRef) {
+      return null;
+    }
+
     final user = ref.read(currentUserProvider);
     if (user == null || notification.isRead) {
       return null;
@@ -219,6 +252,10 @@ class NotificationsController extends Notifier<NotificationsState>
     final result = await ref
         .read(notificationsRemoteRepositoryProvider)
         .markAsRead(token: user.token, notificationId: notification.id);
+    if (!_canUseRef) {
+      return null;
+    }
+
     switch (result) {
       case Left(value: final failure):
         return failure;
@@ -247,6 +284,10 @@ class NotificationsController extends Notifier<NotificationsState>
   }
 
   Future<AppFailure?> deleteAllNotifications() async {
+    if (!_canUseRef) {
+      return null;
+    }
+
     final user = ref.read(currentUserProvider);
     if (user == null || state.isDeletingAll) {
       return null;
@@ -256,6 +297,10 @@ class NotificationsController extends Notifier<NotificationsState>
     final result = await ref
         .read(notificationsRemoteRepositoryProvider)
         .deleteAll(token: user.token);
+
+    if (!_canUseRef) {
+      return null;
+    }
 
     switch (result) {
       case Left(value: final failure):
@@ -281,6 +326,10 @@ class NotificationsController extends Notifier<NotificationsState>
   Future<Either<AppFailure, String>> confirmTeaching(
     AppNotification notification,
   ) async {
+    if (!_canUseRef) {
+      return Left(AppFailure('Thao t\u00e1c \u0111\u00e3 b\u1ecb h\u1ee7y.'));
+    }
+
     final user = ref.read(currentUserProvider);
     final classId = notification.classId;
     if (user == null || classId == null || classId.isEmpty) {
@@ -292,6 +341,10 @@ class NotificationsController extends Notifier<NotificationsState>
         .read(notificationsRemoteRepositoryProvider)
         .confirmTeaching(token: user.token, classId: classId);
 
+    if (!_canUseRef) {
+      return Left(AppFailure('Thao t\u00e1c \u0111\u00e3 b\u1ecb h\u1ee7y.'));
+    }
+
     state = state.copyWith(clearActionNotificationId: true);
 
     switch (result) {
@@ -299,6 +352,11 @@ class NotificationsController extends Notifier<NotificationsState>
         return Left(failure);
       case Right(value: final success):
         await markAsRead(notification);
+        if (!_canUseRef) {
+          return Left(
+            AppFailure('Thao t\u00e1c \u0111\u00e3 b\u1ecb h\u1ee7y.'),
+          );
+        }
         state = state.copyWith(
           confirmedClassIds: {...state.confirmedClassIds, classId},
         );
@@ -345,6 +403,10 @@ class NotificationsController extends Notifier<NotificationsState>
   }
 
   Future<void> _persistInboxIfNeeded() async {
+    if (!_canUseRef) {
+      return;
+    }
+
     final user = ref.read(currentUserProvider);
     if (user == null || state.selectedFilterKey != NotificationFilterKeys.all) {
       return;
@@ -360,6 +422,10 @@ class NotificationsController extends Notifier<NotificationsState>
   }
 
   void _startPolling() {
+    if (!_canUseRef) {
+      return;
+    }
+
     if (!_isAppActive || ref.read(currentUserProvider) == null) {
       return;
     }
@@ -374,6 +440,9 @@ class NotificationsController extends Notifier<NotificationsState>
     }
 
     _pollTimer = Timer.periodic(_pollInterval, (_) {
+      if (!_canUseRef) {
+        return;
+      }
       unawaited(refresh(silent: true));
     });
   }
@@ -384,6 +453,10 @@ class NotificationsController extends Notifier<NotificationsState>
   }
 
   void _startLiveUpdates() {
+    if (!_canUseRef) {
+      return;
+    }
+
     final user = ref.read(currentUserProvider);
     if (user == null ||
         !_isAppActive ||
@@ -397,11 +470,23 @@ class NotificationsController extends Notifier<NotificationsState>
     _connectingLiveUpdates = true;
 
     Future.microtask(() async {
+      if (!_canUseRef) {
+        _connectingLiveUpdates = false;
+        return;
+      }
+
       final result = await ref
           .read(notificationsLiveRepositoryProvider)
           .connect(token: user.token);
-      _connectingLiveUpdates = false;
 
+      if (!_canUseRef) {
+        if (result is Right<AppFailure, NotificationsLiveConnection>) {
+          await result.value.close();
+        }
+        return;
+      }
+
+      _connectingLiveUpdates = false;
       final currentUser = ref.read(currentUserProvider);
       if (currentUser == null || currentUser.id != user.id || !_isAppActive) {
         if (result is Right<AppFailure, NotificationsLiveConnection>) {
@@ -428,6 +513,10 @@ class NotificationsController extends Notifier<NotificationsState>
   }
 
   void _handleLiveEvent(NotificationLiveEvent event) {
+    if (!_canUseRef) {
+      return;
+    }
+
     _disposePolling();
 
     if (!state.liveConnected) {
@@ -444,19 +533,32 @@ class NotificationsController extends Notifier<NotificationsState>
   }
 
   void _handleLiveUpdatesInterrupted(String userId) {
+    final subscription = _liveUpdatesSubscription;
+    final connection = _liveConnection;
+    _liveUpdatesSubscription = null;
+    _liveConnection = null;
+    unawaited(subscription?.cancel());
+    unawaited(connection?.close());
+
+    if (!_canUseRef) {
+      return;
+    }
+
     final currentUser = ref.read(currentUserProvider);
     if (currentUser == null || currentUser.id != userId) {
       return;
     }
 
-    _liveUpdatesSubscription = null;
-    _liveConnection = null;
     state = state.copyWith(liveConnected: false);
     _startPolling();
     _scheduleLiveReconnect();
   }
 
   void _scheduleLiveReconnect() {
+    if (!_canUseRef) {
+      return;
+    }
+
     if (!_isAppActive ||
         ref.read(currentUserProvider) == null ||
         _liveReconnectTimer != null) {
@@ -464,6 +566,9 @@ class NotificationsController extends Notifier<NotificationsState>
     }
 
     _liveReconnectTimer = Timer(_liveReconnectDelay, () {
+      if (!_canUseRef) {
+        return;
+      }
       _liveReconnectTimer = null;
       _startLiveUpdates();
     });
@@ -472,6 +577,7 @@ class NotificationsController extends Notifier<NotificationsState>
   Future<void> _disposeLiveUpdates({bool updateState = true}) async {
     _liveReconnectTimer?.cancel();
     _liveReconnectTimer = null;
+    _connectingLiveUpdates = false;
 
     if (updateState && _stateReady && state.liveConnected) {
       state = state.copyWith(liveConnected: false);
@@ -525,6 +631,7 @@ class NotificationsController extends Notifier<NotificationsState>
   }
 
   void _dispose() {
+    _disposed = true;
     _disposePolling();
     unawaited(_disposeLiveUpdates(updateState: false));
     _unregisterLifecycleObserver();

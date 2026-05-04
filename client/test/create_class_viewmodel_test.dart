@@ -162,7 +162,7 @@ class _FakeTutorRemoteRepository extends TutorRemoteRepository {
   Future<Either<AppFailure, String>> uploadClassMaterial({
     required String token,
     required String fileName,
-    required Uint8List fileBytes,
+    Uint8List? fileBytes,
     String? filePath,
   }) async {
     uploadClassMaterialCalls += 1;

@@ -32,7 +32,10 @@ class _ClassSearchScreenState extends ConsumerState<ClassSearchScreen> {
   @override
   void initState() {
     super.initState();
-    Future.microtask(() => _loadClasses(requestId: ++_activeSearchRequestId));
+    Future.microtask(() {
+      if (!mounted) return;
+      unawaited(_loadClasses(requestId: ++_activeSearchRequestId));
+    });
   }
 
   @override
@@ -46,11 +49,18 @@ class _ClassSearchScreenState extends ConsumerState<ClassSearchScreen> {
     _searchDebounce?.cancel();
     final requestId = ++_activeSearchRequestId;
     _searchDebounce = Timer(_searchDebounceDuration, () {
+      if (!mounted) {
+        return;
+      }
       unawaited(_loadClasses(query: query, requestId: requestId));
     });
   }
 
   Future<void> _loadClasses({String query = '', int? requestId}) async {
+    if (!mounted) {
+      return;
+    }
+
     final effectiveRequestId = requestId ?? ++_activeSearchRequestId;
     setState(() {
       _isLoading = true;

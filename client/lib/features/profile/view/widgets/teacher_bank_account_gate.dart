@@ -31,6 +31,10 @@ class _TeacherBankAccountGateState
   }
 
   Future<void> _ensureTeacherBankAccount() async {
+    if (!mounted) {
+      return;
+    }
+
     final currentUser = ref.read(currentUserProvider);
     if (currentUser?.role != 'teacher') {
       if (mounted) {

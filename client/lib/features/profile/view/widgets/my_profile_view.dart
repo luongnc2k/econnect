@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:client/core/constants/server_constant.dart';
 import 'package:client/core/router/app_router.dart';
 import 'package:client/features/auth/viewmodel/auth_viewmodel.dart';
@@ -99,7 +101,8 @@ class _MyProfileViewState extends ConsumerState<MyProfileView> {
   void initState() {
     super.initState();
     Future.microtask(() {
-      ref.read(myProfileViewModelProvider.notifier).fetchMyProfile();
+      if (!mounted) return;
+      unawaited(ref.read(myProfileViewModelProvider.notifier).fetchMyProfile());
     });
   }
 

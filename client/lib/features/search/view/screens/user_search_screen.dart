@@ -63,11 +63,18 @@ class _UserSearchScreenState extends ConsumerState<UserSearchScreen> {
     }
 
     _searchDebounce = Timer(_searchDebounceDuration, () {
+      if (!mounted) {
+        return;
+      }
       unawaited(_search(query, requestId));
     });
   }
 
   Future<void> _search(String value, int requestId) async {
+    if (!mounted) {
+      return;
+    }
+
     final query = value.trim();
     if (query.isEmpty) {
       setState(() {

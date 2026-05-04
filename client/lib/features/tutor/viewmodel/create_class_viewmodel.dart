@@ -49,7 +49,8 @@ class CreateClassViewModel extends Notifier<CreateClassState> {
     final paymentsRepo = ref.read(paymentsRemoteRepositoryProvider);
 
     String? finalThumbnailUrl = thumbnailUrl;
-    if (thumbnailBytes != null && thumbnailFileName != null) {
+    if (thumbnailFileName != null &&
+        (thumbnailBytes != null || thumbnailFilePath != null)) {
       final uploadResult = await tutorRepo.uploadThumbnail(
         token: token,
         fileName: thumbnailFileName,
@@ -66,7 +67,8 @@ class CreateClassViewModel extends Notifier<CreateClassState> {
     }
 
     String? finalMaterialUrl = materialUrl;
-    if (materialBytes != null && materialFileName != null) {
+    if (materialFileName != null &&
+        (materialBytes != null || materialFilePath != null)) {
       final uploadResult = await tutorRepo.uploadClassMaterial(
         token: token,
         fileName: materialFileName,

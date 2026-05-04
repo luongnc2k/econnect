@@ -90,6 +90,7 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
   void initState() {
     super.initState();
     Future.microtask(() {
+      if (!mounted) return;
       final state = ref.read(myProfileViewModelProvider);
       final currentUser = ref.read(currentUserProvider);
       final shouldFetch =
@@ -225,7 +226,7 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
 
     await showModalBottomSheet(
       context: context,
-      builder: (_) {
+      builder: (sheetContext) {
         return SafeArea(
           child: Wrap(
             children: [
@@ -233,8 +234,10 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
                 leading: const Icon(Icons.photo_library_outlined),
                 title: const Text('Ch\u1ECDn t\u1EEB th\u01B0 vi\u1EC7n'),
                 onTap: () {
-                  Navigator.pop(context);
-                  _pickAvatar(ImageSource.gallery);
+                  Navigator.pop(sheetContext);
+                  if (mounted) {
+                    unawaited(_pickAvatar(ImageSource.gallery));
+                  }
                 },
               ),
               if (!isDesktop)
@@ -242,8 +245,10 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
                   leading: const Icon(Icons.camera_alt_outlined),
                   title: const Text('Ch\u1EE5p \u1EA3nh'),
                   onTap: () {
-                    Navigator.pop(context);
-                    _pickAvatar(ImageSource.camera);
+                    Navigator.pop(sheetContext);
+                    if (mounted) {
+                      unawaited(_pickAvatar(ImageSource.camera));
+                    }
                   },
                 ),
             ],
@@ -290,6 +295,8 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
     if (image == null) return;
     final pickedImage = image;
     final fileBytes = await pickedImage.readAsBytes();
+    if (!mounted) return;
+
     final fileName = pickedImage.name.isEmpty
         ? 'avatar_${DateTime.now().millisecondsSinceEpoch}.jpg'
         : pickedImage.name;
@@ -352,6 +359,8 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
 
     if (image == null) return;
     final fileBytes = await image.readAsBytes();
+    if (!mounted) return;
+
     final fileName = image.name.isEmpty
         ? 'teacher_doc_${DateTime.now().millisecondsSinceEpoch}.jpg'
         : image.name;
@@ -570,6 +579,10 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
     }
 
     _bankVerificationDebounce = Timer(const Duration(milliseconds: 700), () {
+      if (!mounted) {
+        return;
+      }
+
       _bankVerificationDebounce = null;
       final latestProfile =
           ref.read(myProfileViewModelProvider).profile ?? profile;
@@ -642,6 +655,10 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
     UserModel profile, {
     bool showInputErrorSnackBar = true,
   }) async {
+    if (!mounted) {
+      return;
+    }
+
     final inputError = _bankVerificationInputError(profile);
     if (inputError != null) {
       if (!mounted || !showInputErrorSnackBar) return;

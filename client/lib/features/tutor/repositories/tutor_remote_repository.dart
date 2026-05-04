@@ -181,7 +181,7 @@ class TutorRemoteRepository {
   Future<Either<AppFailure, String>> uploadThumbnail({
     required String token,
     required String fileName,
-    required Uint8List fileBytes,
+    Uint8List? fileBytes,
     String? filePath,
   }) async {
     try {
@@ -220,7 +220,7 @@ class TutorRemoteRepository {
   Future<Either<AppFailure, String>> uploadClassMaterial({
     required String token,
     required String fileName,
-    required Uint8List fileBytes,
+    Uint8List? fileBytes,
     String? filePath,
   }) async {
     try {

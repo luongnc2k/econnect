@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/core/router/app_router.dart';
 import 'package:client/features/schedule/view/widgets/schedule_calendar.dart';
@@ -30,10 +32,17 @@ class _StudentScheduleScreenState extends ConsumerState<StudentScheduleScreen> {
   void initState() {
     super.initState();
     _selectedDate = ScheduleCalendar.dateOnly(DateTime.now());
-    Future.microtask(() => _loadClasses());
+    Future.microtask(() {
+      if (!mounted) return;
+      unawaited(_loadClasses());
+    });
   }
 
   Future<void> _loadClasses({bool? past}) async {
+    if (!mounted) {
+      return;
+    }
+
     final resolvedPast = past ?? _showPast;
     final isSwitchingRange = past != null && past != _showPast;
     final token = ref.read(currentUserProvider)?.token;

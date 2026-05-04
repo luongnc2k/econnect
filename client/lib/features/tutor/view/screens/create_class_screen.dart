@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:client/core/failure/failure.dart';
 import 'package:client/core/providers/current_user_notifier.dart';
@@ -107,6 +108,8 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
     _priceController.dispose();
     _pollTimer?.cancel();
     _pollTimer = null;
+    _thumbnailBytes = null;
+    _materialBytes = null;
     super.dispose();
   }
 
@@ -232,12 +235,17 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
     final picked = await picker.pickImage(
       source: ImageSource.gallery,
       imageQuality: 85,
+      maxWidth: 1200,
     );
-    if (picked == null) {
+    if (picked == null || !mounted) {
       return;
     }
 
-    final bytes = await picked.readAsBytes();
+    final bytes = kIsWeb ? await picked.readAsBytes() : null;
+    if (!mounted) {
+      return;
+    }
+
     setState(() {
       _thumbnailBytes = bytes;
       _thumbnailFileName = picked.name;
@@ -250,9 +258,9 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
       allowMultiple: false,
       type: FileType.custom,
       allowedExtensions: _allowedMaterialExtensions.toList(),
-      withData: true,
+      withData: kIsWeb,
     );
-    if (result == null || result.files.isEmpty) {
+    if (result == null || result.files.isEmpty || !mounted) {
       return;
     }
 
@@ -269,7 +277,10 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
     }
 
     final bytes = file.bytes;
-    if (bytes == null) {
+    final filePath = file.path;
+    final hasReadableSource =
+        bytes != null || (!kIsWeb && filePath != null && filePath.isNotEmpty);
+    if (!hasReadableSource) {
       _showMessage('Không đọc được tài liệu đã chọn. Vui lòng thử lại.');
       return;
     }
@@ -277,7 +288,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
     setState(() {
       _materialBytes = bytes;
       _materialFileName = file.name;
-      _materialFilePath = kIsWeb ? null : file.path;
+      _materialFilePath = kIsWeb ? null : filePath;
       _materialSize = file.size;
     });
   }
@@ -434,7 +445,11 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
       return;
     }
 
-    setState(() => _transaction = payment);
+    setState(() {
+      _transaction = payment;
+      _thumbnailBytes = null;
+      _materialBytes = null;
+    });
 
     final redirectUrl = payment.redirectUrl;
     if (redirectUrl == null || redirectUrl.isEmpty) {
@@ -459,7 +474,11 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
       webOnlyWindowName: kIsWeb ? '_blank' : null,
     );
 
-    if (!launched && mounted) {
+    if (!mounted) {
+      return;
+    }
+
+    if (!launched) {
       _stopPolling();
       _awaitingExternalPaymentReturn = false;
       _showMessage(
@@ -498,6 +517,10 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
     });
 
     _pollTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
+      if (!mounted) {
+        return;
+      }
+
       if (_pollRequestInFlight) {
         return;
       }
@@ -541,7 +564,9 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
             break;
         }
       } finally {
-        _pollRequestInFlight = false;
+        if (mounted) {
+          _pollRequestInFlight = false;
+        }
       }
     });
   }
@@ -584,8 +609,10 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
           break;
       }
     } finally {
-      _awaitingExternalPaymentReturn = false;
-      _resumeStatusCheckInFlight = false;
+      if (mounted) {
+        _awaitingExternalPaymentReturn = false;
+        _resumeStatusCheckInFlight = false;
+      }
     }
   }
 
@@ -640,6 +667,9 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
   }
 
   void _showMessage(String message) {
+    if (!mounted) {
+      return;
+    }
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
@@ -678,6 +708,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
           children: [
             _ThumbnailPicker(
               thumbnailBytes: _thumbnailBytes,
+              thumbnailFilePath: _thumbnailFilePath,
               onPick: _pickThumbnail,
             ),
             const SizedBox(height: 12),
@@ -1329,13 +1360,26 @@ class _MaterialPicker extends StatelessWidget {
 
 class _ThumbnailPicker extends StatelessWidget {
   final Uint8List? thumbnailBytes;
+  final String? thumbnailFilePath;
   final VoidCallback onPick;
 
-  const _ThumbnailPicker({required this.thumbnailBytes, required this.onPick});
+  const _ThumbnailPicker({
+    required this.thumbnailBytes,
+    required this.thumbnailFilePath,
+    required this.onPick,
+  });
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final filePath = thumbnailFilePath?.trim();
+    ImageProvider? imageProvider;
+    if (thumbnailBytes != null) {
+      imageProvider = MemoryImage(thumbnailBytes!);
+    } else if (!kIsWeb && filePath != null && filePath.isNotEmpty) {
+      imageProvider = FileImage(File(filePath));
+    }
+    final hasThumbnail = imageProvider != null;
 
     return GestureDetector(
       onTap: onPick,
@@ -1345,14 +1389,11 @@ class _ThumbnailPicker extends StatelessWidget {
         decoration: BoxDecoration(
           color: colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(12),
-          image: thumbnailBytes != null
-              ? DecorationImage(
-                  image: MemoryImage(thumbnailBytes!),
-                  fit: BoxFit.cover,
-                )
+          image: imageProvider != null
+              ? DecorationImage(image: imageProvider, fit: BoxFit.cover)
               : null,
         ),
-        child: thumbnailBytes == null
+        child: !hasThumbnail
             ? Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [

@@ -31,7 +31,6 @@ void main() {
 
     final multipart = await buildUploadMultipartFile(
       fileName: 'thumb.png',
-      fileBytes: Uint8List.fromList([1]),
       filePath: tempFile.path,
       isWeb: false,
     );

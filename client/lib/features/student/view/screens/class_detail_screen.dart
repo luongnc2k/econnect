@@ -67,6 +67,7 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _pollTimer?.cancel();
+    _pollTimer = null;
     _reviewCommentController.dispose();
     super.dispose();
   }
@@ -169,7 +170,11 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen>
       Uri.parse(redirectUrl),
       mode: LaunchMode.externalApplication,
     );
-    if (!launched && mounted) {
+    if (!mounted) {
+      return;
+    }
+
+    if (!launched) {
       _stopPolling();
       _awaitingExternalPaymentReturn = false;
       _showMessage(
@@ -205,6 +210,10 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen>
       _consecutivePollErrors = 0;
     });
     _pollTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
+      if (!mounted) {
+        return;
+      }
+
       if (_pollRequestInFlight) {
         return;
       }
@@ -244,7 +253,9 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen>
           }
         }
       } finally {
-        _pollRequestInFlight = false;
+        if (mounted) {
+          _pollRequestInFlight = false;
+        }
       }
     });
   }
@@ -313,8 +324,10 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen>
         );
       }
     } finally {
-      _awaitingExternalPaymentReturn = false;
-      _resumeStatusCheckInFlight = false;
+      if (mounted) {
+        _awaitingExternalPaymentReturn = false;
+        _resumeStatusCheckInFlight = false;
+      }
     }
   }
 
@@ -352,6 +365,9 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen>
   }
 
   void _showMessage(String message) {
+    if (!mounted) {
+      return;
+    }
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
