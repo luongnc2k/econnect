@@ -12,7 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   testWidgets(
-    'router redirects student to bank setup when loaded profile has no bank account',
+    'router lands student on home even when loaded profile has no bank account',
     (tester) async {
       await tester.pumpWidget(
         ProviderScope(
@@ -48,8 +48,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.byType(EditMyProfileScreen), findsOneWidget);
-      expect(find.byType(StudentNavShell), findsNothing);
+      expect(find.byType(StudentNavShell), findsOneWidget);
+      expect(find.byType(EditMyProfileScreen), findsNothing);
     },
   );
 
