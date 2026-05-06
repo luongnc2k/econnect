@@ -22,6 +22,9 @@ void main() {
         'price': '120000',
         'thumbnail_url':
             'https://demo.ngrok-free.app/static/class-thumbnails/example.jpeg',
+        'material_url':
+            'https://demo.ngrok-free.app/static/class-materials/lesson.pdf',
+        'material_file_name': 'lesson.pdf',
         'status': 'scheduled',
         'topic': 'Business English',
         'teacher': {
@@ -37,6 +40,11 @@ void main() {
         session.imageUrl,
         'http://10.0.2.2:8000/static/class-thumbnails/example.jpeg',
       );
+      expect(
+        session.materialUrl,
+        'http://10.0.2.2:8000/static/class-materials/lesson.pdf',
+      );
+      expect(session.materialFileName, 'lesson.pdf');
       expect(session.location, 'Cafe A');
       expect(session.locationAddress, '123 Main Street');
       expect(session.locationNotes, 'Vào cổng phụ tầng 2.');

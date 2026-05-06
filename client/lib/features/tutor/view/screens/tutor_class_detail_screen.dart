@@ -5,6 +5,7 @@ import 'package:client/core/widgets/learning_material_card.dart';
 import 'package:client/features/payments/repositories/payments_remote_repository.dart';
 import 'package:client/features/student/model/class_session.dart';
 import 'package:client/features/tutor/model/enrolled_student.dart';
+import 'package:client/features/tutor/repositories/tutor_remote_repository.dart';
 import 'package:client/features/tutor/viewmodel/tutor_class_detail_viewmodel.dart';
 import 'package:client/features/tutor/viewmodel/tutor_home_viewmodel.dart';
 import 'package:flutter/material.dart';
@@ -26,20 +27,24 @@ class _TutorClassDetailScreenState
     extends ConsumerState<TutorClassDetailScreen> {
   bool _isCancelling = false;
   bool _isCancelled = false;
+  ClassSession? _latestSession;
   late String _statusLabel;
+
+  ClassSession get _session => _latestSession ?? widget.session;
 
   @override
   void initState() {
     super.initState();
     _statusLabel = widget.session.statusText;
     _isCancelled = _statusLabel.toUpperCase() == 'HUỶ';
+    unawaited(_loadLatestSession());
   }
 
   bool get _canCancelClass {
     if (_isCancelled) {
       return false;
     }
-    final classId = widget.session.id;
+    final classId = _session.id;
     if (classId == null || classId.isEmpty) {
       return false;
     }
@@ -49,8 +54,35 @@ class _TutorClassDetailScreenState
       return false;
     }
 
-    final startTime = widget.session.startDateTime;
+    final startTime = _session.startDateTime;
     return startTime == null || startTime.isAfter(DateTime.now());
+  }
+
+  Future<void> _loadLatestSession() async {
+    final classId = widget.session.id;
+    final user = ref.read(currentUserProvider);
+    if (classId == null || classId.isEmpty || user == null) {
+      return;
+    }
+
+    final result = await ref
+        .read(tutorRemoteRepositoryProvider)
+        .getClassSessionDetail(user.token, classId);
+    if (!mounted) {
+      return;
+    }
+
+    switch (result) {
+      case Left():
+        return;
+      case Right(value: final session):
+        final refreshedSession = session.withLearningMaterialFallback(_session);
+        setState(() {
+          _latestSession = refreshedSession;
+          _statusLabel = refreshedSession.statusText;
+          _isCancelled = _statusLabel.toUpperCase() == 'HUỶ';
+        });
+    }
   }
 
   Future<void> _confirmCancelClass() async {
@@ -106,7 +138,7 @@ class _TutorClassDetailScreenState
   }
 
   Future<void> _cancelClass() async {
-    final classId = widget.session.id;
+    final classId = _session.id;
     final user = ref.read(currentUserProvider);
     if (classId == null || classId.isEmpty || user == null) {
       _showSnackBar('Không thể hủy buổi học lúc này.');
@@ -155,7 +187,8 @@ class _TutorClassDetailScreenState
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final classId = widget.session.id ?? '';
+    final session = _session;
+    final classId = session.id ?? '';
     final enrolledAsync = ref.watch(enrolledStudentsProvider(classId));
 
     return Scaffold(
@@ -167,10 +200,9 @@ class _TutorClassDetailScreenState
             backgroundColor: cs.surface,
             flexibleSpace: FlexibleSpaceBar(
               background:
-                  widget.session.imageUrl != null &&
-                      widget.session.imageUrl!.isNotEmpty
+                  session.imageUrl != null && session.imageUrl!.isNotEmpty
                   ? Image.network(
-                      widget.session.imageUrl!,
+                      session.imageUrl!,
                       fit: BoxFit.cover,
                       errorBuilder: (_, _, _) => _ThumbnailPlaceholder(cs: cs),
                     )
@@ -185,14 +217,13 @@ class _TutorClassDetailScreenState
                 children: [
                   Row(
                     children: [
-                      if (widget.session.tags.isNotEmpty)
+                      if (session.tags.isNotEmpty)
                         _Chip(
-                          label: widget.session.tags.first,
+                          label: session.tags.first,
                           color: cs.primaryContainer,
                           textColor: cs.onPrimaryContainer,
                         ),
-                      if (widget.session.tags.isNotEmpty)
-                        const SizedBox(width: 8),
+                      if (session.tags.isNotEmpty) const SizedBox(width: 8),
                       _Chip(
                         label: _statusLabel,
                         color: _isCancelled
@@ -206,20 +237,20 @@ class _TutorClassDetailScreenState
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    widget.session.title,
+                    session.title,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w800,
                     ),
                   ),
                   const SizedBox(height: 20),
-                  _InfoGrid(session: widget.session),
+                  _InfoGrid(session: session),
                   const SizedBox(height: 20),
-                  _ClassCodeCard(code: widget.session.classCode, cs: cs),
-                  if (widget.session.hasLearningMaterial) ...[
+                  _ClassCodeCard(code: session.classCode, cs: cs),
+                  if (session.hasLearningMaterial) ...[
                     const SizedBox(height: 16),
                     LearningMaterialCard(
-                      materialUrl: widget.session.materialUrl!,
-                      fileName: widget.session.materialFileName,
+                      materialUrl: session.materialUrl!,
+                      fileName: session.materialFileName,
                     ),
                   ],
                   if (_canCancelClass || _isCancelled) ...[
@@ -232,12 +263,12 @@ class _TutorClassDetailScreenState
                     ),
                   ],
                   const SizedBox(height: 24),
-                  if (widget.session.description != null &&
-                      widget.session.description!.isNotEmpty) ...[
+                  if (session.description != null &&
+                      session.description!.isNotEmpty) ...[
                     _SectionTitle(title: 'Mô tả', cs: cs),
                     const SizedBox(height: 8),
                     Text(
-                      widget.session.description!,
+                      session.description!,
                       style: TextStyle(
                         fontSize: 14,
                         color: cs.onSurfaceVariant,

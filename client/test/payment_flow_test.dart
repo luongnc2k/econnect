@@ -273,6 +273,29 @@ void main() {
     );
   });
 
+  testWidgets('student detail shows material from refreshed class data', (
+    tester,
+  ) async {
+    fakeStudentRepo.classByCodeResult = _sampleClassSession(
+      materialUrl: 'http://127.0.0.1:8000/static/class-materials/lesson.pdf',
+      materialFileName: 'lesson.pdf',
+    );
+
+    await tester.pumpWidget(
+      _buildApp(
+        child: ClassDetailScreen(session: _sampleClassSession()),
+        fakeRepo: fakeRepo,
+        fakeStudentRepo: fakeStudentRepo,
+        user: _sampleUser(role: 'student'),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(fakeStudentRepo.getClassByCodeCalls, 1);
+    expect(find.text('Tài liệu buổi học'), findsOneWidget);
+    expect(find.text('lesson.pdf'), findsOneWidget);
+  });
+
   testWidgets(
     'student can submit tutor review after class ends and sees hotline',
     (tester) async {
@@ -531,11 +554,23 @@ class _FakeStudentRemoteRepository extends StudentRemoteRepository {
     hotline: '0335837165',
   );
   StudentTutorReviewStatus? submitReviewResult;
+  ClassSession? classByCodeResult;
   int getMyBookingStatusCalls = 0;
   int getMyTutorReviewCalls = 0;
   int submitTutorReviewCalls = 0;
+  int getClassByCodeCalls = 0;
   int? lastSubmittedRating;
   String? lastSubmittedComment;
+
+  @override
+  Future<Either<AppFailure, ClassSession>> getClassByCode(
+    String token,
+    String classCode, {
+    bool includePast = false,
+  }) async {
+    getClassByCodeCalls += 1;
+    return Right(classByCodeResult ?? _sampleClassSession());
+  }
 
   @override
   Future<Either<AppFailure, StudentClassBookingStatus>> getMyBookingStatus({

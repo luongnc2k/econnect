@@ -16,6 +16,37 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:fpdart/fpdart.dart';
 
 void main() {
+  testWidgets('tutor detail shows material from refreshed class detail', (
+    tester,
+  ) async {
+    final fakePaymentsRepo = _FakePaymentsRemoteRepository();
+    final fakeTutorRepo = _FakeTutorRemoteRepository()
+      ..classSessionDetailResult = _sampleSession(
+        materialUrl: 'http://127.0.0.1:8000/static/class-materials/lesson.pdf',
+        materialFileName: 'lesson.pdf',
+      );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          currentUserProvider.overrideWithValue(_sampleUser()),
+          paymentsRemoteRepositoryProvider.overrideWithValue(fakePaymentsRepo),
+          tutorRemoteRepositoryProvider.overrideWithValue(fakeTutorRepo),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.lightThemeMode,
+          home: TutorClassDetailScreen(session: _sampleSession()),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(fakeTutorRepo.getClassSessionDetailCalls, 1);
+    expect(find.text('Tài liệu buổi học'), findsOneWidget);
+    expect(find.text('lesson.pdf'), findsOneWidget);
+  });
+
   testWidgets(
     'tutor can confirm class cancellation and screen updates to cancelled state',
     (tester) async {
@@ -26,7 +57,9 @@ void main() {
         ProviderScope(
           overrides: [
             currentUserProvider.overrideWithValue(_sampleUser()),
-            paymentsRemoteRepositoryProvider.overrideWithValue(fakePaymentsRepo),
+            paymentsRemoteRepositoryProvider.overrideWithValue(
+              fakePaymentsRepo,
+            ),
             tutorRemoteRepositoryProvider.overrideWithValue(fakeTutorRepo),
           ],
           child: MaterialApp(
@@ -38,7 +71,10 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      expect(find.widgetWithText(OutlinedButton, 'Hủy buổi học'), findsOneWidget);
+      expect(
+        find.widgetWithText(OutlinedButton, 'Hủy buổi học'),
+        findsOneWidget,
+      );
 
       await tester.ensureVisible(
         find.widgetWithText(OutlinedButton, 'Hủy buổi học'),
@@ -76,7 +112,7 @@ UserModel _sampleUser() {
   );
 }
 
-ClassSession _sampleSession() {
+ClassSession _sampleSession({String? materialUrl, String? materialFileName}) {
   return ClassSession(
     id: 'class-1',
     classCode: 'CLS-260331-9F9A',
@@ -90,6 +126,8 @@ ClassSession _sampleSession() {
     totalPriceText: '150.000đ',
     statusText: 'OPEN',
     description: 'Test cancel flow',
+    materialUrl: materialUrl,
+    materialFileName: materialFileName,
     dateText: '31/03/2026',
     slotText: '2/3 đã đăng ký',
     tags: const ['Speaking'],
@@ -132,6 +170,18 @@ class _FakePaymentsRemoteRepository extends PaymentsRemoteRepository {
 
 class _FakeTutorRemoteRepository extends TutorRemoteRepository {
   _FakeTutorRemoteRepository() : super(Dio());
+
+  ClassSession? classSessionDetailResult;
+  int getClassSessionDetailCalls = 0;
+
+  @override
+  Future<Either<AppFailure, ClassSession>> getClassSessionDetail(
+    String token,
+    String classId,
+  ) async {
+    getClassSessionDetailCalls += 1;
+    return Right(classSessionDetailResult ?? _sampleSession());
+  }
 
   @override
   Future<Either<AppFailure, List<EnrolledStudent>>> getClassDetail(

@@ -101,6 +101,60 @@ void main() {
     },
   );
 
+  testWidgets('student schedule reloads when selected from nav again', (
+    tester,
+  ) async {
+    final fakeRepo = _FakeStudentRemoteRepository();
+
+    Widget buildSchedule(int refreshToken) {
+      return ProviderScope(
+        overrides: [
+          currentUserProvider.overrideWithValue(_sampleUser()),
+          studentRemoteRepositoryProvider.overrideWithValue(fakeRepo),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.lightThemeMode,
+          home: Scaffold(
+            body: StudentScheduleScreen(refreshToken: refreshToken),
+          ),
+        ),
+      );
+    }
+
+    await tester.pumpWidget(buildSchedule(0));
+    await tester.pump();
+    await tester.pump();
+
+    expect(fakeRepo.getRegisteredClassesCalls, 1);
+    expect(find.text('Registered Class'), findsNothing);
+    expect(
+      find.text('Bạn chưa đăng ký buổi học nào sắp diễn ra.'),
+      findsOneWidget,
+    );
+
+    fakeRepo.upcomingClasses = [
+      ClassSession(
+        id: 'class-registered',
+        classCode: 'CLS-260326-BOOK',
+        title: 'Registered Class',
+        location: 'Cafe Registered',
+        teacherId: 'teacher-1',
+        teacherName: 'Tutor Demo',
+        timeText: '18:00 Hôm nay',
+        priceText: '50000 VND',
+        statusText: 'OPEN',
+        startDateTime: DateTime.now().add(const Duration(days: 1)),
+      ),
+    ];
+
+    await tester.pumpWidget(buildSchedule(1));
+    await tester.pump();
+    await tester.pump();
+
+    expect(fakeRepo.getRegisteredClassesCalls, 2);
+    expect(find.text('Registered Class'), findsOneWidget);
+  });
+
   testWidgets('student past schedule calendar fits a narrow phone viewport', (
     tester,
   ) async {
@@ -192,8 +246,8 @@ UserModel _sampleUser() {
 }
 
 class _FakeStudentRemoteRepository extends StudentRemoteRepository {
-  final List<ClassSession> upcomingClasses;
-  final List<ClassSession> pastClasses;
+  List<ClassSession> upcomingClasses;
+  List<ClassSession> pastClasses;
   int getRegisteredClassesCalls = 0;
 
   _FakeStudentRemoteRepository({

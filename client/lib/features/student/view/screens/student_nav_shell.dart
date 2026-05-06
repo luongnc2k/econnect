@@ -15,27 +15,35 @@ class StudentNavShell extends StatefulWidget {
 
 class _StudentNavShellState extends State<StudentNavShell> {
   int _currentIndex = 0;
+  int _scheduleRefreshToken = 0;
 
-  late final List<Widget> _screens = [
-    StudentHomeScreen(
-      onAvatarTap: () => setState(() => _currentIndex = 3),
-      onSearchTap: () => context.push(AppRoutes.studentSearch),
-      onClassesTap: () => setState(() => _currentIndex = 2),
-    ),
-    const StudentScheduleScreen(),
-    const ClassSearchScreen(),
-    const MyProfileTab(),
-  ];
+  void _selectTab(int index) {
+    setState(() {
+      _currentIndex = index;
+      if (index == 1) {
+        _scheduleRefreshToken++;
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    final screens = [
+      StudentHomeScreen(
+        onAvatarTap: () => _selectTab(3),
+        onSearchTap: () => context.push(AppRoutes.studentSearch),
+        onClassesTap: () => _selectTab(2),
+      ),
+      StudentScheduleScreen(refreshToken: _scheduleRefreshToken),
+      const ClassSearchScreen(),
+      const MyProfileTab(),
+    ];
+
     return Scaffold(
-      body: IndexedStack(index: _currentIndex, children: _screens),
+      body: IndexedStack(index: _currentIndex, children: screens),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
-        onDestinationSelected: (index) {
-          setState(() => _currentIndex = index);
-        },
+        onDestinationSelected: _selectTab,
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.home_outlined),

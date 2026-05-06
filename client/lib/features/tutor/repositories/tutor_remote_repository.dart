@@ -141,6 +141,31 @@ class TutorRemoteRepository {
     }
   }
 
+  Future<Either<AppFailure, ClassSession>> getClassSessionDetail(
+    String token,
+    String classId,
+  ) async {
+    try {
+      final uri = Uri.parse('${ServerConstant.serverURL}/classes/$classId');
+      final response = await http.get(uri, headers: {'x-auth-token': token});
+
+      if (response.statusCode != 200) {
+        final body = jsonDecode(response.body) as Map<String, dynamic>;
+        return Left(
+          AppFailure(
+            body['detail'] ?? 'Lỗi tải chi tiết lớp',
+            response.statusCode,
+          ),
+        );
+      }
+
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      return Right(ClassSessionMapper.fromMap(data));
+    } catch (e) {
+      return Left(AppFailure(e.toString()));
+    }
+  }
+
   Future<Either<AppFailure, List<TeacherPreview>>> getFeaturedTeachers(
     String token, {
     int limit = 5,

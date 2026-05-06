@@ -14,7 +14,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:fpdart/fpdart.dart' show Either, Left, Right;
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -45,10 +44,6 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
   Uint8List? _thumbnailBytes;
   String? _thumbnailFileName;
   String? _thumbnailFilePath;
-  Uint8List? _materialBytes;
-  String? _materialFileName;
-  String? _materialFilePath;
-  int? _materialSize;
   PaymentTransactionStatus? _transaction;
   Timer? _pollTimer;
   bool _pollingPayment = false;
@@ -65,8 +60,8 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
   String? _locationError;
   static const _maxPollAttempts = 90;
   static const _maxConsecutivePollErrors = 3;
-  static const _maxMaterialSizeBytes = 10 * 1024 * 1024;
-  static const _allowedMaterialExtensions = {'pdf', 'doc', 'docx'};
+  static const _draftChangedMessage =
+      'Thông tin buổi học đã thay đổi. App sẽ tạo mã thanh toán mới để lưu đúng nội dung.';
 
   static const _levels = [
     ('beginner', 'Cơ bản'),
@@ -94,12 +89,24 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _topicController.addListener(_handleDraftChanged);
+    _titleController.addListener(_handleDraftChanged);
+    _descriptionController.addListener(_handleDraftChanged);
+    _minParticipantsController.addListener(_handleDraftChanged);
+    _maxParticipantsController.addListener(_handleDraftChanged);
+    _priceController.addListener(_handleDraftChanged);
     _loadLearningLocations();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _topicController.removeListener(_handleDraftChanged);
+    _titleController.removeListener(_handleDraftChanged);
+    _descriptionController.removeListener(_handleDraftChanged);
+    _minParticipantsController.removeListener(_handleDraftChanged);
+    _maxParticipantsController.removeListener(_handleDraftChanged);
+    _priceController.removeListener(_handleDraftChanged);
     _topicController.dispose();
     _titleController.dispose();
     _descriptionController.dispose();
@@ -109,8 +116,26 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
     _pollTimer?.cancel();
     _pollTimer = null;
     _thumbnailBytes = null;
-    _materialBytes = null;
     super.dispose();
+  }
+
+  void _handleDraftChanged() {
+    if (!_hasPendingPaymentTransaction || !mounted) {
+      return;
+    }
+
+    _pollTimer?.cancel();
+    _pollTimer = null;
+    _pollRequestInFlight = false;
+    _awaitingExternalPaymentReturn = false;
+    _paymentAppWasBackgrounded = false;
+    _resumeStatusCheckInFlight = false;
+
+    setState(() {
+      _transaction = null;
+      _pollingPayment = false;
+    });
+    _showMessage(_draftChangedMessage);
   }
 
   @override
@@ -218,6 +243,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
       time.minute,
     );
 
+    _handleDraftChanged();
     setState(() {
       if (isStart) {
         _startTime = picked;
@@ -246,69 +272,12 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
       return;
     }
 
+    _handleDraftChanged();
     setState(() {
       _thumbnailBytes = bytes;
       _thumbnailFileName = picked.name;
       _thumbnailFilePath = kIsWeb ? null : picked.path;
     });
-  }
-
-  Future<void> _pickMaterial() async {
-    final result = await FilePicker.platform.pickFiles(
-      allowMultiple: false,
-      type: FileType.custom,
-      allowedExtensions: _allowedMaterialExtensions.toList(),
-      withData: kIsWeb,
-    );
-    if (result == null || result.files.isEmpty || !mounted) {
-      return;
-    }
-
-    final file = result.files.single;
-    final extension = _extensionOf(file.name);
-    if (!_allowedMaterialExtensions.contains(extension)) {
-      _showMessage('Chỉ hỗ trợ tài liệu PDF, DOC hoặc DOCX.');
-      return;
-    }
-
-    if (file.size > _maxMaterialSizeBytes) {
-      _showMessage('Tài liệu học không được vượt quá 10MB.');
-      return;
-    }
-
-    final bytes = file.bytes;
-    final filePath = file.path;
-    final hasReadableSource =
-        bytes != null || (!kIsWeb && filePath != null && filePath.isNotEmpty);
-    if (!hasReadableSource) {
-      _showMessage('Không đọc được tài liệu đã chọn. Vui lòng thử lại.');
-      return;
-    }
-
-    setState(() {
-      _materialBytes = bytes;
-      _materialFileName = file.name;
-      _materialFilePath = kIsWeb ? null : filePath;
-      _materialSize = file.size;
-    });
-  }
-
-  void _clearMaterial() {
-    setState(() {
-      _materialBytes = null;
-      _materialFileName = null;
-      _materialFilePath = null;
-      _materialSize = null;
-    });
-  }
-
-  String _extensionOf(String fileName) {
-    final normalized = fileName.trim().toLowerCase();
-    final dotIndex = normalized.lastIndexOf('.');
-    if (dotIndex == -1 || dotIndex == normalized.length - 1) {
-      return '';
-    }
-    return normalized.substring(dotIndex + 1);
   }
 
   Future<void> _handlePrimaryPaymentAction(CreateClassState vmState) async {
@@ -436,9 +405,6 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
           thumbnailBytes: _thumbnailBytes,
           thumbnailFileName: _thumbnailFileName,
           thumbnailFilePath: _thumbnailFilePath,
-          materialBytes: _materialBytes,
-          materialFileName: _materialFileName,
-          materialFilePath: _materialFilePath,
         );
 
     if (!mounted || payment == null) {
@@ -448,7 +414,6 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
     setState(() {
       _transaction = payment;
       _thumbnailBytes = null;
-      _materialBytes = null;
     });
 
     final redirectUrl = payment.redirectUrl;
@@ -711,13 +676,6 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
               thumbnailFilePath: _thumbnailFilePath,
               onPick: _pickThumbnail,
             ),
-            const SizedBox(height: 12),
-            _MaterialPicker(
-              fileName: _materialFileName,
-              fileSize: _materialSize,
-              onPick: _pickMaterial,
-              onClear: _clearMaterial,
-            ),
             const SizedBox(height: 20),
             const _SectionLabel('Thông tin buổi học'),
             const SizedBox(height: 12),
@@ -760,7 +718,10 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
             _LevelDropdown(
               selected: _selectedLevel,
               levels: _levels,
-              onChanged: (value) => setState(() => _selectedLevel = value!),
+              onChanged: (value) {
+                _handleDraftChanged();
+                setState(() => _selectedLevel = value!);
+              },
             ),
             const SizedBox(height: 12),
             _FormField(
@@ -788,7 +749,10 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
               isLoading: _isLoadingLocations,
               error: _locationError,
               onRetry: _loadLearningLocations,
-              onChanged: (value) => setState(() => _selectedLocationId = value),
+              onChanged: (value) {
+                _handleDraftChanged();
+                setState(() => _selectedLocationId = value);
+              },
             ),
             const SizedBox(height: 20),
             const _SectionLabel('Thời gian'),
@@ -1274,85 +1238,6 @@ class _DateTimeButton extends StatelessWidget {
             color: value != null ? null : colorScheme.onSurfaceVariant,
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _MaterialPicker extends StatelessWidget {
-  final String? fileName;
-  final int? fileSize;
-  final VoidCallback onPick;
-  final VoidCallback onClear;
-
-  const _MaterialPicker({
-    required this.fileName,
-    required this.fileSize,
-    required this.onPick,
-    required this.onClear,
-  });
-
-  String _formatSize(int? bytes) {
-    if (bytes == null) {
-      return 'PDF, DOC hoặc DOCX, tối đa 10MB';
-    }
-    final mb = bytes / (1024 * 1024);
-    return '${mb.toStringAsFixed(mb >= 1 ? 1 : 2)}MB';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final hasFile = fileName != null && fileName!.trim().isNotEmpty;
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colorScheme.outlineVariant),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.upload_file_outlined, color: colorScheme.onSurfaceVariant),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  hasFile ? fileName!.trim() : 'Tài liệu học (tùy chọn)',
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  hasFile
-                      ? _formatSize(fileSize)
-                      : 'PDF, DOC hoặc DOCX, tối đa 10MB',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (hasFile)
-            IconButton(
-              tooltip: 'Gỡ tài liệu',
-              onPressed: onClear,
-              icon: const Icon(Icons.close_rounded),
-            ),
-          OutlinedButton(
-            onPressed: onPick,
-            child: Text(hasFile ? 'Đổi file' : 'Chọn file'),
-          ),
-        ],
       ),
     );
   }

@@ -13,7 +13,9 @@ import 'package:fpdart/fpdart.dart' show Left, Right;
 import 'package:go_router/go_router.dart';
 
 class StudentScheduleScreen extends ConsumerStatefulWidget {
-  const StudentScheduleScreen({super.key});
+  final int refreshToken;
+
+  const StudentScheduleScreen({super.key, this.refreshToken = 0});
 
   @override
   ConsumerState<StudentScheduleScreen> createState() =>
@@ -36,6 +38,14 @@ class _StudentScheduleScreenState extends ConsumerState<StudentScheduleScreen> {
       if (!mounted) return;
       unawaited(_loadClasses());
     });
+  }
+
+  @override
+  void didUpdateWidget(covariant StudentScheduleScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.refreshToken != widget.refreshToken) {
+      unawaited(_loadClasses());
+    }
   }
 
   Future<void> _loadClasses({bool? past}) async {

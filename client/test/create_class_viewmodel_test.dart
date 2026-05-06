@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:client/core/failure/failure.dart';
 import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/features/auth/model/user_model.dart';
@@ -50,51 +48,18 @@ void main() {
       expect(fakePaymentsRepo.lastClassPayload!['title'], 'Mock class');
       expect(fakePaymentsRepo.lastClassPayload!['location_id'], 'location-1');
       expect(fakePaymentsRepo.lastClassPayload!['price'], 150000);
+      expect(
+        fakePaymentsRepo.lastClassPayload!.containsKey('material_url'),
+        isFalse,
+      );
+      expect(
+        fakePaymentsRepo.lastClassPayload!.containsKey('material_file_name'),
+        isFalse,
+      );
       expect(container.read(createClassViewModelProvider).error, isNull);
       expect(
         container.read(createClassViewModelProvider).isSubmitting,
         isFalse,
-      );
-    },
-  );
-
-  test(
-    'submitClass uploads optional class material and includes it in payment payload',
-    () async {
-      final fakePaymentsRepo = _FakePaymentsRemoteRepository();
-      final fakeTutorRepo = _FakeTutorRemoteRepository();
-      final container = ProviderContainer(
-        overrides: [
-          currentUserProvider.overrideWithValue(_sampleUser()),
-          paymentsRemoteRepositoryProvider.overrideWithValue(fakePaymentsRepo),
-          tutorRemoteRepositoryProvider.overrideWithValue(fakeTutorRepo),
-        ],
-      );
-      addTearDown(container.dispose);
-
-      final notifier = container.read(createClassViewModelProvider.notifier);
-      final payment = await notifier.submitClass(
-        topic: 'English speaking',
-        title: 'Class with material',
-        description: 'Practice session',
-        level: 'beginner',
-        locationId: 'location-1',
-        startTime: DateTime.utc(2026, 3, 22, 10),
-        endTime: DateTime.utc(2026, 3, 22, 12),
-        minParticipants: 1,
-        maxParticipants: 5,
-        price: 150000,
-        materialBytes: Uint8List.fromList([1, 2, 3]),
-        materialFileName: 'lesson-plan.pdf',
-      );
-
-      expect(payment, isNotNull);
-      expect(fakeTutorRepo.uploadClassMaterialCalls, 1);
-      expect(fakeTutorRepo.lastUploadedMaterialName, 'lesson-plan.pdf');
-      expect(fakePaymentsRepo.lastClassPayload!['material_url'], _materialUrl);
-      expect(
-        fakePaymentsRepo.lastClassPayload!['material_file_name'],
-        'lesson-plan.pdf',
       );
     },
   );
@@ -144,8 +109,6 @@ class _FakePaymentsRemoteRepository extends PaymentsRemoteRepository {
 
 class _FakeTutorRemoteRepository extends TutorRemoteRepository {
   int createClassCalls = 0;
-  int uploadClassMaterialCalls = 0;
-  String? lastUploadedMaterialName;
 
   _FakeTutorRemoteRepository() : super(Dio());
 
@@ -157,18 +120,4 @@ class _FakeTutorRemoteRepository extends TutorRemoteRepository {
     createClassCalls += 1;
     return const Right(<String, dynamic>{});
   }
-
-  @override
-  Future<Either<AppFailure, String>> uploadClassMaterial({
-    required String token,
-    required String fileName,
-    Uint8List? fileBytes,
-    String? filePath,
-  }) async {
-    uploadClassMaterialCalls += 1;
-    lastUploadedMaterialName = fileName;
-    return const Right(_materialUrl);
-  }
 }
-
-const _materialUrl = 'http://127.0.0.1:8000/static/class-materials/lesson.pdf';

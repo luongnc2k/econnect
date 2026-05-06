@@ -96,4 +96,44 @@ class ClassSession {
     final url = materialUrl?.trim();
     return url != null && url.isNotEmpty;
   }
+
+  ClassSession withLearningMaterialFallback(ClassSession fallback) {
+    if (hasLearningMaterial || !fallback.hasLearningMaterial) {
+      return this;
+    }
+
+    return ClassSession(
+      id: id,
+      classCode: classCode,
+      title: title,
+      location: location,
+      locationAddress: locationAddress,
+      locationNotes: locationNotes,
+      teacherId: teacherId,
+      teacherName: teacherName,
+      teacherAvatarUrl: teacherAvatarUrl,
+      timeText: timeText,
+      endTimeText: endTimeText,
+      priceText: priceText,
+      totalPriceText: totalPriceText,
+      imageUrl: imageUrl,
+      materialUrl: fallback.materialUrl,
+      materialFileName: materialFileName ?? fallback.materialFileName,
+      statusText: statusText,
+      countdownText: countdownText,
+      tags: tags,
+      startDateTime: startDateTime,
+      endDateTime: endDateTime,
+      description: description,
+      dateText: dateText,
+      slotText: slotText,
+      levelText: levelText,
+      teacherRating: teacherRating,
+      teacherSessionCount: teacherSessionCount,
+      teacherReviewCount: teacherReviewCount,
+      enrolledStudents: enrolledStudents,
+      enrolledInitials: enrolledInitials,
+      extraEnrolled: extraEnrolled,
+    );
+  }
 }

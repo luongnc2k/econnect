@@ -53,12 +53,16 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen>
   bool _paymentAppWasBackgrounded = false;
   bool _resumeStatusCheckInFlight = false;
   int _selectedReviewRating = 0;
+  ClassSession? _latestSession;
   final _reviewCommentController = TextEditingController();
+
+  ClassSession get _session => _latestSession ?? widget.session;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    unawaited(_loadLatestSession());
     _loadBookingStatus();
     _loadTutorReviewStatus();
   }
@@ -70,6 +74,29 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen>
     _pollTimer = null;
     _reviewCommentController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadLatestSession() async {
+    final user = ref.read(currentUserProvider);
+    final classCode = widget.session.classCode?.trim();
+    if (user == null || classCode == null || classCode.isEmpty) {
+      return;
+    }
+
+    final result = await ref
+        .read(studentRemoteRepositoryProvider)
+        .getClassByCode(user.token, classCode, includePast: true);
+    if (!mounted) {
+      return;
+    }
+
+    if (result is Right<AppFailure, ClassSession>) {
+      setState(
+        () => _latestSession = result.value.withLearningMaterialFallback(
+          _session,
+        ),
+      );
+    }
   }
 
   @override
@@ -97,7 +124,7 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen>
 
   Future<void> _loadBookingStatus() async {
     final user = ref.read(currentUserProvider);
-    final classId = widget.session.id;
+    final classId = _session.id;
     if (user == null || classId == null || classId.isEmpty) {
       return;
     }
@@ -124,7 +151,7 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen>
       return;
     }
     final user = ref.read(currentUserProvider);
-    final classId = widget.session.id;
+    final classId = _session.id;
     if (user == null || classId == null || classId.isEmpty) {
       _showMessage('Không tìm thấy thông tin lớp học để thanh toán.');
       return;
@@ -262,7 +289,7 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen>
 
   Future<void> _loadTutorReviewStatus() async {
     final user = ref.read(currentUserProvider);
-    final classId = widget.session.id;
+    final classId = _session.id;
     if (user == null || classId == null || classId.isEmpty) {
       return;
     }
@@ -495,7 +522,7 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen>
 
   Future<void> _submitTutorReview() async {
     final user = ref.read(currentUserProvider);
-    final classId = widget.session.id;
+    final classId = _session.id;
     final reviewStatus = _reviewStatus;
     if (user == null || classId == null || classId.isEmpty) {
       _showMessage('Không tìm thấy buổi học để gửi đánh giá.');
@@ -576,7 +603,7 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen>
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final hPad = responsiveHPad(context);
-    final session = widget.session;
+    final session = _session;
     final statusCardData = _resolveStatusCardData();
     final shouldShowPaymentAction =
         !_loadingBookingStatus && !_shouldHidePaymentAction;
