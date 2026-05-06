@@ -45,6 +45,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
   String? _thumbnailFileName;
   String? _thumbnailFilePath;
   PaymentTransactionStatus? _transaction;
+  _CreateClassDraftSnapshot? _pendingPaymentDraft;
   Timer? _pollTimer;
   bool _pollingPayment = false;
   int _pollAttempts = 0;
@@ -83,6 +84,31 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
     return transaction != null &&
         !transaction.isTerminal &&
         (transaction.status == 'pending' || transaction.status == 'processing');
+  }
+
+  bool get _pendingPaymentMatchesCurrentDraft {
+    final pendingDraft = _pendingPaymentDraft;
+    return _hasPendingPaymentTransaction &&
+        pendingDraft != null &&
+        pendingDraft == _currentDraftSnapshot();
+  }
+
+  _CreateClassDraftSnapshot _currentDraftSnapshot() {
+    final description = _descriptionController.text.trim();
+    return _CreateClassDraftSnapshot(
+      topic: _topicController.text.trim(),
+      title: _titleController.text.trim(),
+      description: description.isEmpty ? null : description,
+      level: _selectedLevel,
+      locationId: _selectedLocationId,
+      startTimeUtcIso: _startTime?.toUtc().toIso8601String(),
+      endTimeUtcIso: _endTime?.toUtc().toIso8601String(),
+      minParticipants: int.tryParse(_minParticipantsController.text) ?? 1,
+      maxParticipants: int.tryParse(_maxParticipantsController.text) ?? 0,
+      price: int.tryParse(_priceController.text.replaceAll(',', '')) ?? 0,
+      thumbnailFileName: _thumbnailFileName,
+      thumbnailFilePath: _thumbnailFilePath,
+    );
   }
 
   @override
@@ -124,6 +150,10 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
       return;
     }
 
+    _discardPendingPaymentForChangedDraft();
+  }
+
+  void _discardPendingPaymentForChangedDraft({bool showMessage = true}) {
     _pollTimer?.cancel();
     _pollTimer = null;
     _pollRequestInFlight = false;
@@ -133,9 +163,12 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
 
     setState(() {
       _transaction = null;
+      _pendingPaymentDraft = null;
       _pollingPayment = false;
     });
-    _showMessage(_draftChangedMessage);
+    if (showMessage) {
+      _showMessage(_draftChangedMessage);
+    }
   }
 
   @override
@@ -282,8 +315,11 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
 
   Future<void> _handlePrimaryPaymentAction(CreateClassState vmState) async {
     if (_hasPendingPaymentTransaction && !_pollingPayment) {
-      await _resumePendingPayment();
-      return;
+      if (_pendingPaymentMatchesCurrentDraft) {
+        await _resumePendingPayment();
+        return;
+      }
+      _discardPendingPaymentForChangedDraft(showMessage: false);
     }
 
     final confirmed = await _confirmCreationPaymentDisclaimer();
@@ -384,7 +420,12 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
       return;
     }
 
-    setState(() => _transaction = null);
+    final submittedDraft = _currentDraftSnapshot();
+
+    setState(() {
+      _transaction = null;
+      _pendingPaymentDraft = null;
+    });
 
     final payment = await ref
         .read(createClassViewModelProvider.notifier)
@@ -411,9 +452,15 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
       return;
     }
 
+    if (submittedDraft != _currentDraftSnapshot()) {
+      _discardPendingPaymentForChangedDraft(showMessage: false);
+      _showMessage(_draftChangedMessage);
+      return;
+    }
+
     setState(() {
       _transaction = payment;
-      _thumbnailBytes = null;
+      _pendingPaymentDraft = submittedDraft;
     });
 
     final redirectUrl = payment.redirectUrl;
@@ -597,6 +644,13 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
       return;
     }
 
+    final currentTransaction = _transaction;
+    if (currentTransaction == null ||
+        currentTransaction.transactionRef != status.transactionRef ||
+        !_pendingPaymentMatchesCurrentDraft) {
+      return;
+    }
+
     setState(() => _transaction = status);
     if (!status.isTerminal) {
       return;
@@ -645,7 +699,10 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
     final vmState = ref.watch(createClassViewModelProvider);
     final colorScheme = Theme.of(context).colorScheme;
     final canResumePendingPayment =
-        _hasPendingPaymentTransaction && !_pollingPayment;
+        _pendingPaymentMatchesCurrentDraft && !_pollingPayment;
+    final shouldShowTransactionStatus =
+        _transaction != null &&
+        (!_hasPendingPaymentTransaction || _pendingPaymentMatchesCurrentDraft);
     final primaryActionLabel = canResumePendingPayment
         ? 'Ti\u1ebfp t\u1ee5c thanh to\u00e1n t\u1ea1o l\u1edbp'
         : 'T\u1ea1o bu\u1ed5i h\u1ecdc v\u00e0 thanh to\u00e1n';
@@ -680,6 +737,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
             const _SectionLabel('Thông tin buổi học'),
             const SizedBox(height: 12),
             _FormField(
+              fieldKey: const ValueKey('create-class-title'),
               controller: _titleController,
               label: 'Tiêu đề buổi học *',
               hint: 'Ví dụ: Luyện giao tiếp tiếng Anh cơ bản',
@@ -698,6 +756,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
             ),
             const SizedBox(height: 12),
             _FormField(
+              fieldKey: const ValueKey('create-class-topic'),
               controller: _topicController,
               label: 'Chủ đề buổi học *',
               hint: 'Ví dụ: Giao tiếp cho người đi làm',
@@ -725,6 +784,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
             ),
             const SizedBox(height: 12),
             _FormField(
+              fieldKey: const ValueKey('create-class-description'),
               controller: _descriptionController,
               label: 'Mô tả (tùy chọn)',
               hint: 'Nội dung sẽ học, mục tiêu buổi học, yêu cầu học viên...',
@@ -783,6 +843,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
               children: [
                 Expanded(
                   child: _FormField(
+                    fieldKey: const ValueKey('create-class-min-participants'),
                     controller: _minParticipantsController,
                     label: 'Tối thiểu *',
                     keyboardType: TextInputType.number,
@@ -799,6 +860,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
                 const SizedBox(width: 12),
                 Expanded(
                   child: _FormField(
+                    fieldKey: const ValueKey('create-class-max-participants'),
                     controller: _maxParticipantsController,
                     label: 'Tối đa *',
                     keyboardType: TextInputType.number,
@@ -816,6 +878,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
             ),
             const SizedBox(height: 12),
             _FormField(
+              fieldKey: const ValueKey('create-class-price'),
               controller: _priceController,
               label: 'Tổng học phí buổi học (VNĐ) *',
               hint: 'Ví dụ: 200000 cho cả lớp',
@@ -831,6 +894,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
             ),
             const SizedBox(height: 32),
             FilledButton(
+              key: const ValueKey('create-class-submit'),
               onPressed: vmState.isSubmitting || _pollingPayment
                   ? null
                   : () => _handlePrimaryPaymentAction(vmState),
@@ -850,7 +914,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
                       style: const TextStyle(fontSize: 16),
                     ),
             ),
-            if (_transaction != null) ...[
+            if (shouldShowTransactionStatus) ...[
               const SizedBox(height: 16),
               _PaymentStatusCard(
                 transaction: _transaction!,
@@ -863,6 +927,70 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
       ),
     );
   }
+}
+
+@immutable
+class _CreateClassDraftSnapshot {
+  final String topic;
+  final String title;
+  final String? description;
+  final String level;
+  final String? locationId;
+  final String? startTimeUtcIso;
+  final String? endTimeUtcIso;
+  final int minParticipants;
+  final int maxParticipants;
+  final int price;
+  final String? thumbnailFileName;
+  final String? thumbnailFilePath;
+
+  const _CreateClassDraftSnapshot({
+    required this.topic,
+    required this.title,
+    required this.description,
+    required this.level,
+    required this.locationId,
+    required this.startTimeUtcIso,
+    required this.endTimeUtcIso,
+    required this.minParticipants,
+    required this.maxParticipants,
+    required this.price,
+    required this.thumbnailFileName,
+    required this.thumbnailFilePath,
+  });
+
+  @override
+  bool operator ==(Object other) {
+    return other is _CreateClassDraftSnapshot &&
+        other.topic == topic &&
+        other.title == title &&
+        other.description == description &&
+        other.level == level &&
+        other.locationId == locationId &&
+        other.startTimeUtcIso == startTimeUtcIso &&
+        other.endTimeUtcIso == endTimeUtcIso &&
+        other.minParticipants == minParticipants &&
+        other.maxParticipants == maxParticipants &&
+        other.price == price &&
+        other.thumbnailFileName == thumbnailFileName &&
+        other.thumbnailFilePath == thumbnailFilePath;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    topic,
+    title,
+    description,
+    level,
+    locationId,
+    startTimeUtcIso,
+    endTimeUtcIso,
+    minParticipants,
+    maxParticipants,
+    price,
+    thumbnailFileName,
+    thumbnailFilePath,
+  );
 }
 
 class _SectionLabel extends StatelessWidget {
@@ -1133,6 +1261,7 @@ class _PaymentStatusCard extends StatelessWidget {
 }
 
 class _FormField extends StatelessWidget {
+  final Key? fieldKey;
   final TextEditingController controller;
   final String label;
   final String? hint;
@@ -1143,6 +1272,7 @@ class _FormField extends StatelessWidget {
   final String? Function(String?)? validator;
 
   const _FormField({
+    this.fieldKey,
     required this.controller,
     required this.label,
     this.hint,
@@ -1156,6 +1286,7 @@ class _FormField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TextFormField(
+      key: fieldKey,
       controller: controller,
       maxLines: maxLines,
       maxLength: maxLength,
