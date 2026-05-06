@@ -902,7 +902,9 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Text(
-                      'Bạn cần bổ sung tài khoản ngân hàng để tiếp tục dùng tài khoản Tutor và nhận payout sau các buổi học.',
+                      profile is TeacherMyProfileModel
+                          ? 'Bạn cần bổ sung tài khoản ngân hàng để tiếp tục dùng tài khoản Tutor và nhận payout sau các buổi học.'
+                          : 'Bạn cần bổ sung tài khoản ngân hàng để tiếp tục dùng tài khoản Học viên và nhận hoàn tiền khi cần.',
                       style: TextStyle(
                         color: Theme.of(context).colorScheme.onPrimaryContainer,
                         fontWeight: FontWeight.w600,
