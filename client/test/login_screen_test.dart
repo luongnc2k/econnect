@@ -12,7 +12,7 @@ import 'package:go_router/go_router.dart';
 
 void main() {
   testWidgets(
-    'student login redirects to bank setup when bank account is missing',
+    'student login lands on student home even when bank account is missing',
     (tester) async {
       final fakeAuthViewModel = _FakeAuthViewModel(
         user: UserModel(
@@ -55,8 +55,8 @@ void main() {
       await tester.tap(find.text('Sign In'));
       await tester.pumpAndSettle();
 
-      expect(find.text('BANK_SETUP'), findsOneWidget);
-      expect(find.text('STUDENT_HOME'), findsNothing);
+      expect(find.text('STUDENT_HOME'), findsOneWidget);
+      expect(find.text('BANK_SETUP'), findsNothing);
     },
   );
 }

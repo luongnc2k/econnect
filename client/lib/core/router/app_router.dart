@@ -2,13 +2,11 @@ import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/features/auth/view/screens/login_screen.dart';
 import 'package:client/features/notifications/view/screens/notifications_screen.dart';
 import 'package:client/features/auth/view/screens/signup_screen.dart';
-import 'package:client/features/profile/model/student_my_profile_model.dart';
 import 'package:client/features/profile/model/teacher_my_profile_model.dart';
 import 'package:client/features/profile/view/screens/edit_my_profile_screen.dart';
 import 'package:client/features/profile/view/screens/my_profile_screen.dart';
 import 'package:client/features/profile/view/screens/user_profile_screen.dart';
 import 'package:client/features/profile/viewmodel/my_profile_viewmodel.dart';
-import 'package:client/features/profile/view/widgets/student_bank_account_gate.dart';
 import 'package:client/features/profile/view/widgets/teacher_bank_account_gate.dart';
 import 'package:client/features/search/view/screens/user_search_screen.dart';
 import 'package:client/features/student/model/class_session.dart';
@@ -92,11 +90,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       if (loggedIn) {
         final isTeacher = currentUser.role == 'teacher';
         final onTeacherBankSetup = path == AppRoutes.teacherBankSetup;
-        final onStudentBankSetup = path == AppRoutes.studentBankSetup;
         final requiresTeacherBankSetup =
             profile is TeacherMyProfileModel && !profile.hasPayoutBankAccount;
-        final requiresStudentBankSetup =
-            profile is StudentMyProfileModel && !profile.hasBankAccount;
 
         if (onAuth) {
           return AppRoutes.homeForRole(currentUser.role);
@@ -104,14 +99,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         if (requiresTeacherBankSetup && !onTeacherBankSetup) {
           return AppRoutes.teacherBankSetup;
         }
-        if (requiresStudentBankSetup && !onStudentBankSetup) {
-          return AppRoutes.studentBankSetup;
-        }
         if (isTeacher && onTeacherBankSetup && !requiresTeacherBankSetup) {
           return AppRoutes.teacherHome;
-        }
-        if (!isTeacher && onStudentBankSetup && !requiresStudentBankSetup) {
-          return AppRoutes.studentHome;
         }
 
         // teacher bị vào route student → redirect về teacher home
@@ -159,10 +148,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.studentHome,
-        builder: (context, state) => StudentBankAccountGate(
-          redirectPath: AppRoutes.studentBankSetup,
-          child: const StudentNavShell(),
-        ),
+        builder: (context, state) => const StudentNavShell(),
         routes: [
           GoRoute(
             path: 'search',
