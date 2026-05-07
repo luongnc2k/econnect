@@ -148,6 +148,10 @@ flutter run --dart-define=SERVER_URL=http://<LAN_IP_CUA_MAY_DEV>:8000
 flutter build apk --release \
   --dart-define=SERVER_URL=https://econnect-server-6uhpsgm7fq-as.a.run.app
 
+# Chay app local / may that nhung dung backend Cloud Run
+curl.exe https://econnect-server-6uhpsgm7fq-as.a.run.app/health/live
+flutter run --dart-define=SERVER_URL=https://econnect-server-6uhpsgm7fq-as.a.run.app
+
 # Ví dụ chạy client có bật FCM trên Android/iOS
 flutter run \
   --dart-define=FCM_API_KEY=... \
@@ -157,6 +161,8 @@ flutter run \
   --dart-define=FCM_IOS_APP_ID=... \
   --dart-define=FCM_IOS_BUNDLE_ID=com.example.client
 ```
+
+Chi tiet setup app local voi backend Google Cloud xem `docs/setup_guide.md`, muc `8.1`.
 
 ---
 

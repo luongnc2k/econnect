@@ -208,6 +208,63 @@ flutter build apk --release \
 - `STATIC_PUBLIC_URL` là base URL backend dùng để sinh link `/static/...` khi upload local fallback, và nên trùng với `SERVER_URL` mà client truy cập được
 - nếu URL `ngrok` đổi, bạn phải restart backend và confirm webhook lại
 
+## 8.1. Chạy app local nhưng dùng backend Google Cloud
+
+Dùng setup này khi bạn muốn chạy Flutter app trên máy dev, Android emulator, hoặc điện thoại thật nhưng toàn bộ API đi lên backend Cloud Run.
+Không cần chạy backend local và không cần dùng file `server/.env` local cho luồng này.
+
+Hiện tại nên ưu tiên Cloud Run direct URL cho tới khi custom domain `api.econnect.vn` được map đúng:
+
+```text
+https://econnect-server-6uhpsgm7fq-as.a.run.app
+```
+
+Trước khi chạy app, kiểm tra URL backend thật:
+
+```powershell
+curl.exe https://econnect-server-6uhpsgm7fq-as.a.run.app/health/live
+```
+
+Kết quả đúng phải là JSON của FastAPI, ví dụ có các field `status`, `app_env`, `payment_gateway_mode`.
+Nếu gọi `https://api.econnect.vn/health/live` mà trả HTML của n8n hoặc lỗi SSL thì chưa dùng `api.econnect.vn` làm `SERVER_URL`.
+
+Chạy app local trỏ Cloud Run:
+
+```powershell
+cd client
+flutter pub get
+
+# Desktop / emulator / máy thật ở chế độ debug
+flutter run --dart-define=SERVER_URL=https://econnect-server-6uhpsgm7fq-as.a.run.app
+
+# Chọn thiết bị cụ thể
+flutter devices
+flutter run -d <DEVICE_ID> --dart-define=SERVER_URL=https://econnect-server-6uhpsgm7fq-as.a.run.app
+
+# Test gần giống bản phát hành trên máy thật
+flutter run --release -d <DEVICE_ID> --dart-define=SERVER_URL=https://econnect-server-6uhpsgm7fq-as.a.run.app
+```
+
+Build APK release trỏ Cloud Run:
+
+```powershell
+cd client
+flutter build apk --release --dart-define=SERVER_URL=https://econnect-server-6uhpsgm7fq-as.a.run.app
+adb install -r build\app\outputs\flutter-apk\app-release.apk
+```
+
+Kiểm tra upload ảnh khi app đang gọi Cloud Run:
+
+- Upload avatar hoặc thumbnail từ app.
+- URL trả về nên có dạng `https://storage.googleapis.com/econnect-user-avatars/...` hoặc `https://storage.googleapis.com/econnect-class-thumbnails/...`.
+- Nếu URL trả về dạng `http://127.0.0.1:8000/static/...` hoặc `http://10.0.2.2:8000/static/...`, app đang gọi nhầm backend local hoặc backend không chạy cấu hình Cloud Run/GCS.
+
+Lưu ý payment:
+
+- Health hiện có thể trả `payment_gateway_mode=mock` và `payos_mock_mode=true`; khi đó app vẫn test được login, search, profile, upload, tạo lớp mock, nhưng chưa test QR payOS thật.
+- Muốn test QR payOS thật trên Cloud Run, backend Cloud Run phải có `PAYMENT_GATEWAY_MODE=live`, `PAYOS_MOCK_MODE=false`, credential payOS thật, và `PAYMENT_PUBLIC_BASE_URL` trỏ tới URL public đúng.
+- Chỉ chuyển `SERVER_URL` sang `https://api.econnect.vn` sau khi `curl.exe https://api.econnect.vn/health/live` trả JSON FastAPI.
+
 ## 9. Seed dữ liệu mẫu nếu cần
 
 Nếu bạn cần dữ liệu nền như topic, location, teacher mẫu:

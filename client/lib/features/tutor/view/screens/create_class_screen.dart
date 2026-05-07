@@ -482,7 +482,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
     _beginPolling(transactionRef);
     final launched = await launchUrl(
       Uri.parse(redirectUrl),
-      mode: LaunchMode.platformDefault,
+      mode: LaunchMode.externalApplication,
       webOnlyWindowName: kIsWeb ? '_blank' : null,
     );
 
