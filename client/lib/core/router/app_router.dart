@@ -2,6 +2,7 @@ import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/features/auth/view/screens/login_screen.dart';
 import 'package:client/features/notifications/view/screens/notifications_screen.dart';
 import 'package:client/features/auth/view/screens/signup_screen.dart';
+import 'package:client/features/payments/view/screens/payment_return_screen.dart';
 import 'package:client/features/profile/model/teacher_my_profile_model.dart';
 import 'package:client/features/profile/view/screens/edit_my_profile_screen.dart';
 import 'package:client/features/profile/view/screens/my_profile_screen.dart';
@@ -24,6 +25,7 @@ abstract class AppRoutes {
   static const login = '/login';
   static const signup = '/signup';
   static const notifications = '/notifications';
+  static const paymentReturn = '/payment-return';
 
   static const studentHome = '/student';
   static const studentBankSetup = '/student/bank-setup';
@@ -58,12 +60,12 @@ final _routerRefreshNotifierProvider = Provider<_RouterRefreshNotifier>((ref) {
   ref.listen(currentUserProvider, (previous, next) {
     notifier.refresh();
   });
-  ref.listen(
-    myProfileViewModelProvider.select((state) => state.profile),
-    (previous, next) {
-      notifier.refresh();
-    },
-  );
+  ref.listen(myProfileViewModelProvider.select((state) => state.profile), (
+    previous,
+    next,
+  ) {
+    notifier.refresh();
+  });
   ref.onDispose(notifier.dispose);
 
   return notifier;
@@ -84,8 +86,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final loggedIn = currentUser != null;
       final path = state.uri.path;
       final onAuth = path == AppRoutes.login || path == AppRoutes.signup;
+      final onPaymentReturn = path == AppRoutes.paymentReturn;
 
-      if (!loggedIn && !onAuth) return AppRoutes.login;
+      if (!loggedIn && !onAuth && !onPaymentReturn) return AppRoutes.login;
 
       if (loggedIn) {
         final isTeacher = currentUser.role == 'teacher';
@@ -95,6 +98,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
         if (onAuth) {
           return AppRoutes.homeForRole(currentUser.role);
+        }
+        if (onPaymentReturn) {
+          return null;
         }
         if (requiresTeacherBankSetup && !onTeacherBankSetup) {
           return AppRoutes.teacherBankSetup;
@@ -128,6 +134,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.notifications,
         builder: (context, state) => const NotificationsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.paymentReturn,
+        builder: (context, state) => PaymentReturnScreen(
+          transactionRef:
+              state.uri.queryParameters['transaction_ref'] ??
+              state.uri.queryParameters['transactionRef'],
+          initialStatus: state.uri.queryParameters['status'],
+          providerOrderId:
+              state.uri.queryParameters['provider_order_id'] ??
+              state.uri.queryParameters['providerOrderId'],
+        ),
       ),
       GoRoute(
         path: AppRoutes.userProfile,
