@@ -9,6 +9,8 @@ import 'package:client/core/widgets/app_tag_chip.dart';
 import 'package:client/core/widgets/status_badge.dart';
 import 'package:client/features/payments/model/payment_transaction_status.dart';
 import 'package:client/features/payments/repositories/payments_remote_repository.dart';
+import 'package:client/features/profile/model/student_my_profile_model.dart';
+import 'package:client/features/profile/viewmodel/my_profile_viewmodel.dart';
 import 'package:client/features/student/model/class_session.dart';
 import 'package:client/features/student/model/student_class_booking_status.dart';
 import 'package:client/features/student/model/student_tutor_review_status.dart';
@@ -48,6 +50,7 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen>
   bool _loadingBookingStatus = false;
   bool _loadingReviewStatus = false;
   bool _savingReview = false;
+  bool _checkingBankSetup = false;
   bool _pollRequestInFlight = false;
   bool _awaitingExternalPaymentReturn = false;
   bool _paymentAppWasBackgrounded = false;
@@ -63,6 +66,11 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     unawaited(_loadLatestSession());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        unawaited(_loadStudentBankSetupStatus());
+      }
+    });
     _loadBookingStatus();
     _loadTutorReviewStatus();
   }
@@ -97,6 +105,54 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen>
         ),
       );
     }
+  }
+
+  Future<void> _loadStudentBankSetupStatus() async {
+    final user = ref.read(currentUserProvider);
+    if (user?.role != 'student') {
+      return;
+    }
+
+    final state = ref.read(myProfileViewModelProvider);
+    final profile = state.profile;
+    final hasCurrentProfile = profile != null && profile.id == user!.id;
+    if (hasCurrentProfile || state.isLoading) {
+      return;
+    }
+
+    await ref.read(myProfileViewModelProvider.notifier).fetchMyProfile();
+  }
+
+  Future<bool> _ensureStudentBankAccountReady() async {
+    final user = ref.read(currentUserProvider);
+    if (user?.role != 'student') {
+      return true;
+    }
+
+    var profile = ref.read(myProfileViewModelProvider).profile;
+    if (profile == null || profile.id != user!.id) {
+      setState(() => _checkingBankSetup = true);
+      await ref.read(myProfileViewModelProvider.notifier).fetchMyProfile();
+      if (!mounted) {
+        return false;
+      }
+      setState(() => _checkingBankSetup = false);
+      profile = ref.read(myProfileViewModelProvider).profile;
+    }
+
+    if (profile is StudentMyProfileModel && profile.hasBankAccount) {
+      return true;
+    }
+
+    _showMessage('Vui lòng bổ sung tài khoản ngân hàng trước khi đăng ký lớp.');
+    if (mounted) {
+      context.push(AppRoutes.studentBankSetup);
+    }
+    return false;
+  }
+
+  void _openStudentBankSetup() {
+    context.push(AppRoutes.studentBankSetup);
   }
 
   @override
@@ -147,13 +203,17 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen>
   }
 
   Future<void> _startPayment() async {
-    if (_submitting || _polling) {
+    if (_submitting || _polling || _checkingBankSetup) {
       return;
     }
     final user = ref.read(currentUserProvider);
     final classId = _session.id;
     if (user == null || classId == null || classId.isEmpty) {
       _showMessage('Không tìm thấy thông tin lớp học để thanh toán.');
+      return;
+    }
+
+    if (!await _ensureStudentBankAccountReady()) {
       return;
     }
 
@@ -604,9 +664,23 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen>
     final cs = Theme.of(context).colorScheme;
     final hPad = responsiveHPad(context);
     final session = _session;
+    final currentUser = ref.watch(currentUserProvider);
+    final profileState = ref.watch(myProfileViewModelProvider);
+    final profile = profileState.profile;
+    final isStudent = currentUser?.role == 'student';
     final statusCardData = _resolveStatusCardData();
     final shouldShowPaymentAction =
         !_loadingBookingStatus && !_shouldHidePaymentAction;
+    final studentBankAccountMissing =
+        shouldShowPaymentAction &&
+        isStudent &&
+        profile is StudentMyProfileModel &&
+        !profile.hasBankAccount;
+    final loadingStudentBankAccount =
+        shouldShowPaymentAction &&
+        isStudent &&
+        (profile == null || profile.id != currentUser?.id) &&
+        (profileState.isLoading || _checkingBankSetup);
     final paymentActionLabel = _canResumePendingTransaction
         ? 'Tiếp tục thanh toán'
         : 'Đăng ký và thanh toán';
@@ -617,6 +691,22 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen>
               child: Padding(
                 padding: EdgeInsets.fromLTRB(hPad, 8, hPad, 12),
                 child: const _BookingStatusLoadingCard(),
+              ),
+            )
+          : loadingStudentBankAccount
+          ? SafeArea(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(hPad, 8, hPad, 12),
+                child: const _StudentBankSetupCheckingCard(),
+              ),
+            )
+          : studentBankAccountMissing
+          ? SafeArea(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(hPad, 8, hPad, 12),
+                child: _StudentBankSetupRequiredCard(
+                  onSubmit: _openStudentBankSetup,
+                ),
               ),
             )
           : shouldShowPaymentAction
@@ -900,6 +990,90 @@ class _PaymentActionCard extends StatelessWidget {
               style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12),
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+class _StudentBankSetupCheckingCard extends StatelessWidget {
+  const _StudentBankSetupCheckingCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: cs.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: cs.outlineVariant),
+      ),
+      child: const Row(
+        children: [
+          SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          SizedBox(width: 10),
+          Expanded(child: Text('Đang kiểm tra tài khoản ngân hàng của bạn...')),
+        ],
+      ),
+    );
+  }
+}
+
+class _StudentBankSetupRequiredCard extends StatelessWidget {
+  final VoidCallback? onSubmit;
+
+  const _StudentBankSetupRequiredCard({required this.onSubmit});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: cs.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: cs.outlineVariant),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.account_balance_rounded, color: cs.primary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Cần tài khoản ngân hàng',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Vui lòng lưu tài khoản ngân hàng trước khi đăng ký lớp để hệ thống có thể hoàn tiền khi cần.',
+            style: TextStyle(color: cs.onSurfaceVariant, height: 1.4),
+          ),
+          const SizedBox(height: 10),
+          FilledButton.icon(
+            onPressed: onSubmit,
+            icon: const Icon(Icons.edit_rounded),
+            label: const Text('Cập nhật tài khoản ngân hàng'),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(46),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          ),
         ],
       ),
     );

@@ -68,7 +68,9 @@ void main() {
       expect(fakeTutorRepo.getLearningLocationsCalls, 1);
       expect(find.text('Đang tải danh sách địa điểm học...'), findsNothing);
       expect(find.byType(DropdownButtonFormField<String>), findsOneWidget);
-      expect(find.text('Tài liệu học (tùy chọn)'), findsNothing);
+      await tester.drag(find.byType(ListView), const Offset(0, -500));
+      await tester.pumpAndSettle();
+      expect(find.text('Tài liệu học (tùy chọn)'), findsOneWidget);
     },
   );
 
@@ -242,11 +244,19 @@ Future<void> _fillRequiredClassFields(
     'English speaking',
   );
 
-  final locationDropdown = find.byType(DropdownButtonFormField<String>).last;
-  await tester.ensureVisible(locationDropdown);
-  await tester.tap(locationDropdown);
+  await tester.drag(find.byType(ListView), const Offset(0, -700));
   await tester.pumpAndSettle();
-  await tester.tap(find.text('Remote Location 01').last);
+  final locationDropdown = find.byWidgetPredicate(
+    (widget) =>
+        widget is DropdownButtonFormField<String> &&
+        widget.key is ValueKey<String> &&
+        (widget.key as ValueKey<String>).value.startsWith('location-'),
+  );
+  await tester.ensureVisible(locationDropdown);
+  tester
+      .widget<DropdownButtonFormField<String>>(locationDropdown)
+      .onChanged
+      ?.call('loc-1');
   await tester.pumpAndSettle();
 
   await _pickInitialDateTime(tester, 0);

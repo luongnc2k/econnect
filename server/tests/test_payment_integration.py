@@ -9,6 +9,20 @@ from routes import payments as payments_routes
 from tests.helpers import auth_headers, create_learning_location, login_user, signup_user
 
 
+def test_payment_status_page_contains_app_return_deep_link():
+    html = payments_routes._render_payment_status_page(
+        title="Payment completed",
+        message="Return to app",
+        transaction_ref="CLS-123",
+        status="paid",
+        provider_order_id="987654321",
+    )
+
+    assert "econnect:///payment-return?transaction_ref=CLS-123&amp;status=paid" in html
+    assert "provider_order_id=987654321" in html
+    assert "Quay lại ứng dụng EConnect" in html
+
+
 def test_payment_flow_creates_class_confirms_tuition_and_restricts_transaction_access(client, db_session):
     teacher_payload, teacher_signup_response = signup_user(
         client,
@@ -83,6 +97,26 @@ def test_payment_flow_creates_class_confirms_tuition_and_restricts_transaction_a
         password=student_payload["password"],
     )
     student_token = student_login_response.json()["token"]
+
+    missing_bank_join_response = client.post(
+        f"/payments/classes/{creation_body['class_id']}/join/request",
+        headers=auth_headers(student_token),
+        json={},
+    )
+    assert missing_bank_join_response.status_code == 400
+    assert "tai khoan ngan hang" in missing_bank_join_response.json()["detail"]
+
+    update_student_bank_response = client.put(
+        "/profile/me",
+        headers=auth_headers(student_token),
+        json={
+            "bank_name": "MBBank",
+            "bank_bin": "970422",
+            "bank_account_number": "1234567890",
+            "bank_account_holder": "STUDENT PAYMENT",
+        },
+    )
+    assert update_student_bank_response.status_code == 200
 
     join_response = client.post(
         f"/payments/classes/{creation_body['class_id']}/join/request",

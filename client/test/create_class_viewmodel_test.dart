@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:client/core/failure/failure.dart';
 import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/features/auth/model/user_model.dart';
@@ -63,6 +65,50 @@ void main() {
       );
     },
   );
+
+  test(
+    'submitClass uploads optional material and includes it in payment payload',
+    () async {
+      final fakePaymentsRepo = _FakePaymentsRemoteRepository();
+      final fakeTutorRepo = _FakeTutorRemoteRepository();
+      final container = ProviderContainer(
+        overrides: [
+          currentUserProvider.overrideWithValue(_sampleUser()),
+          paymentsRemoteRepositoryProvider.overrideWithValue(fakePaymentsRepo),
+          tutorRemoteRepositoryProvider.overrideWithValue(fakeTutorRepo),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final notifier = container.read(createClassViewModelProvider.notifier);
+      final payment = await notifier.submitClass(
+        topic: 'English speaking',
+        title: 'Mock class',
+        description: 'Practice session',
+        level: 'beginner',
+        locationId: 'location-1',
+        startTime: DateTime.utc(2026, 3, 22, 10),
+        endTime: DateTime.utc(2026, 3, 22, 12),
+        minParticipants: 1,
+        maxParticipants: 5,
+        price: 150000,
+        materialBytes: Uint8List.fromList([1, 2, 3]),
+        materialFileName: 'lesson.pdf',
+      );
+
+      expect(payment, isNotNull);
+      expect(fakeTutorRepo.uploadClassMaterialCalls, 1);
+      expect(fakeTutorRepo.lastMaterialFileName, 'lesson.pdf');
+      expect(
+        fakePaymentsRepo.lastClassPayload?['material_url'],
+        'https://example.com/class-materials/lesson.pdf',
+      );
+      expect(
+        fakePaymentsRepo.lastClassPayload?['material_file_name'],
+        'lesson.pdf',
+      );
+    },
+  );
 }
 
 UserModel _sampleUser() {
@@ -109,6 +155,8 @@ class _FakePaymentsRemoteRepository extends PaymentsRemoteRepository {
 
 class _FakeTutorRemoteRepository extends TutorRemoteRepository {
   int createClassCalls = 0;
+  int uploadClassMaterialCalls = 0;
+  String? lastMaterialFileName;
 
   _FakeTutorRemoteRepository() : super(Dio());
 
@@ -119,5 +167,17 @@ class _FakeTutorRemoteRepository extends TutorRemoteRepository {
   ) async {
     createClassCalls += 1;
     return const Right(<String, dynamic>{});
+  }
+
+  @override
+  Future<Either<AppFailure, String>> uploadClassMaterial({
+    required String token,
+    required String fileName,
+    Uint8List? fileBytes,
+    String? filePath,
+  }) async {
+    uploadClassMaterialCalls += 1;
+    lastMaterialFileName = fileName;
+    return const Right('https://example.com/class-materials/lesson.pdf');
   }
 }

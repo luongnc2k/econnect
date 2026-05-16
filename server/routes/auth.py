@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from pydantic_schemas.user_create import AdminUserCreate, UserCreate
 from pydantic_schemas.user_login import UserLogin
 from pydantic_schemas.user_response import LoginResponse, UserResponse
+from models.student_profile import StudentProfile
 from models.teacher_profile import TeacherProfile
 from models.user import User
 from database import get_db
@@ -71,6 +72,15 @@ def signup_user(user: UserCreate, db: Session = Depends(get_db)):
             bank_account_holder=user.bank_account_holder,
         )
         db.add(teacher_profile)
+    elif user.role == "student":
+        student_profile = StudentProfile(
+            user_id=new_user.id,
+            bank_name=user.bank_name,
+            bank_bin=user.bank_bin,
+            bank_account_number=user.bank_account_number,
+            bank_account_holder=user.bank_account_holder,
+        )
+        db.add(student_profile)
 
     db.commit()
     db.refresh(new_user)

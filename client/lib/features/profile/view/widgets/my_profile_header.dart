@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:client/core/utils/backend_asset_url.dart';
 import 'package:client/features/auth/model/user_model.dart';
 import 'package:client/features/profile/model/teacher_my_profile_model.dart';
 import 'package:flutter/material.dart';
@@ -22,8 +23,8 @@ class MyProfileHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final avatar = profile.avatarUrl?.trim();
-    final hasAvatar = avatar != null && avatar.isNotEmpty;
+    final avatar = normalizeBackendAssetUrl(profile.avatarUrl).trim();
+    final hasAvatar = avatar.isNotEmpty;
 
     ImageProvider? imageProvider;
     if (hasAvatar) {

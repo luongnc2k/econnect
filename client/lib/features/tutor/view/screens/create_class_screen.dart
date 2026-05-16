@@ -10,6 +10,7 @@ import 'package:client/features/tutor/model/learning_location.dart';
 import 'package:client/features/tutor/repositories/tutor_remote_repository.dart';
 import 'package:client/features/tutor/viewmodel/create_class_viewmodel.dart';
 import 'package:client/features/tutor/viewmodel/tutor_home_viewmodel.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -44,6 +45,10 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
   Uint8List? _thumbnailBytes;
   String? _thumbnailFileName;
   String? _thumbnailFilePath;
+  Uint8List? _materialBytes;
+  String? _materialFileName;
+  String? _materialFilePath;
+  int? _materialFileSize;
   PaymentTransactionStatus? _transaction;
   _CreateClassDraftSnapshot? _pendingPaymentDraft;
   Timer? _pollTimer;
@@ -61,6 +66,8 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
   String? _locationError;
   static const _maxPollAttempts = 90;
   static const _maxConsecutivePollErrors = 3;
+  static const _maxMaterialFileBytes = 3 * 1024 * 1024;
+  static const _allowedMaterialExtensions = {'pdf', 'doc', 'docx'};
   static const _draftChangedMessage =
       'Thông tin buổi học đã thay đổi. App sẽ tạo mã thanh toán mới để lưu đúng nội dung.';
 
@@ -108,6 +115,9 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
       price: int.tryParse(_priceController.text.replaceAll(',', '')) ?? 0,
       thumbnailFileName: _thumbnailFileName,
       thumbnailFilePath: _thumbnailFilePath,
+      materialFileName: _materialFileName,
+      materialFilePath: _materialFilePath,
+      materialFileSize: _materialFileSize,
     );
   }
 
@@ -142,6 +152,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
     _pollTimer?.cancel();
     _pollTimer = null;
     _thumbnailBytes = null;
+    _materialBytes = null;
     super.dispose();
   }
 
@@ -313,6 +324,80 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
     });
   }
 
+  Future<void> _pickMaterial() async {
+    final result = await FilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: _allowedMaterialExtensions.toList(),
+      allowMultiple: false,
+      withData: true,
+    );
+    if (result == null || result.files.isEmpty || !mounted) {
+      return;
+    }
+
+    final file = result.files.single;
+    final fileName = file.name.trim();
+    final extension = _fileExtension(fileName);
+    if (!_allowedMaterialExtensions.contains(extension)) {
+      _showMessage('Chỉ hỗ trợ tài liệu PDF, DOC hoặc DOCX.');
+      return;
+    }
+
+    final fileSize = await _resolvePickedMaterialSize(file);
+    if (fileSize != null && fileSize >= _maxMaterialFileBytes) {
+      _showMessage('Tài liệu phải nhỏ hơn 3 MB.');
+      return;
+    }
+
+    final bytes = file.bytes;
+    final path = kIsWeb ? null : file.path;
+    if (bytes == null && (path == null || path.trim().isEmpty)) {
+      _showMessage('Không đọc được tài liệu đã chọn.');
+      return;
+    }
+
+    _handleDraftChanged();
+    setState(() {
+      _materialBytes = bytes;
+      _materialFileName = fileName;
+      _materialFilePath = path;
+      _materialFileSize = fileSize;
+    });
+  }
+
+  Future<int?> _resolvePickedMaterialSize(PlatformFile file) async {
+    if (file.size > 0) {
+      return file.size;
+    }
+    final path = file.path;
+    if (!kIsWeb && path != null && path.trim().isNotEmpty) {
+      try {
+        return await File(path).length();
+      } catch (_) {
+        return null;
+      }
+    }
+    return file.bytes?.length;
+  }
+
+  String _fileExtension(String fileName) {
+    final dotIndex = fileName.lastIndexOf('.');
+    if (dotIndex == -1 || dotIndex == fileName.length - 1) {
+      return '';
+    }
+    return fileName.substring(dotIndex + 1).toLowerCase();
+  }
+
+  void _clearMaterial() {
+    _handleDraftChanged();
+    setState(() {
+      _materialBytes = null;
+      _materialFileName = null;
+      _materialFilePath = null;
+      _materialFileSize = null;
+    });
+  }
+
   Future<void> _handlePrimaryPaymentAction(CreateClassState vmState) async {
     if (_hasPendingPaymentTransaction && !_pollingPayment) {
       if (_pendingPaymentMatchesCurrentDraft) {
@@ -446,6 +531,9 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
           thumbnailBytes: _thumbnailBytes,
           thumbnailFileName: _thumbnailFileName,
           thumbnailFilePath: _thumbnailFilePath,
+          materialBytes: _materialBytes,
+          materialFileName: _materialFileName,
+          materialFilePath: _materialFilePath,
         );
 
     if (!mounted || payment == null) {
@@ -800,6 +888,15 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
               },
             ),
             const SizedBox(height: 20),
+            const _SectionLabel('Tài liệu buổi học'),
+            const SizedBox(height: 12),
+            _MaterialPicker(
+              fileName: _materialFileName,
+              fileSize: _materialFileSize,
+              onPick: _pickMaterial,
+              onRemove: _clearMaterial,
+            ),
+            const SizedBox(height: 20),
             const _SectionLabel('Địa điểm'),
             const SizedBox(height: 12),
             _LocationSection(
@@ -943,6 +1040,9 @@ class _CreateClassDraftSnapshot {
   final int price;
   final String? thumbnailFileName;
   final String? thumbnailFilePath;
+  final String? materialFileName;
+  final String? materialFilePath;
+  final int? materialFileSize;
 
   const _CreateClassDraftSnapshot({
     required this.topic,
@@ -957,6 +1057,9 @@ class _CreateClassDraftSnapshot {
     required this.price,
     required this.thumbnailFileName,
     required this.thumbnailFilePath,
+    required this.materialFileName,
+    required this.materialFilePath,
+    required this.materialFileSize,
   });
 
   @override
@@ -973,11 +1076,14 @@ class _CreateClassDraftSnapshot {
         other.maxParticipants == maxParticipants &&
         other.price == price &&
         other.thumbnailFileName == thumbnailFileName &&
-        other.thumbnailFilePath == thumbnailFilePath;
+        other.thumbnailFilePath == thumbnailFilePath &&
+        other.materialFileName == materialFileName &&
+        other.materialFilePath == materialFilePath &&
+        other.materialFileSize == materialFileSize;
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     topic,
     title,
     description,
@@ -990,7 +1096,10 @@ class _CreateClassDraftSnapshot {
     price,
     thumbnailFileName,
     thumbnailFilePath,
-  );
+    materialFileName,
+    materialFilePath,
+    materialFileSize,
+  ]);
 }
 
 class _SectionLabel extends StatelessWidget {
@@ -1369,6 +1478,118 @@ class _DateTimeButton extends StatelessWidget {
             color: value != null ? null : colorScheme.onSurfaceVariant,
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _MaterialPicker extends StatelessWidget {
+  final String? fileName;
+  final int? fileSize;
+  final VoidCallback onPick;
+  final VoidCallback onRemove;
+
+  const _MaterialPicker({
+    required this.fileName,
+    required this.fileSize,
+    required this.onPick,
+    required this.onRemove,
+  });
+
+  bool get _hasFile => fileName != null && fileName!.trim().isNotEmpty;
+
+  String _formatFileSize(int bytes) {
+    final mb = bytes / (1024 * 1024);
+    if (mb >= 1) {
+      return '${mb.toStringAsFixed(1)} MB';
+    }
+    final kb = bytes / 1024;
+    return '${kb.toStringAsFixed(0)} KB';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final title = _hasFile ? 'Đã chọn tài liệu' : 'Tài liệu học (tùy chọn)';
+    final subtitle = _hasFile
+        ? [
+            fileName!.trim(),
+            if (fileSize != null) _formatFileSize(fileSize!),
+          ].join(' · ')
+        : 'PDF, DOC hoặc DOCX, dưới 3 MB.';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colorScheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  Icons.description_outlined,
+                  color: colorScheme.onPrimaryContainer,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: colorScheme.onSurfaceVariant,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (_hasFile)
+                IconButton(
+                  tooltip: 'Xóa tài liệu',
+                  onPressed: onRemove,
+                  icon: const Icon(Icons.close_rounded),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerRight,
+            child: OutlinedButton.icon(
+              key: const ValueKey('create-class-material-picker'),
+              onPressed: onPick,
+              icon: Icon(
+                _hasFile ? Icons.swap_horiz_rounded : Icons.upload_file_rounded,
+              ),
+              label: Text(_hasFile ? 'Đổi tài liệu' : 'Chọn tài liệu'),
+            ),
+          ),
+        ],
       ),
     );
   }

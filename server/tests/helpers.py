@@ -42,7 +42,7 @@ def signup_user(
         "full_name": full_name or f"{role.title()} User",
         "role": role,
     }
-    if role == "teacher" and with_bank_account:
+    if role in {"student", "teacher"} and with_bank_account:
         payload.update(
             {
                 "bank_name": bank_name,

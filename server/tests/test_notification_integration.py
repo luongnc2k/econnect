@@ -25,6 +25,8 @@ def _signup_and_login(client, *, role: str, full_name: str) -> tuple[dict, str]:
         client,
         role=role,
         full_name=full_name,
+        with_bank_account=role == "student",
+        bank_account_holder=full_name,
     )
     assert signup_response.status_code == 201
 

@@ -55,9 +55,9 @@ def test_class_material_rejects_unsupported_format(client):
     assert response.json()["detail"] == "Chi ho tro tai lieu dinh dang PDF, DOC hoac DOCX"
 
 
-def test_class_material_rejects_file_larger_than_10mb(client):
+def test_class_material_rejects_file_not_smaller_than_3mb(client):
     token = _teacher_token(client)
-    too_large_pdf = b"%PDF-" + (b"x" * (10 * 1024 * 1024))
+    exactly_3mb_pdf = b"%PDF-" + (b"x" * ((3 * 1024 * 1024) - 5))
 
     response = client.post(
         "/upload/class-material",
@@ -65,7 +65,7 @@ def test_class_material_rejects_file_larger_than_10mb(client):
         files={
             "file": (
                 "oversized.pdf",
-                too_large_pdf,
+                exactly_3mb_pdf,
                 "application/pdf",
             )
         },

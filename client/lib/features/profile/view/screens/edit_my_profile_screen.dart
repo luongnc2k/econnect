@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:client/core/constants/server_constant.dart';
 import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/core/router/app_router.dart';
+import 'package:client/core/utils/backend_asset_url.dart';
 import 'package:client/features/auth/model/user_model.dart';
 import 'package:client/features/profile/model/payout_bank_account_verification_result.dart';
 import 'package:client/features/profile/model/payout_bank_option.dart';
@@ -1345,9 +1346,8 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
   }
 
   Widget _buildAvatarSection(UserModel profile, bool isUploading) {
-    final avatarUrl = profile.avatarUrl;
+    final avatarUrl = normalizeBackendAssetUrl(profile.avatarUrl).trim();
     final hasNetworkAvatar =
-        avatarUrl != null &&
         avatarUrl.isNotEmpty &&
         (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://'));
 

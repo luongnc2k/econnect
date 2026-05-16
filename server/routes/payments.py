@@ -1,9 +1,11 @@
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
+from html import escape
 import logging
 import os
 import uuid
 from typing import Optional
+from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from fastapi.responses import HTMLResponse
@@ -320,6 +322,23 @@ def _serialize_transaction_status(
     )
 
 
+def _payment_return_deep_link(
+    *,
+    transaction_ref: str,
+    status: str,
+    provider_order_id: Optional[str] = None,
+) -> str:
+    scheme = (os.getenv("APP_DEEP_LINK_SCHEME", "econnect") or "econnect").strip()
+    scheme = scheme.rstrip(":/") or "econnect"
+    query_params = {
+        "transaction_ref": transaction_ref,
+        "status": status,
+    }
+    if provider_order_id:
+        query_params["provider_order_id"] = provider_order_id
+    return f"{scheme}:///payment-return?{urlencode(query_params)}"
+
+
 def _render_payment_status_page(
     *,
     title: str,
@@ -328,25 +347,48 @@ def _render_payment_status_page(
     status: str,
     provider_order_id: Optional[str] = None,
 ) -> str:
-    provider_order_html = (
-        f"<p><strong>Provider order:</strong> {provider_order_id}</p>" if provider_order_id else ""
+    app_deep_link = _payment_return_deep_link(
+        transaction_ref=transaction_ref,
+        status=status,
+        provider_order_id=provider_order_id,
     )
+    provider_order_html = (
+        f"<p><strong>Provider order:</strong> {escape(provider_order_id)}</p>"
+        if provider_order_id
+        else ""
+    )
+    safe_title = escape(title)
+    safe_message = escape(message)
+    safe_transaction_ref = escape(transaction_ref)
+    safe_status = escape(status)
+    safe_app_deep_link = escape(app_deep_link, quote=True)
     return f"""
 <!doctype html>
 <html lang="vi">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>{title}</title>
+  <title>{safe_title}</title>
 </head>
 <body style="font-family: Arial, sans-serif; padding: 24px; background: #f5f7fb;">
   <div style="max-width: 560px; margin: 40px auto; background: white; border-radius: 16px; padding: 24px; box-shadow: 0 10px 40px rgba(19, 35, 72, 0.12);">
-    <h1 style="margin-top: 0;">{title}</h1>
-    <p>{message}</p>
-    <p><strong>Transaction:</strong> {transaction_ref}</p>
+    <h1 style="margin-top: 0;">{safe_title}</h1>
+    <p>{safe_message}</p>
+    <p><strong>Transaction:</strong> {safe_transaction_ref}</p>
     {provider_order_html}
-    <p><strong>Status:</strong> {status}</p>
+    <p><strong>Status:</strong> {safe_status}</p>
+    <p>
+      <a id="returnAppLink" href="{safe_app_deep_link}" style="display: inline-block; margin-top: 12px; padding: 12px 16px; border-radius: 10px; background: #2563eb; color: white; text-decoration: none; font-weight: 700;">
+        Quay lại ứng dụng EConnect
+      </a>
+    </p>
+    <p style="color: #5f6b7a; font-size: 14px;">Nếu ứng dụng không tự mở, hãy bấm nút phía trên.</p>
   </div>
+  <script>
+    window.setTimeout(function () {{
+      window.location.href = document.getElementById('returnAppLink').href;
+    }}, 350);
+  </script>
 </body>
 </html>
 """
@@ -540,6 +582,39 @@ def _require_student_refund_destination(student_profile: Optional[StudentProfile
         )
 
     return bank_bin, account_number
+
+
+def _require_student_bank_account_for_registration(
+    student_profile: Optional[StudentProfile],
+) -> None:
+    bank_bin = _resolve_student_bank_bin(student_profile)
+    account_number = (
+        (student_profile.bank_account_number or "").strip() if student_profile else ""
+    )
+    account_holder = (
+        (student_profile.bank_account_holder or "").strip() if student_profile else ""
+    )
+    bank_name = (student_profile.bank_name or "").strip() if student_profile else ""
+
+    missing_fields = []
+    if not bank_name:
+        missing_fields.append("bank_name")
+    if not bank_bin:
+        missing_fields.append("bank_bin")
+    if not account_number:
+        missing_fields.append("bank_account_number")
+    if not account_holder:
+        missing_fields.append("bank_account_holder")
+
+    if missing_fields:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Hoc vien can cap nhat day du thong tin tai khoan ngan hang "
+                "truoc khi dang ky lop: "
+                + ", ".join(missing_fields)
+            ),
+        )
 
 
 def _build_student_refund_description(cls: Class) -> str:
@@ -1040,6 +1115,9 @@ def create_join_payment_request(
     existing_booking = db.query(Booking).filter(Booking.class_id == class_id, Booking.student_id == student.id).first()
     if existing_booking and existing_booking.status in {"confirmed", "completed", "payment_pending"}:
         raise HTTPException(status_code=409, detail="Hoc vien da co giao dich dang xu ly voi lop nay")
+
+    student_profile = _get_student_profile(db, student.id)
+    _require_student_bank_account_for_registration(student_profile)
 
     tuition = calculate_student_tuition(cls.price, cls.max_participants)
     if existing_booking:

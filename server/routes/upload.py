@@ -34,7 +34,7 @@ EXTENSION_TO_CONTENT_TYPE = {
 MAX_THUMBNAIL = 5 * 1024 * 1024  # 5MB
 MAX_AVATAR = 5 * 1024 * 1024  # 5MB
 MAX_TEACHER_DOC = 8 * 1024 * 1024  # 8MB
-MAX_CLASS_MATERIAL = 10 * 1024 * 1024  # 10MB
+MAX_CLASS_MATERIAL = 3 * 1024 * 1024  # 3MB
 ALLOWED_CLASS_MATERIAL_TYPES = {
     "application/pdf",
     "application/msword",
@@ -255,10 +255,13 @@ async def upload_class_material_file(
         )
 
     data = await file.read()
-    if len(data) > MAX_CLASS_MATERIAL:
+    if len(data) >= MAX_CLASS_MATERIAL:
         raise HTTPException(
             status_code=400,
-            detail=f"File too large: {len(data)} bytes (max {MAX_CLASS_MATERIAL} bytes)",
+            detail=(
+                f"File too large: {len(data)} bytes "
+                f"(must be less than {MAX_CLASS_MATERIAL} bytes)"
+            ),
         )
     _validate_class_material_payload(data, content_type)
 
