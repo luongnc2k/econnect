@@ -8,6 +8,7 @@ import 'package:client/features/payments/model/payment_summary.dart';
 import 'package:client/features/payments/model/payment_transaction_status.dart';
 import 'package:client/features/payments/repositories/payments_remote_repository.dart';
 import 'package:client/features/profile/model/payout_bank_account_verification_result.dart';
+import 'package:client/features/profile/model/student_my_profile_model.dart';
 import 'package:client/features/profile/model/teacher_my_profile_model.dart';
 import 'package:client/features/profile/repositories/my_profile_repository.dart';
 import 'package:client/features/profile/view/widgets/my_profile_view.dart';
@@ -79,15 +80,20 @@ void main() {
       hasBooking: false,
       isRegistered: false,
     );
+    final fakeProfileRepo = _FakeMyProfileRepository(
+      profile: _sampleStudentProfile(),
+    );
 
     await tester.pumpWidget(
       _buildApp(
         child: ClassDetailScreen(session: _sampleClassSession()),
         fakeRepo: fakeRepo,
         fakeStudentRepo: fakeStudentRepo,
+        fakeProfileRepo: fakeProfileRepo,
         user: _sampleUser(role: 'student'),
       ),
     );
+    await tester.pump();
     await tester.pump();
 
     expect(find.text('Quay lại'), findsOneWidget);
@@ -158,15 +164,20 @@ void main() {
         hasBooking: false,
         isRegistered: false,
       );
+      final fakeProfileRepo = _FakeMyProfileRepository(
+        profile: _sampleStudentProfile(),
+      );
 
       await tester.pumpWidget(
         _buildApp(
           child: ClassDetailScreen(session: _sampleClassSession()),
           fakeRepo: fakeRepo,
           fakeStudentRepo: fakeStudentRepo,
+          fakeProfileRepo: fakeProfileRepo,
           user: _sampleUser(role: 'student'),
         ),
       );
+      await tester.pump();
       await tester.pump();
 
       await tester.tap(find.byType(FilledButton));
@@ -199,6 +210,72 @@ void main() {
   );
 
   testWidgets(
+    'student can resume pending booking payment after returning to class detail',
+    (tester) async {
+      fakeStudentRepo.bookingStatusResult = const StudentClassBookingStatus(
+        classId: 'class-1',
+        hasBooking: true,
+        isRegistered: false,
+        bookingId: 'booking-3',
+        bookingStatus: 'payment_pending',
+        paymentStatus: 'pending',
+        escrowStatus: 'pending',
+        paymentReference: 'TUI-RESUME-1',
+        tuitionAmount: 50000,
+      );
+      fakeRepo.transactionStatuses = [
+        const PaymentTransactionStatus(
+          paymentId: 'pay-3',
+          transactionRef: 'TUI-RESUME-1',
+          paymentType: 'tuition',
+          provider: 'payos',
+          status: 'pending',
+          amount: 50000,
+          redirectUrl:
+              'http://localhost:8000/payments/mock/checkout/TUI-RESUME-1',
+          classId: 'class-1',
+          bookingId: 'booking-3',
+          bookingStatus: 'payment_pending',
+          escrowStatus: 'pending',
+          classStatus: 'scheduled',
+          message: 'Dang cho ket qua thanh toan',
+        ),
+      ];
+      final fakeProfileRepo = _FakeMyProfileRepository(
+        profile: _sampleStudentProfile(),
+      );
+
+      await tester.pumpWidget(
+        _buildApp(
+          child: ClassDetailScreen(session: _sampleClassSession()),
+          fakeRepo: fakeRepo,
+          fakeStudentRepo: fakeStudentRepo,
+          fakeProfileRepo: fakeProfileRepo,
+          user: _sampleUser(role: 'student'),
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+
+      expect(fakeStudentRepo.getMyBookingStatusCalls, 1);
+      expect(find.text('BOOKING PAYMENT_PENDING'), findsOneWidget);
+      expect(find.text('PAYMENT PENDING'), findsOneWidget);
+      expect(find.text('Tiếp tục thanh toán'), findsOneWidget);
+
+      await tester.tap(find.text('Tiếp tục thanh toán'));
+      await tester.pump();
+      await tester.pump();
+
+      expect(fakeRepo.createJoinPaymentCalls, 0);
+      expect(fakeRepo.getTransactionStatusCalls, 1);
+      expect(
+        fakeUrlLauncher.launchedUrls.single,
+        'http://localhost:8000/payments/mock/checkout/TUI-RESUME-1',
+      );
+    },
+  );
+
+  testWidgets(
     'student detail hides payment action when class is already registered',
     (tester) async {
       fakeStudentRepo.bookingStatusResult = const StudentClassBookingStatus(
@@ -218,6 +295,9 @@ void main() {
           child: ClassDetailScreen(session: _sampleClassSession()),
           fakeRepo: fakeRepo,
           fakeStudentRepo: fakeStudentRepo,
+          fakeProfileRepo: _FakeMyProfileRepository(
+            profile: _sampleStudentProfile(),
+          ),
           user: _sampleUser(role: 'student'),
         ),
       );
@@ -254,6 +334,9 @@ void main() {
         ),
         fakeRepo: fakeRepo,
         fakeStudentRepo: fakeStudentRepo,
+        fakeProfileRepo: _FakeMyProfileRepository(
+          profile: _sampleStudentProfile(),
+        ),
         user: _sampleUser(role: 'student'),
       ),
     );
@@ -286,6 +369,9 @@ void main() {
         child: ClassDetailScreen(session: _sampleClassSession()),
         fakeRepo: fakeRepo,
         fakeStudentRepo: fakeStudentRepo,
+        fakeProfileRepo: _FakeMyProfileRepository(
+          profile: _sampleStudentProfile(),
+        ),
         user: _sampleUser(role: 'student'),
       ),
     );
@@ -327,6 +413,9 @@ void main() {
           child: ClassDetailScreen(session: _sampleClassSession()),
           fakeRepo: fakeRepo,
           fakeStudentRepo: fakeStudentRepo,
+          fakeProfileRepo: _FakeMyProfileRepository(
+            profile: _sampleStudentProfile(),
+          ),
           user: _sampleUser(role: 'student'),
         ),
       );
@@ -488,6 +577,21 @@ UserModel _sampleUser({required String role}) {
     role: role,
     isActive: true,
     token: 'token-123',
+  );
+}
+
+StudentMyProfileModel _sampleStudentProfile() {
+  return StudentMyProfileModel(
+    id: 'user-1',
+    email: 'demo@example.com',
+    fullName: 'Demo User',
+    role: 'student',
+    isActive: true,
+    token: 'token-123',
+    bankName: 'VCB',
+    bankBin: '970436',
+    bankAccountNumber: '123456789',
+    bankAccountHolder: 'DEMO USER',
   );
 }
 

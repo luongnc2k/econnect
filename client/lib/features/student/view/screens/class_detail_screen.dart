@@ -288,6 +288,61 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen>
     );
   }
 
+  Future<void> _resumePendingBookingPayment() async {
+    if (_submitting || _polling || _checkingBankSetup) {
+      return;
+    }
+
+    final user = ref.read(currentUserProvider);
+    final transactionRef = _bookingStatus?.paymentReference?.trim();
+    if (user == null || transactionRef == null || transactionRef.isEmpty) {
+      _showMessage('Không tìm thấy link thanh toán để mở lại.');
+      return;
+    }
+
+    setState(() => _submitting = true);
+    final result = await _fetchTransactionStatus(
+      token: user.token,
+      transactionRef: transactionRef,
+    );
+    if (!mounted) {
+      return;
+    }
+    setState(() => _submitting = false);
+
+    if (result is Left<AppFailure, PaymentTransactionStatus>) {
+      _showMessage(result.value.message);
+      return;
+    }
+
+    if (result is! Right<AppFailure, PaymentTransactionStatus>) {
+      return;
+    }
+
+    final status = result.value;
+    _handleTransactionStatusUpdate(status);
+    if (_transactionShowsRegistered(status)) {
+      unawaited(_loadBookingStatus());
+      unawaited(_loadTutorReviewStatus());
+      return;
+    }
+
+    final redirectUrl = status.redirectUrl;
+    if (!_transactionShowsPending(status) ||
+        redirectUrl == null ||
+        redirectUrl.isEmpty) {
+      _showMessage(
+        status.message ?? 'Không tìm thấy link thanh toán để mở lại.',
+      );
+      return;
+    }
+
+    await _launchPaymentWindow(
+      redirectUrl: redirectUrl,
+      transactionRef: status.transactionRef,
+    );
+  }
+
   void _beginPolling(String transactionRef) {
     _pollTimer?.cancel();
     _pollRequestInFlight = false;
@@ -482,6 +537,14 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen>
         redirectUrl.isNotEmpty;
   }
 
+  bool get _hasPendingBookingPaymentReference {
+    final bookingStatus = _bookingStatus;
+    final paymentReference = bookingStatus?.paymentReference?.trim();
+    return bookingStatus?.hasPendingRegistration == true &&
+        paymentReference != null &&
+        paymentReference.isNotEmpty;
+  }
+
   bool get _shouldHidePaymentAction {
     final transaction = _transaction;
     if (transaction != null) {
@@ -493,7 +556,17 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen>
       }
     }
 
-    return _bookingStatus?.shouldHidePaymentAction ?? false;
+    final bookingStatus = _bookingStatus;
+    if (bookingStatus == null) {
+      return false;
+    }
+    if (bookingStatus.isRegistered) {
+      return true;
+    }
+    if (bookingStatus.hasPendingRegistration) {
+      return !_hasPendingBookingPaymentReference;
+    }
+    return false;
   }
 
   _StudentRegistrationCardData? _resolveStatusCardData() {
@@ -681,7 +754,9 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen>
         isStudent &&
         (profile == null || profile.id != currentUser?.id) &&
         (profileState.isLoading || _checkingBankSetup);
-    final paymentActionLabel = _canResumePendingTransaction
+    final canResumePayment =
+        _canResumePendingTransaction || _hasPendingBookingPaymentReference;
+    final paymentActionLabel = canResumePayment
         ? 'Tiếp tục thanh toán'
         : 'Đăng ký và thanh toán';
 
@@ -721,6 +796,8 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen>
                           ? null
                           : _canResumePendingTransaction
                           ? _resumePendingPayment
+                          : _hasPendingBookingPaymentReference
+                          ? _resumePendingBookingPayment
                           : _startPayment,
                       submitting: _submitting,
                       polling: _polling,
