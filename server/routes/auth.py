@@ -147,8 +147,14 @@ async def login_with_google(body: GoogleLoginRequest, db: Session = Depends(get_
     user_db = db.query(User).filter(User.google_sub == google_sub).first()
     if user_db is None and email:
         user_db = db.query(User).filter(User.email == email).first()
-        if user_db is not None and user_db.google_sub is None:
+        if user_db is not None and user_db.google_sub is None and not body.allow_signup:
             user_db.google_sub = google_sub
+
+    if user_db is not None and body.allow_signup:
+        raise HTTPException(
+            status_code=409,
+            detail="Tai khoan da ton tai. Vui long dang nhap.",
+        )
 
     if user_db is None:
         if not body.allow_signup:
