@@ -76,13 +76,17 @@ class AuthViewModel extends _$AuthViewModel {
     }
   }
 
-  Future<void> loginWithGoogle({String? role}) async {
+  Future<void> loginWithGoogle({
+    String? role,
+    bool allowSignup = false,
+  }) async {
     state = const AsyncValue.loading();
     try {
-      // final googleSignIn = GoogleSignIn(scopes: const ['email', 'profile']);
       final googleSignIn = GoogleSignIn(
-                            serverClientId: '494116766002-vmqqd3gqo4sjeh2vqs9asebll9siu0ub.apps.googleusercontent.com',
-                            scopes: const ['email', 'profile']);
+        serverClientId:
+            '494116766002-vmqqd3gqo4sjeh2vqs9asebll9siu0ub.apps.googleusercontent.com',
+        scopes: const ['email', 'profile'],
+      );
       await googleSignIn.signOut();
       final account = await googleSignIn.signIn();
       if (account == null) {
@@ -102,6 +106,7 @@ class AuthViewModel extends _$AuthViewModel {
       final res = await _authRemoteRepository.loginWithGoogle(
         idToken: idToken,
         role: role,
+        allowSignup: allowSignup,
       );
 
       switch (res) {

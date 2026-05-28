@@ -99,6 +99,7 @@ def signup_user(user: UserCreate, db: Session = Depends(get_db)):
 class GoogleLoginRequest(BaseModel):
     id_token: str
     role: Optional[Literal["student", "teacher"]] = None
+    allow_signup: bool = False
 
     @field_validator("id_token")
     @classmethod
@@ -150,6 +151,11 @@ async def login_with_google(body: GoogleLoginRequest, db: Session = Depends(get_
             user_db.google_sub = google_sub
 
     if user_db is None:
+        if not body.allow_signup:
+            raise HTTPException(
+                status_code=404,
+                detail="Tai khoan Google chua duoc dang ky. Vui long dang ky truoc.",
+            )
         if not email:
             raise HTTPException(status_code=400, detail="Google token khong co email")
         role = body.role or "student"
