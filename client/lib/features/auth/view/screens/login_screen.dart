@@ -5,6 +5,7 @@ import 'package:client/features/auth/view/widgets/auth_gradient_button.dart';
 import 'package:client/features/auth/view/widgets/auth_logo.dart';
 import 'package:client/features/auth/view/widgets/auth_scroll_body.dart';
 import 'package:client/features/auth/view/widgets/custom_field.dart';
+import 'package:client/features/auth/view/widgets/google_sign_in_button.dart';
 import 'package:client/features/profile/model/teacher_my_profile_model.dart';
 import 'package:client/features/profile/viewmodel/my_profile_viewmodel.dart';
 import 'package:client/features/auth/viewmodel/auth_viewmodel.dart';
@@ -118,6 +119,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   } else {
                     showSnackBar(context, 'Missing fields!');
                   }
+                },
+              ),
+
+              const SizedBox(height: 15),
+
+              GoogleSignInButton(
+                onTap: () async {
+                  _handledLoginRoute = false;
+                  await ref
+                      .read(authViewModelProvider.notifier)
+                      .loginWithGoogle();
                 },
               ),
 

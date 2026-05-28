@@ -1,9 +1,11 @@
+import 'package:client/core/failure/failure.dart';
 import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/features/auth/model/user_model.dart';
 import 'package:client/features/auth/repositories/auth_local_repository.dart';
 import 'package:client/features/auth/repositories/auth_remote_repository.dart';
 import 'package:client/features/profile/viewmodel/my_profile_viewmodel.dart';
 import 'package:fpdart/fpdart.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'auth_viewmodel.g.dart';
@@ -71,6 +73,48 @@ class AuthViewModel extends _$AuthViewModel {
         state = AsyncValue.error(l.message, StackTrace.current);
       case Right(value: final r):
         await _loginSuccess(r);
+    }
+  }
+
+  Future<void> loginWithGoogle({String? role}) async {
+    state = const AsyncValue.loading();
+    try {
+      // final googleSignIn = GoogleSignIn(scopes: const ['email', 'profile']);
+      final googleSignIn = GoogleSignIn(
+                            serverClientId: '494116766002-vmqqd3gqo4sjeh2vqs9asebll9siu0ub.apps.googleusercontent.com',
+                            scopes: const ['email', 'profile']);
+      await googleSignIn.signOut();
+      final account = await googleSignIn.signIn();
+      if (account == null) {
+        state = null;
+        return;
+      }
+      final auth = await account.authentication;
+      final idToken = auth.idToken;
+      if (idToken == null || idToken.isEmpty) {
+        state = AsyncValue.error(
+          AppFailure('Không lấy được Google id_token').message,
+          StackTrace.current,
+        );
+        return;
+      }
+
+      final res = await _authRemoteRepository.loginWithGoogle(
+        idToken: idToken,
+        role: role,
+      );
+
+      switch (res) {
+        case Left(value: final l):
+          state = AsyncValue.error(l.message, StackTrace.current);
+        case Right(value: final r):
+          await _loginSuccess(r);
+      }
+    } catch (e) {
+      state = AsyncValue.error(
+        'Đăng nhập Google thất bại: $e',
+        StackTrace.current,
+      );
     }
   }
 

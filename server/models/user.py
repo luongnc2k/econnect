@@ -9,7 +9,8 @@ class User(Base):
 
     id = Column(TEXT, primary_key=True)
     email = Column(VARCHAR(255), unique=True, index=True, nullable=False)
-    password_hash = Column(LargeBinary, nullable=False)
+    password_hash = Column(LargeBinary, nullable=True)
+    google_sub = Column(VARCHAR(64), unique=True, index=True, nullable=True)
     full_name = Column(VARCHAR(100), nullable=False)
     phone = Column(VARCHAR(20), nullable=True)
     avatar_url = Column(TEXT, nullable=True)

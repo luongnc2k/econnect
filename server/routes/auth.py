@@ -1,8 +1,11 @@
 import os
 from datetime import datetime, timezone
 from datetime import timedelta
+from typing import Literal, Optional
 
+import httpx
 from fastapi import Depends, Header, HTTPException
+from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import Session
 from pydantic_schemas.user_create import AdminUserCreate, UserCreate
 from pydantic_schemas.user_login import UserLogin
@@ -20,6 +23,12 @@ from middleware.auth_middleware import auth_middleware
 
 ADMIN_CREATE_SECRET = os.getenv("ADMIN_CREATE_SECRET", "")
 JWT_SECRET = os.getenv("JWT_SECRET", "dev_jwt_secret_change_me_please_32bytes")
+GOOGLE_TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo"
+
+
+def _allowed_google_audiences() -> set[str]:
+    raw = os.getenv("GOOGLE_OAUTH_CLIENT_IDS", "") or ""
+    return {item.strip() for item in raw.split(",") if item.strip()}
 
 
 router = APIRouter()
@@ -85,6 +94,95 @@ def signup_user(user: UserCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_user)
     return new_user
+
+
+class GoogleLoginRequest(BaseModel):
+    id_token: str
+    role: Optional[Literal["student", "teacher"]] = None
+
+    @field_validator("id_token")
+    @classmethod
+    def id_token_not_blank(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("id_token khong duoc rong")
+        return normalized
+
+
+async def _verify_google_id_token(id_token: str) -> dict:
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(
+                GOOGLE_TOKENINFO_URL, params={"id_token": id_token}
+            )
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail=f"Khong verify duoc Google token: {exc}")
+
+    if response.status_code != 200:
+        raise HTTPException(status_code=401, detail="Google id_token khong hop le")
+
+    payload = response.json()
+    if payload.get("aud") is None or payload.get("sub") is None:
+        raise HTTPException(status_code=401, detail="Google token thieu truong bat buoc")
+
+    allowed_aud = _allowed_google_audiences()
+    if allowed_aud and payload["aud"] not in allowed_aud:
+        raise HTTPException(status_code=401, detail="Google client_id khong duoc cap quyen")
+
+    if str(payload.get("email_verified", "false")).lower() != "true":
+        raise HTTPException(status_code=401, detail="Google account chua xac thuc email")
+
+    return payload
+
+
+@router.post("/google", response_model=LoginResponse)
+async def login_with_google(body: GoogleLoginRequest, db: Session = Depends(get_db)):
+    claims = await _verify_google_id_token(body.id_token)
+    google_sub = claims["sub"]
+    email = (claims.get("email") or "").strip().lower()
+    full_name = (claims.get("name") or "").strip() or email.split("@")[0]
+    picture = claims.get("picture")
+
+    user_db = db.query(User).filter(User.google_sub == google_sub).first()
+    if user_db is None and email:
+        user_db = db.query(User).filter(User.email == email).first()
+        if user_db is not None and user_db.google_sub is None:
+            user_db.google_sub = google_sub
+
+    if user_db is None:
+        if not email:
+            raise HTTPException(status_code=400, detail="Google token khong co email")
+        role = body.role or "student"
+        user_db = User(
+            id=str(uuid.uuid4()),
+            email=email,
+            password_hash=None,
+            google_sub=google_sub,
+            full_name=full_name,
+            avatar_url=picture,
+            role=role,
+            is_active=True,
+        )
+        db.add(user_db)
+        db.flush()
+
+        if role == "teacher":
+            db.add(TeacherProfile(user_id=user_db.id))
+        else:
+            db.add(StudentProfile(user_id=user_db.id))
+
+    if not user_db.is_active:
+        raise HTTPException(status_code=403, detail="Tai khoan da bi khoa")
+
+    if not user_db.avatar_url and picture:
+        user_db.avatar_url = picture
+
+    user_db.last_login_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(user_db)
+
+    token = _create_access_token(user_db)
+    return {"token": token, "user": user_db}
 
 
 @router.post('/login', response_model=LoginResponse)
