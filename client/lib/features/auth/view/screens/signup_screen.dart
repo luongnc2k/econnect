@@ -154,7 +154,10 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                 onTap: () async {
                   await ref
                       .read(authViewModelProvider.notifier)
-                      .loginWithGoogle(role: selectedRole);
+                      .loginWithGoogle(
+                        role: selectedRole,
+                        allowSignup: true,
+                      );
                 },
               ),
               const SizedBox(height: 20),

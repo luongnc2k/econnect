@@ -78,6 +78,7 @@ class AuthRemoteRepository {
   Future<Either<AppFailure, UserModel>> loginWithGoogle({
     required String idToken,
     String? role,
+    bool allowSignup = false,
   }) async {
     try {
       final response = await http
@@ -87,6 +88,7 @@ class AuthRemoteRepository {
             body: jsonEncode({
               'id_token': idToken,
               'role': ?role,
+              'allow_signup': allowSignup,
             }),
           )
           .timeout(_requestTimeout);
