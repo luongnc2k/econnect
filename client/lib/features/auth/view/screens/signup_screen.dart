@@ -7,6 +7,7 @@ import 'package:client/features/auth/view/widgets/auth_gradient_button.dart';
 import 'package:client/features/auth/view/widgets/auth_logo.dart';
 import 'package:client/features/auth/view/widgets/auth_scroll_body.dart';
 import 'package:client/features/auth/view/widgets/custom_field.dart';
+import 'package:client/features/auth/view/widgets/google_sign_in_button.dart';
 import 'package:client/features/auth/viewmodel/auth_viewmodel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -44,6 +45,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       next?.when(
         data: (data) {
           if (!mounted) return;
+          // Khi data co token (Google sign-up auto-login), router se tu redirect.
+          if (data.token.isNotEmpty) return;
           showSnackBar(context, 'Account created successfully! Please login');
           context.go(AppRoutes.login);
         },
@@ -143,6 +146,15 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   } else {
                     showSnackBar(context, 'Missing fields!');
                   }
+                },
+              ),
+              const SizedBox(height: 15),
+              GoogleSignInButton(
+                label: 'Đăng ký với Google',
+                onTap: () async {
+                  await ref
+                      .read(authViewModelProvider.notifier)
+                      .loginWithGoogle(role: selectedRole);
                 },
               ),
               const SizedBox(height: 20),

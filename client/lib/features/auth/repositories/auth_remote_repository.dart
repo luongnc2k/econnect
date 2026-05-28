@@ -75,6 +75,52 @@ class AuthRemoteRepository {
     }
   }
 
+  Future<Either<AppFailure, UserModel>> loginWithGoogle({
+    required String idToken,
+    String? role,
+  }) async {
+    try {
+      final response = await http
+          .post(
+            Uri.parse('${ServerConstant.serverURL}/auth/google'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'id_token': idToken,
+              'role': ?role,
+            }),
+          )
+          .timeout(_requestTimeout);
+
+      final resBodyMap = _decodeResponseBody(response.body);
+
+      if (response.statusCode != 200) {
+        return Left(
+          AppFailure(
+            resBodyMap['detail']?.toString() ?? 'Đăng nhập Google thất bại',
+            response.statusCode,
+          ),
+        );
+      }
+      return Right(
+        UserModel.fromMap(
+          resBodyMap['user'],
+        ).copyWith(token: resBodyMap['token']),
+      );
+    } on TimeoutException {
+      return Left(
+        AppFailure(
+          ServerConstant.connectionHelpText(action: 'đăng nhập Google'),
+        ),
+      );
+    } catch (e) {
+      return Left(
+        AppFailure(
+          _networkFailureMessage(action: 'đăng nhập Google', error: e),
+        ),
+      );
+    }
+  }
+
   Future<Either<AppFailure, UserModel>> login({
     required String email,
     required String password,

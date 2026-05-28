@@ -64,7 +64,7 @@ jobs:
             --platform managed \
             --service-account econnect-server@$PROJECT_ID.iam.gserviceaccount.com \
             --add-cloudsql-instances $PROJECT_ID:$REGION:econnect-db \
-            --update-env-vars="APP_ENV=production,STRICT_STARTUP_VALIDATION=false,GCS_FORCE_REMOTE=true,GCS_PROJECT=$PROJECT_ID,SERVER_PUBLIC_URL=https://api.econnect.vn,PAYMENT_PUBLIC_BASE_URL=https://api.econnect.vn,PAYMENT_GATEWAY_MODE=live,PAYOS_MOCK_MODE=false,PAYOS_PAYOUT_MOCK_MODE=false" \
+            --update-env-vars="^##^APP_ENV=production##STRICT_STARTUP_VALIDATION=false##GCS_FORCE_REMOTE=true##GCS_PROJECT=$PROJECT_ID##SERVER_PUBLIC_URL=https://api.econnect.vn##PAYMENT_PUBLIC_BASE_URL=https://api.econnect.vn##PAYMENT_GATEWAY_MODE=live##PAYOS_MOCK_MODE=false##PAYOS_PAYOUT_MOCK_MODE=false##GOOGLE_OAUTH_CLIENT_IDS=494116766002-vmqqd3gqo4sjeh2vqs9asebll9siu0ub.apps.googleusercontent.com,494116766002-lsmgsj8plfcneq5lpcccus645itgisps.apps.googleusercontent.com" \
             --update-secrets="JWT_SECRET=JWT_SECRET:latest,DATABASE_URL=DATABASE_URL:latest,ADMIN_CREATE_SECRET=ADMIN_CREATE_SECRET:latest,PAYOS_CLIENT_ID=PAYOS_CLIENT_ID:latest,PAYOS_API_KEY=PAYOS_API_KEY:latest,PAYOS_CHECKSUM_KEY=PAYOS_CHECKSUM_KEY:latest,PAYOS_PAYOUT_CLIENT_ID=PAYOS_PAYOUT_CLIENT_ID:latest,PAYOS_PAYOUT_API_KEY=PAYOS_PAYOUT_API_KEY:latest,PAYOS_PAYOUT_CHECKSUM_KEY=PAYOS_PAYOUT_CHECKSUM_KEY:latest,PAYOS_PAYOUT_PARTNER_CODE=PAYOS_PAYOUT_PARTNER_CODE:latest" \
             --allow-unauthenticated \
             --min-instances 0 \

@@ -17,6 +17,32 @@ def sync_schema(engine: Engine) -> None:
     _ensure_payment_columns(engine)
     _ensure_notifications_table(engine)
     _ensure_push_device_tokens_table(engine)
+    _ensure_user_google_columns(engine)
+
+
+def _ensure_user_google_columns(engine: Engine) -> None:
+    _ensure_columns(
+        engine,
+        "users",
+        {
+            "google_sub": "VARCHAR(64)",
+        },
+    )
+    inspector = inspect(engine)
+    if "users" not in inspector.get_table_names():
+        return
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL"
+            )
+        )
+        connection.execute(
+            text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS ix_users_google_sub "
+                "ON users (google_sub) WHERE google_sub IS NOT NULL"
+            )
+        )
 
 
 def _ensure_teacher_profile_bank_columns(engine: Engine) -> None:
