@@ -72,7 +72,12 @@ def _firebase_credentials():
             logger.exception("Khong the tao FCM credential tu FCM_SERVICE_ACCOUNT_JSON")
             return None
 
-    return None
+    # Fallback ADC: tren Cloud Run dung runtime service account, local dev dung
+    # `gcloud auth application-default login`. Khong noi sang FCM neu khong san ADC.
+    try:
+        return credentials.ApplicationDefault()
+    except Exception:
+        return None
 
 
 def fcm_is_enabled() -> bool:
@@ -92,8 +97,15 @@ def _firebase_app():
     if firebase_credentials is None:
         return None
 
+    project_id = (
+        os.getenv("FCM_PROJECT_ID")
+        or os.getenv("GOOGLE_CLOUD_PROJECT")
+        or os.getenv("GCS_PROJECT")
+    )
+    options = {"projectId": project_id} if project_id else None
+
     try:
-        return firebase_admin.initialize_app(firebase_credentials)
+        return firebase_admin.initialize_app(firebase_credentials, options)
     except ValueError:
         return firebase_admin.get_app()
 
