@@ -1,3 +1,4 @@
+import 'package:client/core/localization/app_language.dart';
 import 'package:client/core/router/app_router.dart';
 import 'package:client/features/auth/model/user_model.dart';
 import 'package:client/features/auth/view/screens/login_screen.dart';
@@ -28,6 +29,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
+            appLocaleProvider.overrideWith(() => _TestLocaleNotifier()),
             authViewModelProvider.overrideWith(() => fakeAuthViewModel),
             myProfileViewModelProvider.overrideWith(
               () => _FakeMyProfileViewModel(
@@ -81,6 +83,11 @@ GoRouter _buildRouter() {
       ),
     ],
   );
+}
+
+class _TestLocaleNotifier extends AppLocaleNotifier {
+  @override
+  Locale build() => const Locale('en');
 }
 
 class _FakeAuthViewModel extends AuthViewModel {

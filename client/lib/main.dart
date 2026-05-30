@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:client/core/constants/server_constant.dart';
+import 'package:client/core/localization/app_language.dart';
 import 'package:client/core/providers/theme_notifier.dart';
 import 'package:client/core/router/app_router.dart';
 import 'package:client/core/theme/theme.dart';
@@ -10,6 +11,7 @@ import 'package:client/features/auth/viewmodel/auth_viewmodel.dart';
 import 'package:client/features/notifications/push/notifications_push_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 NotificationsPushService? _notificationsPushService;
@@ -30,6 +32,7 @@ void main() async {
     (prev, next) {},
   );
 
+  await container.read(appLocaleProvider.notifier).loadSavedLocale();
   await container.read(authViewModelProvider.notifier).initSharedPreferences();
   await container.read(authViewModelProvider.notifier).getData();
 
@@ -60,6 +63,7 @@ class MyApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeModeProvider);
+    final locale = ref.watch(appLocaleProvider);
 
     final router = ref.watch(appRouterProvider);
 
@@ -67,6 +71,13 @@ class MyApp extends ConsumerWidget {
       title: 'econnect',
       debugShowCheckedModeBanner: false,
       scrollBehavior: const AppScrollBehavior(),
+      locale: locale,
+      supportedLocales: appSupportedLocales,
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+      ],
       theme: AppTheme.lightThemeMode,
       darkTheme: AppTheme.darkThemeMode,
       themeMode: themeMode,

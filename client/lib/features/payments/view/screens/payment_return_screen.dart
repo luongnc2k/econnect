@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:client/core/failure/failure.dart';
+import 'package:client/core/localization/app_language.dart';
 import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/features/payments/model/payment_transaction_status.dart';
 import 'package:client/features/payments/repositories/payments_remote_repository.dart';
@@ -45,10 +46,14 @@ class _PaymentReturnScreenState extends ConsumerState<PaymentReturnScreen> {
   }
 
   Future<void> _loadPaymentStatus() async {
+    final strings = ref.read(appStringsProvider);
     final transactionRef = widget.transactionRef?.trim() ?? '';
     if (transactionRef.isEmpty) {
       setState(() {
-        _message = 'Không tìm thấy mã giao dịch để kiểm tra.';
+        _message = strings.text(
+          en: 'Could not find a transaction code to check.',
+          vi: 'Không tìm thấy mã giao dịch để kiểm tra.',
+        );
       });
       return;
     }
@@ -56,7 +61,10 @@ class _PaymentReturnScreenState extends ConsumerState<PaymentReturnScreen> {
     final user = ref.read(currentUserProvider);
     if (user == null) {
       setState(() {
-        _message = 'Vui lòng đăng nhập lại để kiểm tra trạng thái thanh toán.';
+        _message = strings.text(
+          en: 'Please sign in again to check payment status.',
+          vi: 'Vui lòng đăng nhập lại để kiểm tra trạng thái thanh toán.',
+        );
       });
       return;
     }
@@ -111,37 +119,46 @@ class _PaymentReturnScreenState extends ConsumerState<PaymentReturnScreen> {
     context.go(user.role == 'teacher' ? '/teacher' : '/student');
   }
 
-  String get _title {
+  String _title(AppStrings strings) {
     final transaction = _transaction;
     if (_loading) {
-      return 'Đang kiểm tra thanh toán';
+      return strings.text(
+        en: 'Checking payment',
+        vi: 'Đang kiểm tra thanh toán',
+      );
     }
     if (transaction == null) {
-      return 'Kết quả thanh toán';
+      return strings.text(en: 'Payment result', vi: 'Kết quả thanh toán');
     }
     if (transaction.isSuccessLike) {
-      return 'Thanh toán thành công';
+      return strings.text(
+        en: 'Payment successful',
+        vi: 'Thanh toán thành công',
+      );
     }
     if (transaction.status == 'failed') {
-      return 'Thanh toán không thành công';
+      return strings.text(
+        en: 'Payment unsuccessful',
+        vi: 'Thanh toán không thành công',
+      );
     }
-    return 'Trạng thái thanh toán';
+    return strings.text(en: 'Payment status', vi: 'Trạng thái thanh toán');
   }
 
-  String _labelForStatus(String status) {
+  String _labelForStatus(String status, AppStrings strings) {
     switch (status) {
       case 'pending':
-        return 'Đang chờ thanh toán';
+        return strings.text(en: 'Pending payment', vi: 'Đang chờ thanh toán');
       case 'processing':
-        return 'Đang xử lý';
+        return strings.text(en: 'Processing', vi: 'Đang xử lý');
       case 'paid':
-        return 'Đã thanh toán';
+        return strings.text(en: 'Paid', vi: 'Đã thanh toán');
       case 'released':
-        return 'Đã đối soát';
+        return strings.text(en: 'Reconciled', vi: 'Đã đối soát');
       case 'failed':
-        return 'Thanh toán thất bại';
+        return strings.text(en: 'Payment failed', vi: 'Thanh toán thất bại');
       case 'refunded':
-        return 'Đã hoàn tiền';
+        return strings.text(en: 'Refunded', vi: 'Đã hoàn tiền');
       default:
         return status;
     }
@@ -150,13 +167,16 @@ class _PaymentReturnScreenState extends ConsumerState<PaymentReturnScreen> {
   @override
   Widget build(BuildContext context) {
     final transaction = _transaction;
+    final strings = ref.watch(appStringsProvider);
     final colorScheme = Theme.of(context).colorScheme;
     final transactionRef =
         transaction?.transactionRef ?? widget.transactionRef?.trim() ?? '';
     final initialStatus = widget.initialStatus?.trim();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Thanh toán')),
+      appBar: AppBar(
+        title: Text(strings.text(en: 'Payment', vi: 'Thanh toán')),
+      ),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -178,7 +198,7 @@ class _PaymentReturnScreenState extends ConsumerState<PaymentReturnScreen> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    _title,
+                    _title(strings),
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.w700,
@@ -200,27 +220,35 @@ class _PaymentReturnScreenState extends ConsumerState<PaymentReturnScreen> {
                     ),
                   const SizedBox(height: 20),
                   if (transactionRef.isNotEmpty)
-                    _InfoRow(label: 'Mã giao dịch', value: transactionRef),
+                    _InfoRow(
+                      label: strings.text(
+                        en: 'Transaction code',
+                        vi: 'Mã giao dịch',
+                      ),
+                      value: transactionRef,
+                    ),
                   if (transaction != null)
                     _InfoRow(
-                      label: 'Trạng thái',
-                      value: _labelForStatus(transaction.status),
+                      label: strings.text(en: 'Status', vi: 'Trạng thái'),
+                      value: _labelForStatus(transaction.status, strings),
                     )
                   else if (initialStatus != null && initialStatus.isNotEmpty)
                     _InfoRow(
-                      label: 'Trạng thái',
-                      value: _labelForStatus(initialStatus),
+                      label: strings.text(en: 'Status', vi: 'Trạng thái'),
+                      value: _labelForStatus(initialStatus, strings),
                     ),
                   if ((widget.providerOrderId ?? '').trim().isNotEmpty)
                     _InfoRow(
-                      label: 'Mã payOS',
+                      label: 'payOS',
                       value: widget.providerOrderId!.trim(),
                     ),
                   const SizedBox(height: 24),
                   FilledButton.icon(
                     onPressed: _goHome,
                     icon: const Icon(Icons.home_rounded),
-                    label: const Text('Về trang chính'),
+                    label: Text(
+                      strings.text(en: 'Back to home', vi: 'Về trang chính'),
+                    ),
                   ),
                 ],
               ),

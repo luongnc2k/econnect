@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:client/core/localization/app_language.dart';
 import 'package:client/features/auth/model/user_model.dart';
 import 'package:client/features/profile/model/student_my_profile_model.dart';
 import 'package:client/features/profile/model/teacher_my_profile_model.dart';
@@ -23,9 +24,13 @@ class MyProfileViewModel extends Notifier<MyProfileState> {
       final profile = await repository.getMyProfile();
       state = state.copyWith(isLoading: false, profile: profile);
     } catch (e) {
+      final strings = ref.read(appStringsProvider);
       state = state.copyWith(
         isLoading: false,
-        errorMessage: 'Không thể tải hồ sơ cá nhân',
+        errorMessage: strings.text(
+          en: 'Could not load your profile',
+          vi: 'Không thể tải hồ sơ cá nhân',
+        ),
       );
     }
   }
@@ -38,9 +43,13 @@ class MyProfileViewModel extends Notifier<MyProfileState> {
       state = state.copyWith(isSaving: false, profile: profile);
       return true;
     } catch (e) {
+      final strings = ref.read(appStringsProvider);
       state = state.copyWith(
         isSaving: false,
-        errorMessage: 'Cập nhật hồ sơ cá nhân thất bại',
+        errorMessage: strings.text(
+          en: 'Could not update your profile',
+          vi: 'Cập nhật hồ sơ cá nhân thất bại',
+        ),
       );
       return false;
     }
@@ -77,9 +86,13 @@ class MyProfileViewModel extends Notifier<MyProfileState> {
       state = state.copyWith(isUploadingAvatar: false, profile: updated);
       return true;
     } catch (e) {
+      final strings = ref.read(appStringsProvider);
       state = state.copyWith(
         isUploadingAvatar: false,
-        errorMessage: 'Cập nhật ảnh đại diện thất bại',
+        errorMessage: strings.text(
+          en: 'Could not update your avatar',
+          vi: 'Cập nhật ảnh đại diện thất bại',
+        ),
       );
       return false;
     }
@@ -111,9 +124,13 @@ class MyProfileViewModel extends Notifier<MyProfileState> {
       state = state.copyWith(isUploadingAvatar: false, profile: updated);
       return true;
     } catch (e) {
+      final strings = ref.read(appStringsProvider);
       state = state.copyWith(
         isUploadingAvatar: false,
-        errorMessage: 'Cập nhật chứng chỉ thất bại',
+        errorMessage: strings.text(
+          en: 'Could not update your certificate',
+          vi: 'Cập nhật chứng chỉ thất bại',
+        ),
       );
       return false;
     }
@@ -140,9 +157,13 @@ class MyProfileViewModel extends Notifier<MyProfileState> {
       state = state.copyWith(isSaving: false, profile: updated);
       return true;
     } catch (e) {
+      final strings = ref.read(appStringsProvider);
       state = state.copyWith(
         isSaving: false,
-        errorMessage: 'Xóa chứng chỉ thất bại',
+        errorMessage: strings.text(
+          en: 'Could not delete the certificate',
+          vi: 'Xóa chứng chỉ thất bại',
+        ),
       );
       return false;
     }

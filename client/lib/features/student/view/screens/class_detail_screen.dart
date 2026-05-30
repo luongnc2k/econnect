@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:client/core/failure/failure.dart';
+import 'package:client/core/localization/app_language.dart';
 import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/core/router/app_router.dart';
 import 'package:client/core/utils.dart';
@@ -144,7 +145,13 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen>
       return true;
     }
 
-    _showMessage('Vui lòng bổ sung tài khoản ngân hàng trước khi đăng ký lớp.');
+    final strings = ref.read(appStringsProvider);
+    _showMessage(
+      strings.text(
+        en: 'Please add a bank account before registering for this class.',
+        vi: 'Vui lòng bổ sung tài khoản ngân hàng trước khi đăng ký lớp.',
+      ),
+    );
     if (mounted) {
       context.push(AppRoutes.studentBankSetup);
     }
@@ -209,7 +216,13 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen>
     final user = ref.read(currentUserProvider);
     final classId = _session.id;
     if (user == null || classId == null || classId.isEmpty) {
-      _showMessage('Không tìm thấy thông tin lớp học để thanh toán.');
+      final strings = ref.read(appStringsProvider);
+      _showMessage(
+        strings.text(
+          en: 'Could not find class information for payment.',
+          vi: 'Không tìm thấy thông tin lớp học để thanh toán.',
+        ),
+      );
       return;
     }
 
@@ -238,7 +251,13 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen>
     setState(() => _transaction = payment);
     final redirectUrl = payment.redirectUrl;
     if (redirectUrl == null || redirectUrl.isEmpty) {
-      _showMessage('Không nhận được URL thanh toán từ hệ thống.');
+      final strings = ref.read(appStringsProvider);
+      _showMessage(
+        strings.text(
+          en: 'The system did not return a payment URL.',
+          vi: 'Không nhận được URL thanh toán từ hệ thống.',
+        ),
+      );
       return;
     }
 
@@ -264,8 +283,12 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen>
     if (!launched) {
       _stopPolling();
       _awaitingExternalPaymentReturn = false;
+      final strings = ref.read(appStringsProvider);
       _showMessage(
-        'Không mở được cổng thanh toán. Bạn có thể thử mở lại giao dịch sau.',
+        strings.text(
+          en: 'Could not open the payment gateway. You can try reopening the transaction later.',
+          vi: 'Không mở được cổng thanh toán. Bạn có thể thử mở lại giao dịch sau.',
+        ),
       );
       return;
     }
@@ -278,7 +301,13 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen>
     final transaction = _transaction;
     final redirectUrl = transaction?.redirectUrl;
     if (transaction == null || redirectUrl == null || redirectUrl.isEmpty) {
-      _showMessage('Không tìm thấy link thanh toán để mở lại.');
+      final strings = ref.read(appStringsProvider);
+      _showMessage(
+        strings.text(
+          en: 'Could not find a payment link to reopen.',
+          vi: 'Không tìm thấy link thanh toán để mở lại.',
+        ),
+      );
       return;
     }
 
@@ -296,7 +325,13 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen>
     final user = ref.read(currentUserProvider);
     final transactionRef = _bookingStatus?.paymentReference?.trim();
     if (user == null || transactionRef == null || transactionRef.isEmpty) {
-      _showMessage('Không tìm thấy link thanh toán để mở lại.');
+      final strings = ref.read(appStringsProvider);
+      _showMessage(
+        strings.text(
+          en: 'Could not find a payment link to reopen.',
+          vi: 'Không tìm thấy link thanh toán để mở lại.',
+        ),
+      );
       return;
     }
 
@@ -331,8 +366,13 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen>
     if (!_transactionShowsPending(status) ||
         redirectUrl == null ||
         redirectUrl.isEmpty) {
+      final strings = ref.read(appStringsProvider);
       _showMessage(
-        status.message ?? 'Không tìm thấy link thanh toán để mở lại.',
+        status.message ??
+            strings.text(
+              en: 'Could not find a payment link to reopen.',
+              vi: 'Không tìm thấy link thanh toán để mở lại.',
+            ),
       );
       return;
     }
@@ -369,8 +409,12 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen>
       _pollAttempts += 1;
       if (_pollAttempts > _maxPollAttempts) {
         _stopPolling();
+        final strings = ref.read(appStringsProvider);
         _showMessage(
-          'Đã hết thời gian đợi kết quả thanh toán. Bạn hãy thử tải lại trạng thái sau.',
+          strings.text(
+            en: 'Timed out while waiting for the payment result. Please refresh the status later.',
+            vi: 'Đã hết thời gian đợi kết quả thanh toán. Bạn hãy thử tải lại trạng thái sau.',
+          ),
         );
         return;
       }
@@ -455,14 +499,22 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen>
         _handleTransactionStatusUpdate(status);
         if (!status.isTerminal) {
           _stopPolling();
+          final strings = ref.read(appStringsProvider);
           _showMessage(
-            'Bạn đã đóng cửa sổ thanh toán. App sẽ dừng chờ thanh toán; bạn có thể bấm "Tiếp tục thanh toán" để mở lại QR.',
+            strings.text(
+              en: 'You closed the payment window. The app will stop waiting; tap "Continue payment" to reopen the QR code.',
+              vi: 'Bạn đã đóng cửa sổ thanh toán. App sẽ dừng chờ thanh toán; bạn có thể bấm "Tiếp tục thanh toán" để mở lại QR.',
+            ),
           );
         }
       } else {
         _stopPolling();
+        final strings = ref.read(appStringsProvider);
         _showMessage(
-          'Bạn đã đóng cửa sổ thanh toán. App sẽ dừng chờ thanh toán; bạn có thể bấm "Tiếp tục thanh toán" để mở lại QR.',
+          strings.text(
+            en: 'You closed the payment window. The app will stop waiting; tap "Continue payment" to reopen the QR code.',
+            vi: 'Bạn đã đóng cửa sổ thanh toán. App sẽ dừng chờ thanh toán; bạn có thể bấm "Tiếp tục thanh toán" để mở lại QR.',
+          ),
         );
       }
     } finally {
@@ -570,6 +622,7 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen>
   }
 
   _StudentRegistrationCardData? _resolveStatusCardData() {
+    final strings = ref.read(appStringsProvider);
     final transaction = _transaction;
     if (transaction != null) {
       final isRegistered = _transactionShowsRegistered(transaction);
@@ -583,10 +636,22 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen>
       ];
 
       return _StudentRegistrationCardData(
-        title: isRegistered ? 'Đăng ký thành công' : 'Trạng thái thanh toán',
+        title: isRegistered
+            ? strings.text(
+                en: 'Registration successful',
+                vi: 'Đăng ký thành công',
+              )
+            : strings.text(en: 'Payment status', vi: 'Trạng thái thanh toán'),
         message: isRegistered
-            ? 'Bạn đã đăng ký buổi học thành công'
-            : transaction.message ?? 'Đang cập nhật kết quả giao dịch.',
+            ? strings.text(
+                en: 'You have registered for this class successfully',
+                vi: 'Bạn đã đăng ký buổi học thành công',
+              )
+            : transaction.message ??
+                  strings.text(
+                    en: 'Updating transaction result.',
+                    vi: 'Đang cập nhật kết quả giao dịch.',
+                  ),
         amount: transaction.amount,
         reference: transaction.transactionRef,
         badgeLabels: badgeLabels,
@@ -617,13 +682,27 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen>
     final isRegistered = bookingStatus.isRegistered;
     final isPending = bookingStatus.hasPendingRegistration;
     final message = isRegistered
-        ? 'Bạn đã đăng ký buổi học thành công'
+        ? strings.text(
+            en: 'You have registered for this class successfully',
+            vi: 'Bạn đã đăng ký buổi học thành công',
+          )
         : isPending
-        ? 'Bạn đang có giao dịch đăng ký cho buổi học này. Vui lòng chờ hệ thống cập nhật trạng thái.'
-        : 'Hệ thống đã ghi nhận giao dịch trước đó của bạn cho buổi học này.';
+        ? strings.text(
+            en: 'You have a pending registration transaction for this class. Please wait for the system to update the status.',
+            vi: 'Bạn đang có giao dịch đăng ký cho buổi học này. Vui lòng chờ hệ thống cập nhật trạng thái.',
+          )
+        : strings.text(
+            en: 'The system recorded your previous transaction for this class.',
+            vi: 'Hệ thống đã ghi nhận giao dịch trước đó của bạn cho buổi học này.',
+          );
 
     return _StudentRegistrationCardData(
-      title: isRegistered ? 'Đăng ký thành công' : 'Trạng thái đăng ký',
+      title: isRegistered
+          ? strings.text(
+              en: 'Registration successful',
+              vi: 'Đăng ký thành công',
+            )
+          : strings.text(en: 'Registration status', vi: 'Trạng thái đăng ký'),
       message: message,
       amount: bookingStatus.tuitionAmount,
       reference: bookingStatus.paymentReference,
@@ -648,7 +727,11 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen>
       return _reviewStatus?.reason;
     }
     if (_reviewCommentWordCount > 100) {
-      return 'Nhận xét không được vượt quá 100 từ.';
+      final strings = ref.read(appStringsProvider);
+      return strings.text(
+        en: 'Your review must not exceed 100 words.',
+        vi: 'Nhận xét không được vượt quá 100 từ.',
+      );
     }
     return null;
   }
@@ -658,27 +741,55 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen>
     final classId = _session.id;
     final reviewStatus = _reviewStatus;
     if (user == null || classId == null || classId.isEmpty) {
-      _showMessage('Không tìm thấy buổi học để gửi đánh giá.');
+      final strings = ref.read(appStringsProvider);
+      _showMessage(
+        strings.text(
+          en: 'Could not find the class to submit a review.',
+          vi: 'Không tìm thấy buổi học để gửi đánh giá.',
+        ),
+      );
       return;
     }
     if (reviewStatus == null) {
-      _showMessage('Không tải được trạng thái đánh giá buổi học.');
+      final strings = ref.read(appStringsProvider);
+      _showMessage(
+        strings.text(
+          en: 'Could not load the class review status.',
+          vi: 'Không tải được trạng thái đánh giá buổi học.',
+        ),
+      );
       return;
     }
     if (reviewStatus.alreadyReviewed) {
+      final strings = ref.read(appStringsProvider);
       _showMessage(
-        reviewStatus.reason ?? 'Bạn đã gửi đánh giá cho buổi học này.',
+        reviewStatus.reason ??
+            strings.text(
+              en: 'You have already submitted a review for this class.',
+              vi: 'Bạn đã gửi đánh giá cho buổi học này.',
+            ),
       );
       return;
     }
     if (!reviewStatus.canReview) {
+      final strings = ref.read(appStringsProvider);
       _showMessage(
-        reviewStatus.reason ?? 'Bạn chưa thể gửi đánh giá vào lúc này.',
+        reviewStatus.reason ??
+            strings.text(
+              en: 'You cannot submit a review right now.',
+              vi: 'Bạn chưa thể gửi đánh giá vào lúc này.',
+            ),
       );
       return;
     }
     if (_reviewCommentWordCount > 100) {
-      _showMessage('Nhận xét không được vượt quá 100 từ.');
+      final strings = ref.read(appStringsProvider);
+      _showMessage(
+        strings.text(
+          en: 'Your review must not exceed 100 words.',
+          vi: 'Nhận xét không được vượt quá 100 từ.',
+        ),
+      );
       return;
     }
 
@@ -703,7 +814,13 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen>
         _selectedReviewRating =
             result.value.review?.rating ?? _selectedReviewRating;
       });
-      _showMessage('Đã gửi đánh giá buổi học thành công.');
+      final strings = ref.read(appStringsProvider);
+      _showMessage(
+        strings.text(
+          en: 'Class review submitted successfully.',
+          vi: 'Đã gửi đánh giá buổi học thành công.',
+        ),
+      );
       return;
     }
 
@@ -715,8 +832,12 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen>
   Future<void> _callReviewHotline() async {
     final launched = await launchUrl(Uri.parse('tel:$_reviewHotline'));
     if (!launched && mounted) {
+      final strings = ref.read(appStringsProvider);
       _showMessage(
-        'Không mở được trình gọi điện. Hotline EConnect: $_reviewHotline',
+        strings.text(
+          en: 'Could not open the phone dialer. EConnect hotline: $_reviewHotline',
+          vi: 'Không mở được trình gọi điện. Hotline EConnect: $_reviewHotline',
+        ),
       );
     }
   }
@@ -739,6 +860,7 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen>
     final session = _session;
     final currentUser = ref.watch(currentUserProvider);
     final profileState = ref.watch(myProfileViewModelProvider);
+    final strings = ref.watch(appStringsProvider);
     final profile = profileState.profile;
     final isStudent = currentUser?.role == 'student';
     final statusCardData = _resolveStatusCardData();
@@ -757,8 +879,8 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen>
     final canResumePayment =
         _canResumePendingTransaction || _hasPendingBookingPaymentReference;
     final paymentActionLabel = canResumePayment
-        ? 'Tiếp tục thanh toán'
-        : 'Đăng ký và thanh toán';
+        ? strings.text(en: 'Continue payment', vi: 'Tiếp tục thanh toán')
+        : strings.text(en: 'Register and pay', vi: 'Đăng ký và thanh toán');
 
     return Scaffold(
       bottomNavigationBar: _loadingBookingStatus && statusCardData == null
@@ -831,7 +953,7 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen>
                 padding: EdgeInsets.fromLTRB(hPad, 4, hPad, 0),
                 child: _HeroCard(
                   imageUrl: session.imageUrl,
-                  statusText: session.statusText,
+                  statusText: strings.classStatusLabel(session.statusText),
                 ),
               ),
               const SizedBox(height: 14),
@@ -934,7 +1056,10 @@ class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen>
                     if (session.enrolledInitials.isNotEmpty) ...[
                       const SizedBox(height: 18),
                       Text(
-                        'Học viên đã đăng ký (${session.slotText?.split(' ').first ?? ''})',
+                        strings.text(
+                          en: 'Registered students (${session.slotText?.split(' ').first ?? ''})',
+                          vi: 'Học viên đã đăng ký (${session.slotText?.split(' ').first ?? ''})',
+                        ),
                         style: Theme.of(context).textTheme.titleMedium
                             ?.copyWith(
                               fontWeight: FontWeight.w700,
@@ -986,6 +1111,7 @@ class _PaymentActionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final strings = AppStrings(Localizations.localeOf(context).languageCode);
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -997,14 +1123,17 @@ class _PaymentActionCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Thanh toán học phí',
+            strings.text(en: 'Tuition payment', vi: 'Thanh toán học phí'),
             style: Theme.of(
               context,
             ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 6),
           Text(
-            'Thanh toán sẽ được mở bằng payOS trong browser, app sẽ tự động kiểm tra trạng thái giao dịch.',
+            strings.text(
+              en: 'Payment opens with payOS in the browser. The app will automatically check the transaction status.',
+              vi: 'Thanh toán sẽ được mở bằng payOS trong browser, app sẽ tự động kiểm tra trạng thái giao dịch.',
+            ),
             style: TextStyle(color: cs.onSurfaceVariant, height: 1.4),
           ),
           const SizedBox(height: 10),
@@ -1020,7 +1149,10 @@ class _PaymentActionCard extends StatelessWidget {
                 Icon(Icons.account_balance_wallet_rounded, color: cs.primary),
                 const SizedBox(width: 8),
                 Text(
-                  'Cổng thanh toán: payOS',
+                  strings.text(
+                    en: 'Payment gateway: payOS',
+                    vi: 'Cổng thanh toán: payOS',
+                  ),
                   style: TextStyle(
                     color: cs.onSurface,
                     fontWeight: FontWeight.w700,
@@ -1034,7 +1166,10 @@ class _PaymentActionCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  'Học phí hiện tại: $sessionPriceText',
+                  strings.text(
+                    en: 'Current tuition: $sessionPriceText',
+                    vi: 'Học phí hiện tại: $sessionPriceText',
+                  ),
                   style: TextStyle(
                     color: cs.onSurfaceVariant,
                     fontWeight: FontWeight.w600,
@@ -1058,12 +1193,22 @@ class _PaymentActionCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(10),
               ),
             ),
-            child: Text(submitting ? 'Đang tạo giao dịch...' : submitLabel),
+            child: Text(
+              submitting
+                  ? strings.text(
+                      en: 'Creating transaction...',
+                      vi: 'Đang tạo giao dịch...',
+                    )
+                  : submitLabel,
+            ),
           ),
           if (transaction != null) ...[
             const SizedBox(height: 10),
             Text(
-              'Mã giao dịch: ${transaction!.transactionRef}',
+              strings.text(
+                en: 'Transaction code: ${transaction!.transactionRef}',
+                vi: 'Mã giao dịch: ${transaction!.transactionRef}',
+              ),
               style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12),
             ),
           ],
@@ -1079,6 +1224,7 @@ class _StudentBankSetupCheckingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final strings = AppStrings(Localizations.localeOf(context).languageCode);
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -1086,15 +1232,22 @@ class _StudentBankSetupCheckingCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: cs.outlineVariant),
       ),
-      child: const Row(
+      child: Row(
         children: [
-          SizedBox(
+          const SizedBox(
             width: 18,
             height: 18,
             child: CircularProgressIndicator(strokeWidth: 2),
           ),
-          SizedBox(width: 10),
-          Expanded(child: Text('Đang kiểm tra tài khoản ngân hàng của bạn...')),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              strings.text(
+                en: 'Checking your bank account...',
+                vi: 'Đang kiểm tra tài khoản ngân hàng của bạn...',
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -1109,6 +1262,7 @@ class _StudentBankSetupRequiredCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final strings = AppStrings(Localizations.localeOf(context).languageCode);
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -1126,7 +1280,10 @@ class _StudentBankSetupRequiredCard extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Cần tài khoản ngân hàng',
+                  strings.text(
+                    en: 'Bank account required',
+                    vi: 'Cần tài khoản ngân hàng',
+                  ),
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w800,
                   ),
@@ -1136,14 +1293,22 @@ class _StudentBankSetupRequiredCard extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            'Vui lòng lưu tài khoản ngân hàng trước khi đăng ký lớp để hệ thống có thể hoàn tiền khi cần.',
+            strings.text(
+              en: 'Please save a bank account before registering so the system can refund you when needed.',
+              vi: 'Vui lòng lưu tài khoản ngân hàng trước khi đăng ký lớp để hệ thống có thể hoàn tiền khi cần.',
+            ),
             style: TextStyle(color: cs.onSurfaceVariant, height: 1.4),
           ),
           const SizedBox(height: 10),
           FilledButton.icon(
             onPressed: onSubmit,
             icon: const Icon(Icons.edit_rounded),
-            label: const Text('Cập nhật tài khoản ngân hàng'),
+            label: Text(
+              strings.text(
+                en: 'Update bank account',
+                vi: 'Cập nhật tài khoản ngân hàng',
+              ),
+            ),
             style: FilledButton.styleFrom(
               minimumSize: const Size.fromHeight(46),
               shape: RoundedRectangleBorder(
@@ -1163,6 +1328,7 @@ class _BookingStatusLoadingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final strings = AppStrings(Localizations.localeOf(context).languageCode);
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -1170,15 +1336,22 @@ class _BookingStatusLoadingCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: cs.outlineVariant),
       ),
-      child: const Row(
+      child: Row(
         children: [
-          SizedBox(
+          const SizedBox(
             width: 18,
             height: 18,
             child: CircularProgressIndicator(strokeWidth: 2),
           ),
-          SizedBox(width: 10),
-          Expanded(child: Text('Đang kiểm tra trạng thái đăng ký của bạn...')),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              strings.text(
+                en: 'Checking your registration status...',
+                vi: 'Đang kiểm tra trạng thái đăng ký của bạn...',
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -1193,6 +1366,7 @@ class _StudentRegistrationStatusCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final strings = AppStrings(Localizations.localeOf(context).languageCode);
     final tone = switch (data.kind) {
       _StudentRegistrationCardKind.success => cs.secondaryContainer,
       _StudentRegistrationCardKind.pending => cs.primaryContainer,
@@ -1229,11 +1403,21 @@ class _StudentRegistrationStatusCard extends StatelessWidget {
           Text(data.message),
           if (data.amount != null) ...[
             const SizedBox(height: 6),
-            Text('Số tiền: ${data.amount} VND'),
+            Text(
+              strings.text(
+                en: 'Amount: ${data.amount} VND',
+                vi: 'Số tiền: ${data.amount} VND',
+              ),
+            ),
           ],
           if ((data.reference ?? '').isNotEmpty) ...[
             const SizedBox(height: 4),
-            Text('Mã giao dịch: ${data.reference}'),
+            Text(
+              strings.text(
+                en: 'Transaction code: ${data.reference}',
+                vi: 'Mã giao dịch: ${data.reference}',
+              ),
+            ),
           ],
         ],
       ),
@@ -1291,6 +1475,7 @@ class _TutorReviewSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final strings = AppStrings(Localizations.localeOf(context).languageCode);
     final reviewStatus = status;
     final submittedReview = reviewStatus?.review;
     final hasSubmittedReview =
@@ -1308,27 +1493,37 @@ class _TutorReviewSection extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Đánh giá buổi học',
+            strings.text(en: 'Class review', vi: 'Đánh giá buổi học'),
             style: Theme.of(
               context,
             ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 6),
           Text(
-            'Sau khi buổi học kết thúc, bạn có thể chấm từ 0 đến 5 sao và để lại nhận xét ngắn cho gia sư.',
+            strings.text(
+              en: 'After the class ends, you can rate from 0 to 5 stars and leave a short review for the tutor.',
+              vi: 'Sau khi buổi học kết thúc, bạn có thể chấm từ 0 đến 5 sao và để lại nhận xét ngắn cho gia sư.',
+            ),
             style: TextStyle(color: cs.onSurfaceVariant, height: 1.4),
           ),
           if (loading && reviewStatus == null) ...[
             const SizedBox(height: 12),
-            const Row(
+            Row(
               children: [
-                SizedBox(
+                const SizedBox(
                   width: 18,
                   height: 18,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 ),
-                SizedBox(width: 10),
-                Expanded(child: Text('Đang tải trạng thái đánh giá...')),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    strings.text(
+                      en: 'Loading review status...',
+                      vi: 'Đang tải trạng thái đánh giá...',
+                    ),
+                  ),
+                ),
               ],
             ),
           ] else if (reviewStatus != null) ...[
@@ -1342,7 +1537,7 @@ class _TutorReviewSection extends StatelessWidget {
                   OutlinedButton(
                     key: const Key('tutorReviewStar-0'),
                     onPressed: () => onSelectRating(0),
-                    child: const Text('0 sao'),
+                    child: Text(strings.text(en: '0 stars', vi: '0 sao')),
                   ),
                   ...List.generate(5, (index) {
                     final rating = index + 1;
@@ -1355,13 +1550,19 @@ class _TutorReviewSection extends StatelessWidget {
                             : Icons.star_outline_rounded,
                         color: const Color(0xFFFCC419),
                       ),
-                      tooltip: '$rating sao',
+                      tooltip: strings.text(
+                        en: '$rating stars',
+                        vi: '$rating sao',
+                      ),
                     );
                   }),
                 ],
               ),
               Text(
-                'Mức đánh giá hiện tại: $selectedRating/5 sao',
+                strings.text(
+                  en: 'Current rating: $selectedRating/5 stars',
+                  vi: 'Mức đánh giá hiện tại: $selectedRating/5 sao',
+                ),
                 style: TextStyle(
                   fontSize: 12,
                   color: cs.onSurfaceVariant,
@@ -1377,8 +1578,14 @@ class _TutorReviewSection extends StatelessWidget {
                 enabled: !saving,
                 onChanged: onCommentChanged,
                 decoration: InputDecoration(
-                  labelText: 'Nhận xét của bạn',
-                  hintText: 'Nhập nhận xét ngắn, tối đa 100 từ.',
+                  labelText: strings.text(
+                    en: 'Your review',
+                    vi: 'Nhận xét của bạn',
+                  ),
+                  hintText: strings.text(
+                    en: 'Enter a short review, up to 100 words.',
+                    vi: 'Nhập nhận xét ngắn, tối đa 100 từ.',
+                  ),
                   alignLabelWithHint: true,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -1391,7 +1598,10 @@ class _TutorReviewSection extends StatelessWidget {
                   Expanded(
                     child: Text(
                       validationMessage ??
-                          'Nhận xét không bắt buộc, nhưng sẽ giúp gia sư cải thiện chất lượng dạy.',
+                          strings.text(
+                            en: 'A review is optional, but it helps the tutor improve teaching quality.',
+                            vi: 'Nhận xét không bắt buộc, nhưng sẽ giúp gia sư cải thiện chất lượng dạy.',
+                          ),
                       style: TextStyle(
                         fontSize: 12,
                         color: validationMessage == null
@@ -1403,7 +1613,10 @@ class _TutorReviewSection extends StatelessWidget {
                   ),
                   const SizedBox(width: 12),
                   Text(
-                    '$wordCount/100 từ',
+                    strings.text(
+                      en: '$wordCount/100 words',
+                      vi: '$wordCount/100 từ',
+                    ),
                     style: TextStyle(
                       fontSize: 12,
                       color: wordCount > 100 ? cs.error : cs.onSurfaceVariant,
@@ -1428,7 +1641,9 @@ class _TutorReviewSection extends StatelessWidget {
                         height: 18,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Text('Gửi đánh giá'),
+                    : Text(
+                        strings.text(en: 'Submit review', vi: 'Gửi đánh giá'),
+                      ),
               ),
             ] else if (hasSubmittedReview) ...[
               Container(
@@ -1455,7 +1670,10 @@ class _TutorReviewSection extends StatelessWidget {
                         }),
                         const SizedBox(width: 10),
                         Text(
-                          '${submittedReview.rating}/5 sao',
+                          strings.text(
+                            en: '${submittedReview.rating}/5 stars',
+                            vi: '${submittedReview.rating}/5 sao',
+                          ),
                           style: TextStyle(
                             fontWeight: FontWeight.w700,
                             color: cs.onSurface,
@@ -1466,7 +1684,7 @@ class _TutorReviewSection extends StatelessWidget {
                     if ((submittedReview.comment ?? '').trim().isNotEmpty) ...[
                       const SizedBox(height: 12),
                       Text(
-                        'Nhận xét của bạn',
+                        strings.text(en: 'Your review', vi: 'Nhận xét của bạn'),
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
@@ -1514,7 +1732,10 @@ class _TutorReviewSection extends StatelessWidget {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'Nếu cần khiếu nại trực tiếp với admin, vui lòng gọi hotline EConnect ${reviewStatus?.hotline ?? '0335837165'}.',
+                    strings.text(
+                      en: 'If you need to make a direct complaint to admin, call EConnect hotline ${reviewStatus?.hotline ?? '0335837165'}.',
+                      vi: 'Nếu cần khiếu nại trực tiếp với admin, vui lòng gọi hotline EConnect ${reviewStatus?.hotline ?? '0335837165'}.',
+                    ),
                     style: TextStyle(
                       fontSize: 13,
                       color: cs.onSurface,
@@ -1525,7 +1746,7 @@ class _TutorReviewSection extends StatelessWidget {
                 const SizedBox(width: 10),
                 OutlinedButton(
                   onPressed: onCallHotline,
-                  child: const Text('Gọi'),
+                  child: Text(strings.text(en: 'Call', vi: 'Gọi')),
                 ),
               ],
             ),

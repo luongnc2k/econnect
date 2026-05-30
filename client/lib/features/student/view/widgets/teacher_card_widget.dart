@@ -1,3 +1,4 @@
+import 'package:client/core/localization/app_language.dart';
 import 'package:client/core/theme/app_pallete.dart';
 import 'package:flutter/material.dart';
 
@@ -27,6 +28,24 @@ class TeacherCardWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final strings = AppStrings(Localizations.localeOf(context).languageCode);
+    final displaySubtitle = subtitle.trim().isNotEmpty
+        ? subtitle.trim()
+        : strings.text(
+            en: 'Featured tutor on EConnect',
+            vi: 'Giảng viên nổi bật trên EConnect',
+          );
+    final reviewText = strings.isVietnamese
+        ? '($reviewCount đánh giá)'
+        : reviewCount == 1
+        ? '(1 review)'
+        : '($reviewCount reviews)';
+    final sessionText = strings.isVietnamese
+        ? '$sessionCount buổi dạy'
+        : sessionCount == 1
+        ? '1 session taught'
+        : '$sessionCount sessions taught';
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
@@ -68,7 +87,7 @@ class TeacherCardWidget extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    subtitle,
+                    displaySubtitle,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
@@ -96,7 +115,7 @@ class TeacherCardWidget extends StatelessWidget {
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        '($reviewCount đánh giá)',
+                        reviewText,
                         style: const TextStyle(
                           fontSize: 12,
                           color: Pallete.textSecondary,
@@ -112,7 +131,7 @@ class TeacherCardWidget extends StatelessWidget {
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        '$sessionCount buổi dạy',
+                        sessionText,
                         style: const TextStyle(
                           fontSize: 12,
                           color: Pallete.textSecondary,

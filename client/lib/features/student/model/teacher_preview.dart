@@ -29,9 +29,7 @@ class TeacherPreview {
     return TeacherPreview(
       id: map['id'] as String? ?? '',
       name: map['full_name'] as String? ?? '',
-      subtitle: specialization.isNotEmpty
-          ? specialization
-          : 'Giảng viên nổi bật trên EConnect',
+      subtitle: specialization,
       rating: _toDouble(map['rating']),
       reviewCount: _toInt(map['total_reviews']),
       sessionCount: _toInt(map['total_sessions']),

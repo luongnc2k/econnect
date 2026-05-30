@@ -1,4 +1,5 @@
 import 'package:client/core/failure/failure.dart';
+import 'package:client/core/localization/app_language.dart';
 import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/core/router/app_router.dart';
 import 'package:client/features/notifications/model/app_notification.dart';
@@ -17,46 +18,55 @@ class NotificationsScreen extends ConsumerWidget {
   static const _filters = [
     _NotificationOption(
       NotificationFilterKeys.all,
+      'All',
       'Tất cả',
       Icons.inbox_rounded,
     ),
     _NotificationOption(
       NotificationFilterKeys.unread,
+      'Unread',
       'Chưa đọc',
       Icons.markunread_rounded,
     ),
     _NotificationOption(
       NotificationFilterKeys.minimumReached,
+      'Minimum reached',
       'Đủ tối thiểu',
       Icons.groups_rounded,
     ),
     _NotificationOption(
       NotificationFilterKeys.tutorConfirmed,
+      'Tutor confirmed',
       'Tutor xác nhận',
       Icons.verified_rounded,
     ),
     _NotificationOption(
       NotificationFilterKeys.classStartingSoon,
+      'Starting soon',
       'Sắp diễn ra',
       Icons.schedule_rounded,
     ),
     _NotificationOption(
       NotificationFilterKeys.classCancelled,
+      'Class cancelled',
       'Lớp bị hủy',
       Icons.event_busy_rounded,
     ),
     _NotificationOption(
       NotificationFilterKeys.refundIssued,
+      'Refund',
       'Hoàn tiền',
       Icons.replay_rounded,
     ),
     _NotificationOption(
       NotificationFilterKeys.payoutUpdated,
       'Payout',
+      'Payout',
       Icons.payments_rounded,
     ),
     _NotificationOption(
       NotificationFilterKeys.disputeResolved,
+      'Dispute',
       'Khiếu nại',
       Icons.gavel_rounded,
     ),
@@ -65,11 +75,13 @@ class NotificationsScreen extends ConsumerWidget {
   static const _groupings = [
     _NotificationOption(
       NotificationGroupingModes.byDate,
+      'By date',
       'Theo ngày',
       Icons.calendar_today_rounded,
     ),
     _NotificationOption(
       NotificationGroupingModes.byType,
+      'By type',
       'Theo loại',
       Icons.category_rounded,
     ),
@@ -157,10 +169,14 @@ class NotificationsScreen extends ConsumerWidget {
     }
   }
 
-  String _optionLabel(List<_NotificationOption> options, String key) {
+  String _optionLabel(
+    List<_NotificationOption> options,
+    String key,
+    AppStrings strings,
+  ) {
     for (final option in options) {
       if (option.key == key) {
-        return option.label;
+        return option.label(strings);
       }
     }
     return key;
@@ -180,30 +196,38 @@ class NotificationsScreen extends ConsumerWidget {
     return '$dd/$mm/$yyyy $hh:$minute';
   }
 
-  String _formatRelativeTime(DateTime? dateTime) {
+  String _formatRelativeTime(DateTime? dateTime, AppStrings strings) {
     if (dateTime == null) {
       return '';
     }
 
     final difference = DateTime.now().difference(dateTime.toLocal());
     if (difference.inMinutes < 1) {
-      return 'Vừa xong';
+      return strings.text(en: 'Just now', vi: 'Vừa xong');
     }
     if (difference.inMinutes < 60) {
-      return '${difference.inMinutes} phút trước';
+      final minutes = difference.inMinutes;
+      return strings.text(
+        en: minutes == 1 ? '1 minute ago' : '$minutes minutes ago',
+        vi: '$minutes phút trước',
+      );
     }
     if (difference.inHours < 24) {
-      return '${difference.inHours} giờ trước';
+      final hours = difference.inHours;
+      return strings.text(
+        en: hours == 1 ? '1 hour ago' : '$hours hours ago',
+        vi: '$hours giờ trước',
+      );
     }
     if (difference.inDays == 1) {
-      return 'Hôm qua';
+      return strings.text(en: 'Yesterday', vi: 'Hôm qua');
     }
     return _formatDate(dateTime);
   }
 
-  String _groupLabel(DateTime? dateTime) {
+  String _groupLabel(DateTime? dateTime, AppStrings strings) {
     if (dateTime == null) {
-      return 'Khác';
+      return strings.text(en: 'Other', vi: 'Khác');
     }
 
     final local = dateTime.toLocal();
@@ -213,10 +237,10 @@ class NotificationsScreen extends ConsumerWidget {
     final difference = today.difference(target).inDays;
 
     if (difference == 0) {
-      return 'Hôm nay';
+      return strings.text(en: 'Today', vi: 'Hôm nay');
     }
     if (difference == 1) {
-      return 'Hôm qua';
+      return strings.text(en: 'Yesterday', vi: 'Hôm qua');
     }
     return '${local.day.toString().padLeft(2, '0')}/${local.month.toString().padLeft(2, '0')}/${local.year}';
   }
@@ -224,15 +248,135 @@ class NotificationsScreen extends ConsumerWidget {
   Map<String, List<AppNotification>> _groupNotifications(
     List<AppNotification> notifications,
     String groupingMode,
+    AppStrings strings,
   ) {
     final grouped = <String, List<AppNotification>>{};
     for (final notification in notifications) {
       final label = groupingMode == NotificationGroupingModes.byType
-          ? notification.typeLabel
-          : _groupLabel(notification.createdAt);
+          ? _notificationTypeLabel(notification, strings)
+          : _groupLabel(notification.createdAt, strings);
       grouped.putIfAbsent(label, () => <AppNotification>[]).add(notification);
     }
     return grouped;
+  }
+
+  String _notificationTypeLabel(
+    AppNotification notification,
+    AppStrings strings,
+  ) {
+    switch (notification.type) {
+      case NotificationFilterKeys.minimumReached:
+        return strings.text(en: 'Minimum reached', vi: 'Đủ tối thiểu');
+      case NotificationFilterKeys.tutorConfirmed:
+        return strings.text(en: 'Tutor confirmed', vi: 'Tutor xác nhận');
+      case NotificationFilterKeys.classStartingSoon:
+        return strings.text(en: 'Starting soon', vi: 'Sắp diễn ra');
+      case NotificationFilterKeys.classCancelled:
+        return strings.text(en: 'Class cancelled', vi: 'Lớp bị hủy');
+      case NotificationFilterKeys.refundIssued:
+        return notification.refundScope == 'class_creation_fee'
+            ? strings.text(en: 'Creation fee refund', vi: 'Hoàn phí tạo lớp')
+            : strings.text(en: 'Refund', vi: 'Hoàn tiền');
+      case NotificationFilterKeys.payoutUpdated:
+        return 'Payout';
+      case NotificationFilterKeys.disputeResolved:
+        return strings.text(en: 'Dispute', vi: 'Khiếu nại');
+      default:
+        return notification.type;
+    }
+  }
+
+  String _notificationTitle(AppNotification notification, AppStrings strings) {
+    return switch (notification.type) {
+      NotificationFilterKeys.minimumReached => strings.text(
+        en: 'Class reached the minimum number of students',
+        vi: 'Lớp đã đủ số học viên tối thiểu',
+      ),
+      NotificationFilterKeys.tutorConfirmed => strings.text(
+        en: 'Tutor confirmed teaching',
+        vi: 'Tutor đã xác nhận dạy',
+      ),
+      NotificationFilterKeys.classStartingSoon => strings.text(
+        en: 'Class starts within 1 hour',
+        vi: 'Lớp học sắp diễn ra trong 1 giờ',
+      ),
+      NotificationFilterKeys.classCancelled => strings.text(
+        en: 'Class cancelled',
+        vi: 'Lớp học đã bị hủy',
+      ),
+      NotificationFilterKeys.refundIssued =>
+        notification.refundScope == 'class_creation_fee'
+            ? strings.text(
+                en: 'Class creation fee refund updated',
+                vi: 'Cập nhật hoàn phí tạo lớp',
+              )
+            : strings.text(
+                en: 'Tuition refund updated',
+                vi: 'Cập nhật hoàn tiền học phí',
+              ),
+      NotificationFilterKeys.payoutUpdated => strings.text(
+        en: 'Payout status updated',
+        vi: 'Trạng thái payout đã thay đổi',
+      ),
+      NotificationFilterKeys.disputeResolved => strings.text(
+        en: 'Dispute resolved',
+        vi: 'Khiếu nại đã được xử lý',
+      ),
+      _ => notification.title,
+    };
+  }
+
+  String _notificationBody(AppNotification notification, AppStrings strings) {
+    final classTitle = notification.data['class_title']?.toString().trim();
+    final classSegment = classTitle == null || classTitle.isEmpty
+        ? strings.text(en: 'this class', vi: 'lớp này')
+        : "'$classTitle'";
+    final reason =
+        notification.data['refund_reason']?.toString().trim().isNotEmpty == true
+        ? notification.data['refund_reason'].toString().trim()
+        : notification.cancellationReason?.trim();
+    final amount =
+        notification.refundAmount ??
+        notification.data['payout_amount']?.toString() ??
+        '';
+
+    return switch (notification.type) {
+      NotificationFilterKeys.minimumReached => strings.text(
+        en: 'Class $classSegment has reached the minimum student threshold. Confirm teaching so students can be notified.',
+        vi: 'Lớp $classSegment đã đạt ngưỡng học viên tối thiểu. Hãy xác nhận dạy để hệ thống thông báo buổi học sẽ diễn ra.',
+      ),
+      NotificationFilterKeys.tutorConfirmed => strings.text(
+        en: 'The tutor confirmed teaching class $classSegment. The class will take place as planned.',
+        vi: 'Tutor đã xác nhận dạy lớp $classSegment. Buổi học sẽ được diễn ra như kế hoạch.',
+      ),
+      NotificationFilterKeys.classStartingSoon => strings.text(
+        en: 'Class $classSegment will start in about 1 hour. Please get ready.',
+        vi: 'Lớp $classSegment sắp bắt đầu trong khoảng 1 giờ nữa. Hãy chuẩn bị cho buổi học.',
+      ),
+      NotificationFilterKeys.classCancelled => strings.text(
+        en: 'Class $classSegment was cancelled.${reason == null || reason.isEmpty ? '' : ' Reason: $reason.'}',
+        vi: 'Lớp $classSegment đã bị hủy.${reason == null || reason.isEmpty ? '' : ' Lý do: $reason.'}',
+      ),
+      NotificationFilterKeys.refundIssued =>
+        notification.refundScope == 'class_creation_fee'
+            ? strings.text(
+                en: 'The system updated the class creation fee refund${amount.isEmpty ? '' : ' of $amount'} for class $classSegment.',
+                vi: 'Hệ thống đã cập nhật hoàn phí tạo lớp${amount.isEmpty ? '' : ' $amount'} cho lớp $classSegment.',
+              )
+            : strings.text(
+                en: 'The system updated the tuition refund${amount.isEmpty ? '' : ' of $amount'} for class $classSegment.',
+                vi: 'Hệ thống đã cập nhật hoàn tiền học phí${amount.isEmpty ? '' : ' $amount'} cho lớp $classSegment.',
+              ),
+      NotificationFilterKeys.payoutUpdated => strings.text(
+        en: 'Payout status for class $classSegment has been updated${amount.isEmpty ? '' : ' with amount $amount'}.',
+        vi: 'Trạng thái payout của lớp $classSegment đã được cập nhật${amount.isEmpty ? '' : ' với số tiền $amount'}.',
+      ),
+      NotificationFilterKeys.disputeResolved => strings.text(
+        en: 'The dispute for class $classSegment has been resolved.',
+        vi: 'Khiếu nại của lớp $classSegment đã được xử lý.',
+      ),
+      _ => notification.body,
+    };
   }
 
   Future<void> _showControlsSheet(
@@ -246,6 +390,9 @@ class NotificationsScreen extends ConsumerWidget {
       showDragHandle: true,
       builder: (sheetContext) {
         final cs = Theme.of(sheetContext).colorScheme;
+        final strings = AppStrings(
+          Localizations.localeOf(sheetContext).languageCode,
+        );
 
         return SafeArea(
           child: ListView(
@@ -253,21 +400,24 @@ class NotificationsScreen extends ConsumerWidget {
             shrinkWrap: true,
             children: [
               Text(
-                'Tùy chỉnh hộp thư',
+                strings.text(en: 'Inbox controls', vi: 'Tùy chỉnh hộp thư'),
                 style: Theme.of(
                   sheetContext,
                 ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 6),
               Text(
-                'Chọn bộ lọc và cách nhóm để quét thông báo nhanh hơn.',
+                strings.text(
+                  en: 'Choose filters and grouping to scan notifications faster.',
+                  vi: 'Chọn bộ lọc và cách nhóm để quét thông báo nhanh hơn.',
+                ),
                 style: Theme.of(
                   sheetContext,
                 ).textTheme.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
               ),
               const SizedBox(height: 20),
               Text(
-                'Bộ lọc',
+                strings.text(en: 'Filters', vi: 'Bộ lọc'),
                 style: Theme.of(
                   sheetContext,
                 ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
@@ -275,7 +425,7 @@ class NotificationsScreen extends ConsumerWidget {
               const SizedBox(height: 10),
               ..._filters.map(
                 (filter) => _ControlTile(
-                  label: filter.label,
+                  label: filter.label(strings),
                   icon: filter.icon,
                   selected: state.selectedFilterKey == filter.key,
                   onTap: () async {
@@ -286,7 +436,7 @@ class NotificationsScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 14),
               Text(
-                'Nhóm danh sách',
+                strings.text(en: 'Group list', vi: 'Nhóm danh sách'),
                 style: Theme.of(
                   sheetContext,
                 ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
@@ -304,7 +454,7 @@ class NotificationsScreen extends ConsumerWidget {
                           ? cs.onPrimary
                           : cs.onSurfaceVariant,
                     ),
-                    label: Text(grouping.label),
+                    label: Text(grouping.label(strings)),
                     selected: state.groupingMode == grouping.key,
                     onSelected: (_) => controller.setGroupingMode(grouping.key),
                   );
@@ -318,7 +468,12 @@ class NotificationsScreen extends ConsumerWidget {
                     await controller.setFilter(NotificationFilterKeys.all);
                   },
                   icon: const Icon(Icons.clear_rounded),
-                  label: const Text('Bỏ lọc hiện tại'),
+                  label: Text(
+                    strings.text(
+                      en: 'Clear current filter',
+                      vi: 'Bỏ lọc hiện tại',
+                    ),
+                  ),
                 ),
               ],
             ],
@@ -336,20 +491,29 @@ class NotificationsScreen extends ConsumerWidget {
     if (state.isDeletingAll) {
       return;
     }
+    final strings = ref.read(appStringsProvider);
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
         final cs = Theme.of(dialogContext).colorScheme;
         return AlertDialog(
-          title: const Text('Xóa tất cả thông báo?'),
-          content: const Text(
-            'Toàn bộ thông báo trong hộp thư của bạn sẽ bị xóa.',
+          title: Text(
+            strings.text(
+              en: 'Delete all notifications?',
+              vi: 'Xóa tất cả thông báo?',
+            ),
+          ),
+          content: Text(
+            strings.text(
+              en: 'All notifications in your inbox will be deleted.',
+              vi: 'Toàn bộ thông báo trong hộp thư của bạn sẽ bị xóa.',
+            ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Hủy'),
+              child: Text(strings.text(en: 'Cancel', vi: 'Hủy')),
             ),
             FilledButton.icon(
               onPressed: () => Navigator.pop(dialogContext, true),
@@ -358,7 +522,7 @@ class NotificationsScreen extends ConsumerWidget {
                 foregroundColor: cs.onError,
               ),
               icon: const Icon(Icons.delete_sweep_rounded),
-              label: const Text('Xóa tất cả'),
+              label: Text(strings.text(en: 'Delete all', vi: 'Xóa tất cả')),
             ),
           ],
         );
@@ -377,7 +541,15 @@ class NotificationsScreen extends ConsumerWidget {
     }
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(failure?.message ?? 'Đã xóa tất cả thông báo.')),
+      SnackBar(
+        content: Text(
+          failure?.message ??
+              strings.text(
+                en: 'All notifications deleted.',
+                vi: 'Đã xóa tất cả thông báo.',
+              ),
+        ),
+      ),
     );
   }
 
@@ -385,26 +557,31 @@ class NotificationsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
     final state = ref.watch(notificationsControllerProvider);
+    final strings = ref.watch(appStringsProvider);
     final controller = ref.read(notificationsControllerProvider.notifier);
     final groupedNotifications = _groupNotifications(
       state.notifications,
       state.groupingMode,
+      strings,
     );
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Thông báo'),
+        title: Text(strings.text(en: 'Notifications', vi: 'Thông báo')),
         actions: [
           IconButton(
             onPressed: () => controller.refresh(),
-            tooltip: 'Làm mới',
+            tooltip: strings.text(en: 'Refresh', vi: 'Làm mới'),
             icon: const Icon(Icons.refresh_rounded),
           ),
           IconButton(
             onPressed: state.isDeletingAll
                 ? null
                 : () => _confirmDeleteAll(context, ref, state),
-            tooltip: 'Xóa tất cả thông báo',
+            tooltip: strings.text(
+              en: 'Delete all notifications',
+              vi: 'Xóa tất cả thông báo',
+            ),
             icon: state.isDeletingAll
                 ? const SizedBox(
                     width: 20,
@@ -415,7 +592,10 @@ class NotificationsScreen extends ConsumerWidget {
           ),
           IconButton(
             onPressed: () => _showControlsSheet(context, ref, state),
-            tooltip: 'Bộ lọc và nhóm',
+            tooltip: strings.text(
+              en: 'Filters and grouping',
+              vi: 'Bộ lọc và nhóm',
+            ),
             icon: const Icon(Icons.tune_rounded),
           ),
         ],
@@ -431,8 +611,13 @@ class NotificationsScreen extends ConsumerWidget {
                 activeFilterLabel: _optionLabel(
                   _filters,
                   state.selectedFilterKey,
+                  strings,
                 ),
-                groupingLabel: _optionLabel(_groupings, state.groupingMode),
+                groupingLabel: _optionLabel(
+                  _groupings,
+                  state.groupingMode,
+                  strings,
+                ),
                 hydratedFromCache: state.hydratedFromCache,
                 liveConnected: state.liveConnected,
                 hasActiveFilter:
@@ -459,13 +644,16 @@ class NotificationsScreen extends ConsumerWidget {
                 const SizedBox(height: 56),
                 _EmptyState(
                   message: state.error!,
-                  actionLabel: 'Thử tải lại',
+                  actionLabel: strings.text(en: 'Try again', vi: 'Thử tải lại'),
                   onPressed: controller.refresh,
                 ),
               ] else if (state.notifications.isEmpty) ...[
                 const SizedBox(height: 56),
-                const _EmptyState(
-                  message: 'Chưa có thông báo nào cho bộ lọc hiện tại.',
+                _EmptyState(
+                  message: strings.text(
+                    en: 'No notifications for the current filter.',
+                    vi: 'Chưa có thông báo nào cho bộ lọc hiện tại.',
+                  ),
                 ),
               ] else ...[
                 const SizedBox(height: 18),
@@ -475,7 +663,13 @@ class NotificationsScreen extends ConsumerWidget {
                   for (final notification in entry.value) ...[
                     _NotificationCard(
                       notification: notification,
-                      createdAt: _formatRelativeTime(notification.createdAt),
+                      typeLabel: _notificationTypeLabel(notification, strings),
+                      displayTitle: _notificationTitle(notification, strings),
+                      displayBody: _notificationBody(notification, strings),
+                      createdAt: _formatRelativeTime(
+                        notification.createdAt,
+                        strings,
+                      ),
                       classStartAt: _formatDate(notification.classStartTime),
                       canConfirmTeaching:
                           user?.role == 'teacher' &&
@@ -488,8 +682,11 @@ class NotificationsScreen extends ConsumerWidget {
                               user?.role == 'teacher') &&
                           (notification.classCode?.isNotEmpty ?? false),
                       openClassLabel: user?.role == 'teacher'
-                          ? 'Mở chi tiết lớp'
-                          : 'Mở lớp học',
+                          ? strings.text(
+                              en: 'Open class details',
+                              vi: 'Mở chi tiết lớp',
+                            )
+                          : strings.text(en: 'Open class', vi: 'Mở lớp học'),
                       isBusy: state.actionNotificationId == notification.id,
                       onTap: () => _handleNotificationTap(ref, notification),
                       onConfirmTeaching: () =>
@@ -510,7 +707,7 @@ class NotificationsScreen extends ConsumerWidget {
                   OutlinedButton.icon(
                     onPressed: controller.loadMore,
                     icon: const Icon(Icons.expand_more_rounded),
-                    label: const Text('Tải thêm'),
+                    label: Text(strings.text(en: 'Load more', vi: 'Tải thêm')),
                   ),
                 ],
               ],
@@ -524,10 +721,13 @@ class NotificationsScreen extends ConsumerWidget {
 
 class _NotificationOption {
   final String key;
-  final String label;
+  final String enLabel;
+  final String viLabel;
   final IconData icon;
 
-  const _NotificationOption(this.key, this.label, this.icon);
+  const _NotificationOption(this.key, this.enLabel, this.viLabel, this.icon);
+
+  String label(AppStrings strings) => strings.text(en: enLabel, vi: viLabel);
 }
 
 class _InboxSummaryCard extends StatelessWidget {
@@ -554,6 +754,7 @@ class _InboxSummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final strings = AppStrings(Localizations.localeOf(context).languageCode);
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -584,14 +785,19 @@ class _InboxSummaryCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Hộp thư của bạn',
+                      strings.text(en: 'Your inbox', vi: 'Hộp thư của bạn'),
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w800,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '$unreadCount thông báo chưa đọc',
+                      strings.text(
+                        en: unreadCount == 1
+                            ? '1 unread notification'
+                            : '$unreadCount unread notifications',
+                        vi: '$unreadCount thông báo chưa đọc',
+                      ),
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: cs.onSurfaceVariant,
                       ),
@@ -606,7 +812,7 @@ class _InboxSummaryCard extends StatelessWidget {
                   foregroundColor: cs.onSecondaryContainer,
                 ),
                 icon: const Icon(Icons.tune_rounded),
-                label: const Text('Tùy chỉnh'),
+                label: Text(strings.text(en: 'Customize', vi: 'Tùy chỉnh')),
               ),
             ],
           ),
@@ -616,21 +822,30 @@ class _InboxSummaryCard extends StatelessWidget {
             runSpacing: 8,
             children: [
               _SummaryTag(
-                label: 'Lọc: $activeFilterLabel',
+                label: strings.text(
+                  en: 'Filter: $activeFilterLabel',
+                  vi: 'Lọc: $activeFilterLabel',
+                ),
                 icon: Icons.filter_alt_rounded,
               ),
               _SummaryTag(
-                label: 'Nhóm: $groupingLabel',
+                label: strings.text(
+                  en: 'Group: $groupingLabel',
+                  vi: 'Nhóm: $groupingLabel',
+                ),
                 icon: Icons.view_stream_rounded,
               ),
               if (liveConnected)
-                const _SummaryTag(
-                  label: 'Đồng bộ trực tiếp',
+                _SummaryTag(
+                  label: strings.text(en: 'Live sync', vi: 'Đồng bộ trực tiếp'),
                   icon: Icons.wifi_tethering_rounded,
                 ),
               if (hydratedFromCache)
-                const _SummaryTag(
-                  label: 'Đang hiển thị cache',
+                _SummaryTag(
+                  label: strings.text(
+                    en: 'Showing cache',
+                    vi: 'Đang hiển thị cache',
+                  ),
                   icon: Icons.offline_bolt_rounded,
                 ),
             ],
@@ -640,7 +855,12 @@ class _InboxSummaryCard extends StatelessWidget {
             TextButton.icon(
               onPressed: onClearFilter,
               icon: const Icon(Icons.clear_rounded),
-              label: const Text('Quay về tất cả thông báo'),
+              label: Text(
+                strings.text(
+                  en: 'Back to all notifications',
+                  vi: 'Quay về tất cả thông báo',
+                ),
+              ),
             ),
           ],
         ],
@@ -865,6 +1085,9 @@ class _EmptyState extends StatelessWidget {
 
 class _NotificationCard extends StatelessWidget {
   final AppNotification notification;
+  final String typeLabel;
+  final String displayTitle;
+  final String displayBody;
   final String createdAt;
   final String classStartAt;
   final bool canConfirmTeaching;
@@ -877,6 +1100,9 @@ class _NotificationCard extends StatelessWidget {
 
   const _NotificationCard({
     required this.notification,
+    required this.typeLabel,
+    required this.displayTitle,
+    required this.displayBody,
     required this.createdAt,
     required this.classStartAt,
     required this.canConfirmTeaching,
@@ -930,6 +1156,7 @@ class _NotificationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final strings = AppStrings(Localizations.localeOf(context).languageCode);
     final visual = _resolveStyle(cs);
     final isUnread = !notification.isRead;
 
@@ -971,7 +1198,7 @@ class _NotificationCard extends StatelessWidget {
                       children: [
                         Expanded(
                           child: Text(
-                            notification.title,
+                            displayTitle,
                             style: Theme.of(context).textTheme.titleMedium
                                 ?.copyWith(
                                   fontWeight: FontWeight.w800,
@@ -999,10 +1226,7 @@ class _NotificationCard extends StatelessWidget {
                       runSpacing: 8,
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
-                        _TypePill(
-                          label: notification.typeLabel,
-                          color: visual.color,
-                        ),
+                        _TypePill(label: typeLabel, color: visual.color),
                         if (createdAt.isNotEmpty)
                           Text(
                             createdAt,
@@ -1016,7 +1240,7 @@ class _NotificationCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      notification.body,
+                      displayBody,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: cs.onSurfaceVariant,
                         height: 1.45,
@@ -1030,12 +1254,18 @@ class _NotificationCard extends StatelessWidget {
                           if (notification.classCode?.isNotEmpty ?? false)
                             _MetaLine(
                               icon: Icons.confirmation_number_outlined,
-                              text: 'Mã lớp ${notification.classCode}',
+                              text: strings.text(
+                                en: 'Class code ${notification.classCode}',
+                                vi: 'Mã lớp ${notification.classCode}',
+                              ),
                             ),
                           if (classStartAt.isNotEmpty)
                             _MetaLine(
                               icon: Icons.schedule_outlined,
-                              text: 'Bắt đầu lúc $classStartAt',
+                              text: strings.text(
+                                en: 'Starts at $classStartAt',
+                                vi: 'Bắt đầu lúc $classStartAt',
+                              ),
                             ),
                         ],
                       ),
@@ -1055,7 +1285,15 @@ class _NotificationCard extends StatelessWidget {
                                     : Icons.check_circle_rounded,
                               ),
                               label: Text(
-                                isBusy ? 'Đang xử lý' : 'Xác nhận dạy',
+                                isBusy
+                                    ? strings.text(
+                                        en: 'Processing',
+                                        vi: 'Đang xử lý',
+                                      )
+                                    : strings.text(
+                                        en: 'Confirm teaching',
+                                        vi: 'Xác nhận dạy',
+                                      ),
                               ),
                             ),
                           if (canOpenClassDetail)

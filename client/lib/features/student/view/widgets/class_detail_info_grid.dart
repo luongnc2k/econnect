@@ -1,3 +1,4 @@
+import 'package:client/core/localization/app_language.dart';
 import 'package:client/features/student/model/class_session.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -9,6 +10,7 @@ class ClassDetailInfoGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final strings = AppStrings(Localizations.localeOf(context).languageCode);
     final hasLocationAddress =
         session.locationAddress != null &&
         session.locationAddress!.trim().isNotEmpty;
@@ -17,13 +19,13 @@ class ClassDetailInfoGrid extends StatelessWidget {
       if (session.classCode != null)
         _InfoItem(
           icon: Icons.qr_code_2_rounded,
-          label: 'Mã lớp',
+          label: strings.text(en: 'Class code', vi: 'Mã lớp'),
           value: session.classCode!,
           copyable: true,
         ),
       _InfoItem(
         icon: Icons.location_on_outlined,
-        label: 'Địa điểm',
+        label: strings.text(en: 'Location', vi: 'Địa điểm'),
         value: session.location,
         supportingText: hasLocationAddress ? session.locationAddress! : null,
         valueMaxLines: 2,
@@ -31,36 +33,36 @@ class ClassDetailInfoGrid extends StatelessWidget {
       ),
       _InfoItem(
         icon: Icons.access_time_rounded,
-        label: 'Bắt đầu',
+        label: strings.text(en: 'Start', vi: 'Bắt đầu'),
         value: session.displayStartTimeText,
       ),
       if (session.displayEndTimeText != null)
         _InfoItem(
           icon: Icons.timer_outlined,
-          label: 'Kết thúc',
+          label: strings.text(en: 'End', vi: 'Kết thúc'),
           value: session.displayEndTimeText!,
         ),
       if (session.dateText != null)
         _InfoItem(
           icon: Icons.calendar_today_outlined,
-          label: 'Ngày',
-          value: session.dateText!,
+          label: strings.text(en: 'Date', vi: 'Ngày'),
+          value: strings.classDateText(session.dateText) ?? session.dateText!,
         ),
       if (session.slotText != null)
         _InfoItem(
           icon: Icons.people_outline_rounded,
-          label: 'Số lượng',
-          value: session.slotText!,
+          label: strings.text(en: 'Slots', vi: 'Số lượng'),
+          value: strings.classSlotText(session.slotText) ?? session.slotText!,
         ),
       if (session.levelText != null)
         _InfoItem(
           icon: Icons.bar_chart_rounded,
-          label: 'Trình độ',
+          label: strings.text(en: 'Level', vi: 'Trình độ'),
           value: session.levelText!,
         ),
       _InfoItem(
         icon: Icons.payments_outlined,
-        label: 'Phí',
+        label: strings.text(en: 'Fee', vi: 'Phí'),
         value: session.priceText,
       ),
     ];
@@ -114,6 +116,7 @@ class _InfoCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final strings = AppStrings(Localizations.localeOf(context).languageCode);
     final child = Container(
       padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
       decoration: BoxDecoration(
@@ -181,9 +184,16 @@ class _InfoCell extends StatelessWidget {
       onTap: () async {
         await Clipboard.setData(ClipboardData(text: item.value));
         if (!context.mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Đã copy mã lớp ${item.value}')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              strings.text(
+                en: 'Copied class code ${item.value}',
+                vi: 'Đã copy mã lớp ${item.value}',
+              ),
+            ),
+          ),
+        );
       },
       child: child,
     );

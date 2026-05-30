@@ -1,4 +1,5 @@
 import 'package:client/core/failure/failure.dart';
+import 'package:client/core/localization/app_language.dart';
 import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/core/router/app_router.dart';
 import 'package:client/features/payments/model/payment_summary.dart';
@@ -7,9 +8,9 @@ import 'package:client/features/profile/view/widgets/my_profile_view.dart';
 import 'package:client/features/tutor/view/screens/tutor_home_tab.dart';
 import 'package:client/features/tutor/view/screens/tutor_schedule_screen.dart';
 import 'package:client/features/tutor/viewmodel/tutor_home_viewmodel.dart';
-import 'package:fpdart/fpdart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fpdart/fpdart.dart';
 import 'package:go_router/go_router.dart';
 
 class TutorNavShell extends ConsumerStatefulWidget {
@@ -34,6 +35,8 @@ class _TutorNavShellState extends ConsumerState<TutorNavShell> {
 
   @override
   Widget build(BuildContext context) {
+    final strings = ref.watch(appStringsProvider);
+
     return Scaffold(
       body: IndexedStack(index: _currentIndex, children: _screens),
       floatingActionButton: _currentIndex == 0
@@ -48,32 +51,32 @@ class _TutorNavShellState extends ConsumerState<TutorNavShell> {
                     .refresh(silent: true);
               },
               icon: const Icon(Icons.add_rounded),
-              label: const Text('Tạo buổi học'),
+              label: Text(strings.createClassNow),
             )
           : null,
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
         onDestinationSelected: (index) => setState(() => _currentIndex = index),
-        destinations: const [
+        destinations: [
           NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home_rounded),
-            label: 'Trang chủ',
+            icon: const Icon(Icons.home_outlined),
+            selectedIcon: const Icon(Icons.home_rounded),
+            label: strings.text(en: 'Home', vi: 'Trang chủ'),
           ),
           NavigationDestination(
-            icon: Icon(Icons.calendar_month_outlined),
-            selectedIcon: Icon(Icons.calendar_month_rounded),
-            label: 'Lịch dạy',
+            icon: const Icon(Icons.calendar_month_outlined),
+            selectedIcon: const Icon(Icons.calendar_month_rounded),
+            label: strings.text(en: 'Schedule', vi: 'Lịch dạy'),
           ),
           NavigationDestination(
-            icon: Icon(Icons.payments_outlined),
-            selectedIcon: Icon(Icons.payments_rounded),
-            label: 'Thanh toán',
+            icon: const Icon(Icons.payments_outlined),
+            selectedIcon: const Icon(Icons.payments_rounded),
+            label: strings.text(en: 'Payments', vi: 'Thanh toán'),
           ),
           NavigationDestination(
-            icon: Icon(Icons.person_outline_rounded),
-            selectedIcon: Icon(Icons.person_rounded),
-            label: 'Hồ sơ',
+            icon: const Icon(Icons.person_outline_rounded),
+            selectedIcon: const Icon(Icons.person_rounded),
+            label: strings.text(en: 'Profile', vi: 'Hồ sơ'),
           ),
         ],
       ),
@@ -101,13 +104,19 @@ class _TutorPaymentTabState extends ConsumerState<_TutorPaymentTab> {
   }
 
   Future<void> _loadSummary() async {
+    final strings = ref.read(appStringsProvider);
     final user = ref.read(currentUserProvider);
     if (user == null) {
       return;
     }
     final code = _controller.text.trim().toUpperCase();
     if (code.isEmpty) {
-      setState(() => _error = 'Nhập mã lớp để tra cứu thanh toán.');
+      setState(() {
+        _error = strings.text(
+          en: 'Enter a class code to look up payments.',
+          vi: 'Nhập mã lớp để tra cứu thanh toán.',
+        );
+      });
       return;
     }
 
@@ -143,20 +152,24 @@ class _TutorPaymentTabState extends ConsumerState<_TutorPaymentTab> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final strings = ref.watch(appStringsProvider);
 
     return SafeArea(
       child: ListView(
         padding: const EdgeInsets.all(20),
         children: [
           Text(
-            'Theo dõi thanh toán',
+            strings.text(en: 'Payment tracking', vi: 'Theo dõi thanh toán'),
             style: Theme.of(
               context,
             ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 8),
           Text(
-            'Nhập mã lớp để xem phí tạo lớp, số tiền đang escrow, payout cho tutor và dispute hiện tại.',
+            strings.text(
+              en: 'Enter a class code to view the creation fee, escrow amount, tutor payout, and current disputes.',
+              vi: 'Nhập mã lớp để xem phí tạo lớp, số tiền đang escrow, payout cho tutor và dispute hiện tại.',
+            ),
             style: TextStyle(color: cs.onSurfaceVariant, height: 1.45),
           ),
           const SizedBox(height: 16),
@@ -164,8 +177,11 @@ class _TutorPaymentTabState extends ConsumerState<_TutorPaymentTab> {
             controller: _controller,
             textCapitalization: TextCapitalization.characters,
             decoration: InputDecoration(
-              labelText: 'Mã lớp',
-              hintText: 'VD: CLS-260315-ABCD',
+              labelText: strings.text(en: 'Class code', vi: 'Mã lớp'),
+              hintText: strings.text(
+                en: 'E.g. CLS-260315-ABCD',
+                vi: 'VD: CLS-260315-ABCD',
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
               ),
@@ -174,7 +190,11 @@ class _TutorPaymentTabState extends ConsumerState<_TutorPaymentTab> {
           const SizedBox(height: 12),
           FilledButton(
             onPressed: _loading ? null : _loadSummary,
-            child: Text(_loading ? 'Đang tải...' : 'Xem trạng thái'),
+            child: Text(
+              _loading
+                  ? strings.text(en: 'Loading...', vi: 'Đang tải...')
+                  : strings.text(en: 'View status', vi: 'Xem trạng thái'),
+            ),
           ),
           if (_error != null) ...[
             const SizedBox(height: 12),
@@ -198,6 +218,7 @@ class _SummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final strings = AppStrings(Localizations.localeOf(context).languageCode);
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -209,48 +230,76 @@ class _SummaryCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Tổng quan đối soát',
+            strings.text(
+              en: 'Reconciliation overview',
+              vi: 'Tổng quan đối soát',
+            ),
             style: Theme.of(
               context,
             ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 14),
-          _SummaryRow(label: 'Trạng thái lớp', value: summary.classStatus),
           _SummaryRow(
-            label: 'Phí tạo lớp',
+            label: strings.text(en: 'Class status', vi: 'Trạng thái lớp'),
+            value: strings.genericStatusLabel(summary.classStatus),
+          ),
+          _SummaryRow(
+            label: strings.text(en: 'Creation fee', vi: 'Phí tạo lớp'),
             value: '${summary.creationFeeAmount} VND',
           ),
           _SummaryRow(
-            label: 'Thanh toán phí tạo lớp',
-            value: summary.creationPaymentStatusLabel,
+            label: strings.text(
+              en: 'Creation fee payment',
+              vi: 'Thanh toán phí tạo lớp',
+            ),
+            value: strings.paymentCreationStatusLabel(
+              summary.creationPaymentStatus,
+            ),
           ),
           _SummaryRow(
-            label: 'Học viên hiện tại',
+            label: strings.text(
+              en: 'Current students',
+              vi: 'Học viên hiện tại',
+            ),
             value: '${summary.currentParticipants}/${summary.maxParticipants}',
           ),
           _SummaryRow(
-            label: 'Ngưỡng tối thiểu',
+            label: strings.text(
+              en: 'Minimum threshold',
+              vi: 'Ngưỡng tối thiểu',
+            ),
             value: summary.minParticipants.toString(),
           ),
           _SummaryRow(
-            label: 'Đã đủ học viên tối thiểu',
-            value: summary.minimumParticipantsReached ? 'Có' : 'Chưa',
+            label: strings.text(
+              en: 'Minimum students reached',
+              vi: 'Đã đủ học viên tối thiểu',
+            ),
+            value: summary.minimumParticipantsReached
+                ? strings.text(en: 'Yes', vi: 'Có')
+                : strings.text(en: 'No', vi: 'Chưa'),
           ),
           _SummaryRow(
-            label: 'Tutor xác nhận dạy',
-            value: summary.tutorConfirmationStatus,
+            label: strings.text(
+              en: 'Tutor confirmation',
+              vi: 'Tutor xác nhận dạy',
+            ),
+            value: strings.genericStatusLabel(summary.tutorConfirmationStatus),
           ),
           _SummaryRow(
-            label: 'Tổng escrow',
+            label: strings.text(en: 'Total escrow', vi: 'Tổng escrow'),
             value: '${summary.totalEscrowHeld} VND',
           ),
-          _SummaryRow(label: 'Payout tutor', value: summary.tutorPayoutStatus),
           _SummaryRow(
-            label: 'Số tiền payout',
+            label: strings.text(en: 'Tutor payout', vi: 'Payout tutor'),
+            value: strings.genericStatusLabel(summary.tutorPayoutStatus),
+          ),
+          _SummaryRow(
+            label: strings.text(en: 'Payout amount', vi: 'Số tiền payout'),
             value: '${summary.tutorPayoutAmount} VND',
           ),
           _SummaryRow(
-            label: 'Dispute đang mở',
+            label: strings.text(en: 'Open disputes', vi: 'Dispute đang mở'),
             value: summary.activeDisputes.toString(),
           ),
         ],

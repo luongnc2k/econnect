@@ -15,6 +15,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
+import 'localized_test_utils.dart';
+
 void main() {
   testWidgets('selecting a payout bank autofills bank name and BIN on save', (
     tester,
@@ -32,6 +34,9 @@ void main() {
           ),
         ],
         child: MaterialApp(
+          locale: testLocale,
+          supportedLocales: testSupportedLocales,
+          localizationsDelegates: testLocalizationsDelegates,
           theme: AppTheme.lightThemeMode,
           home: const EditMyProfileScreen(),
         ),
@@ -85,6 +90,9 @@ void main() {
           ),
         ],
         child: MaterialApp(
+          locale: testLocale,
+          supportedLocales: testSupportedLocales,
+          localizationsDelegates: testLocalizationsDelegates,
           theme: AppTheme.lightThemeMode,
           home: const EditMyProfileScreen(),
         ),
@@ -133,6 +141,9 @@ void main() {
             ),
           ],
           child: MaterialApp.router(
+            locale: testLocale,
+            supportedLocales: testSupportedLocales,
+            localizationsDelegates: testLocalizationsDelegates,
             theme: AppTheme.lightThemeMode,
             routerConfig: _buildStudentEditRouter(),
           ),
@@ -212,6 +223,9 @@ void main() {
             ),
           ],
           child: MaterialApp.router(
+            locale: testLocale,
+            supportedLocales: testSupportedLocales,
+            localizationsDelegates: testLocalizationsDelegates,
             theme: AppTheme.lightThemeMode,
             routerConfig: router,
           ),
@@ -257,6 +271,9 @@ void main() {
             ),
           ],
           child: MaterialApp.router(
+            locale: testLocale,
+            supportedLocales: testSupportedLocales,
+            localizationsDelegates: testLocalizationsDelegates,
             theme: AppTheme.lightThemeMode,
             routerConfig: _buildStudentBankSetupRouter(),
           ),
@@ -468,6 +485,9 @@ Future<void> _pumpBankSetupApp(
         ),
       ],
       child: MaterialApp.router(
+        locale: testLocale,
+        supportedLocales: testSupportedLocales,
+        localizationsDelegates: testLocalizationsDelegates,
         theme: AppTheme.lightThemeMode,
         routerConfig: router,
       ),

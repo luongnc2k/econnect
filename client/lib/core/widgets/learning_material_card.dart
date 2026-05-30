@@ -1,3 +1,4 @@
+import 'package:client/core/localization/app_language.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -12,15 +13,28 @@ class LearningMaterialCard extends StatelessWidget {
   });
 
   Future<void> _openMaterial(BuildContext context) async {
+    final strings = AppStrings(Localizations.localeOf(context).languageCode);
     final uri = Uri.tryParse(materialUrl);
     if (uri == null) {
-      _showMessage(context, 'Không mở được tài liệu học.');
+      _showMessage(
+        context,
+        strings.text(
+          en: 'Could not open the learning material.',
+          vi: 'Không mở được tài liệu học.',
+        ),
+      );
       return;
     }
 
     final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!launched && context.mounted) {
-      _showMessage(context, 'Không mở được tài liệu học.');
+      _showMessage(
+        context,
+        strings.text(
+          en: 'Could not open the learning material.',
+          vi: 'Không mở được tài liệu học.',
+        ),
+      );
     }
   }
 
@@ -33,9 +47,14 @@ class LearningMaterialCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final strings = AppStrings(Localizations.localeOf(context).languageCode);
+    final materialLabel = strings.text(
+      en: 'Class material',
+      vi: 'Tài liệu buổi học',
+    );
     final displayName = fileName?.trim().isNotEmpty == true
         ? fileName!.trim()
-        : 'Tài liệu buổi học';
+        : materialLabel;
 
     return Container(
       width: double.infinity,
@@ -65,7 +84,7 @@ class LearningMaterialCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Tài liệu buổi học',
+                  materialLabel,
                   style: Theme.of(
                     context,
                   ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
@@ -84,7 +103,7 @@ class LearningMaterialCard extends StatelessWidget {
           OutlinedButton.icon(
             onPressed: () => _openMaterial(context),
             icon: const Icon(Icons.open_in_new_rounded, size: 18),
-            label: const Text('Mở'),
+            label: Text(strings.text(en: 'Open', vi: 'Mở')),
           ),
         ],
       ),

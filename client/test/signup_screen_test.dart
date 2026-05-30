@@ -1,3 +1,4 @@
+import 'package:client/core/localization/app_language.dart';
 import 'package:client/features/auth/model/user_model.dart';
 import 'package:client/features/auth/view/screens/signup_screen.dart';
 import 'package:client/features/auth/viewmodel/auth_viewmodel.dart';
@@ -13,16 +14,19 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [authViewModelProvider.overrideWith(() => fakeViewModel)],
+        overrides: [
+          appLocaleProvider.overrideWith(() => _TestLocaleNotifier()),
+          authViewModelProvider.overrideWith(() => fakeViewModel),
+        ],
         child: const MaterialApp(home: SignupScreen()),
       ),
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Gia sư'));
+    await tester.tap(find.text('Tutor'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Tài khoản ngân hàng nhận payout'), findsNothing);
+    expect(find.text('Bank account for payouts'), findsNothing);
 
     await tester.enterText(find.byType(TextFormField).at(0), 'Tutor Demo');
     await tester.enterText(
@@ -31,6 +35,8 @@ void main() {
     );
     await tester.enterText(find.byType(TextFormField).at(2), 'Password123!');
 
+    await tester.ensureVisible(find.text('Sign Up'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Sign Up'));
     await tester.pumpAndSettle();
 
@@ -41,6 +47,11 @@ void main() {
     expect(fakeViewModel.lastSignupRequest?.bankAccountNumber, isNull);
     expect(fakeViewModel.lastSignupRequest?.bankAccountHolder, isNull);
   });
+}
+
+class _TestLocaleNotifier extends AppLocaleNotifier {
+  @override
+  Locale build() => const Locale('en');
 }
 
 class _FakeAuthViewModel extends AuthViewModel {

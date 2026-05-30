@@ -7,7 +7,7 @@ class GoogleSignInButton extends StatelessWidget {
   const GoogleSignInButton({
     super.key,
     required this.onTap,
-    this.label = 'Đăng nhập với Google',
+    this.label = 'Sign in with Google',
   });
 
   @override

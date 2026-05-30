@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:client/core/localization/app_language.dart';
 import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/core/router/app_router.dart';
 import 'package:client/features/search/view/widgets/search_bar_widget.dart';
@@ -7,9 +8,9 @@ import 'package:client/features/student/model/class_session.dart';
 import 'package:client/features/student/repositories/student_remote_repository.dart';
 import 'package:client/features/student/view/widgets/upcoming_classlist_widget.dart';
 import 'package:client/testing/manual_test_mocks.dart';
-import 'package:fpdart/fpdart.dart' show Left, Right;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fpdart/fpdart.dart' show Left, Right;
 import 'package:go_router/go_router.dart';
 
 class ClassSearchScreen extends ConsumerStatefulWidget {
@@ -129,6 +130,8 @@ class _ClassSearchScreenState extends ConsumerState<ClassSearchScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final strings = ref.watch(appStringsProvider);
+
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -137,7 +140,10 @@ class _ClassSearchScreenState extends ConsumerState<ClassSearchScreen> {
           children: [
             SearchBarWidget(
               controller: _controller,
-              hintText: 'Tìm theo mã lớp hoặc tên lớp',
+              hintText: strings.text(
+                en: 'Search by class code or class name',
+                vi: 'Tìm theo mã lớp hoặc tên lớp',
+              ),
               onChanged: _scheduleLoadClasses,
             ),
             const SizedBox(height: 12),
@@ -153,7 +159,14 @@ class _ClassSearchScreenState extends ConsumerState<ClassSearchScreen> {
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : _classes.isEmpty
-                  ? const Center(child: Text('Không tìm thấy lớp học'))
+                  ? Center(
+                      child: Text(
+                        strings.text(
+                          en: 'No classes found',
+                          vi: 'Không tìm thấy lớp học',
+                        ),
+                      ),
+                    )
                   : UpcomingClassListWidget(
                       classes: _classes,
                       onClassTap: (session) =>

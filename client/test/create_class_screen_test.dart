@@ -18,6 +18,8 @@ import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:url_launcher_platform_interface/link.dart';
 import 'package:url_launcher_platform_interface/url_launcher_platform_interface.dart';
 
+import 'localized_test_utils.dart';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -57,6 +59,9 @@ void main() {
             tutorRemoteRepositoryProvider.overrideWithValue(fakeTutorRepo),
           ],
           child: MaterialApp(
+            locale: testLocale,
+            supportedLocales: testSupportedLocales,
+            localizationsDelegates: testLocalizationsDelegates,
             theme: AppTheme.lightThemeMode,
             home: const CreateClassScreen(),
           ),
@@ -96,6 +101,9 @@ void main() {
             tutorRemoteRepositoryProvider.overrideWithValue(fakeTutorRepo),
           ],
           child: MaterialApp(
+            locale: testLocale,
+            supportedLocales: testSupportedLocales,
+            localizationsDelegates: testLocalizationsDelegates,
             theme: AppTheme.lightThemeMode,
             home: const CreateClassScreen(),
           ),
@@ -149,6 +157,9 @@ void main() {
             ),
           ],
           child: MaterialApp(
+            locale: testLocale,
+            supportedLocales: testSupportedLocales,
+            localizationsDelegates: testLocalizationsDelegates,
             theme: AppTheme.lightThemeMode,
             home: const CreateClassScreen(),
           ),

@@ -9,6 +9,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'localized_test_utils.dart';
+
 void main() {
   testWidgets('user search screen builds with material scaffold', (
     tester,
@@ -91,6 +93,9 @@ Widget _buildApp({_FakeUserSearchRepository? fakeRepo}) {
         userSearchRepositoryProvider.overrideWithValue(fakeRepo),
     ],
     child: MaterialApp(
+      locale: testLocale,
+      supportedLocales: testSupportedLocales,
+      localizationsDelegates: testLocalizationsDelegates,
       theme: AppTheme.lightThemeMode,
       home: const UserSearchScreen(),
     ),

@@ -1,3 +1,4 @@
+import 'package:client/core/localization/app_language.dart';
 import 'package:client/features/student/model/class_session.dart';
 import 'package:flutter/material.dart';
 
@@ -20,31 +21,6 @@ class ScheduleCalendar extends StatelessWidget {
     required this.onModeChanged,
     this.margin = EdgeInsets.zero,
   });
-
-  static const _weekdayLabels = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
-  static const _fullWeekdayLabels = [
-    'Thứ hai',
-    'Thứ ba',
-    'Thứ tư',
-    'Thứ năm',
-    'Thứ sáu',
-    'Thứ bảy',
-    'Chủ nhật',
-  ];
-  static const _monthLabels = [
-    'tháng 1',
-    'tháng 2',
-    'tháng 3',
-    'tháng 4',
-    'tháng 5',
-    'tháng 6',
-    'tháng 7',
-    'tháng 8',
-    'tháng 9',
-    'tháng 10',
-    'tháng 11',
-    'tháng 12',
-  ];
 
   static DateTime dateOnly(DateTime value) {
     return DateTime(value.year, value.month, value.day);
@@ -77,10 +53,8 @@ class ScheduleCalendar extends StatelessWidget {
     };
   }
 
-  static String selectedDateLabel(DateTime value) {
-    final date = dateOnly(value);
-    final weekday = _fullWeekdayLabels[date.weekday - 1];
-    return '$weekday, ${date.day} ${_monthLabels[date.month - 1]}';
+  static String selectedDateLabel(DateTime value, {AppStrings? strings}) {
+    return (strings ?? const AppStrings('vi')).selectedDateLabel(value);
   }
 
   DateTime get _normalizedSelectedDate => dateOnly(selectedDate);
@@ -116,20 +90,26 @@ class ScheduleCalendar extends StatelessWidget {
     );
   }
 
-  String _periodLabel() {
+  String _periodLabel(AppStrings strings) {
     final selected = _normalizedSelectedDate;
     return switch (mode) {
-      ScheduleCalendarViewMode.week => _weekLabel(selected),
+      ScheduleCalendarViewMode.week => _weekLabel(selected, strings),
       ScheduleCalendarViewMode.month =>
-        'Tháng ${selected.month}, ${selected.year}',
+        strings.isVietnamese
+            ? 'Tháng ${selected.month}, ${selected.year}'
+            : '${strings.monthLabels[selected.month - 1]} ${selected.year}',
     };
   }
 
-  String _weekLabel(DateTime value) {
+  String _weekLabel(DateTime value, AppStrings strings) {
     final start = _weekStart(value);
     final end = start.add(const Duration(days: 6));
     if (start.month == end.month && start.year == end.year) {
-      return '${start.day} - ${end.day} ${_monthLabels[start.month - 1]}, ${start.year}';
+      final month = strings.monthLabels[start.month - 1];
+      if (strings.isVietnamese) {
+        return '${start.day} - ${end.day} $month, ${start.year}';
+      }
+      return '$month ${start.day} - ${end.day}, ${start.year}';
     }
     return '${_shortDate(start)} - ${_shortDate(end)}';
   }
@@ -143,6 +123,7 @@ class ScheduleCalendar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final strings = AppStrings(Localizations.localeOf(context).languageCode);
     final maxHeight = (MediaQuery.sizeOf(context).height * 0.25)
         .clamp(156.0, 220.0)
         .toDouble();
@@ -169,16 +150,16 @@ class ScheduleCalendar extends StatelessWidget {
                   EdgeInsets.symmetric(horizontal: 10),
                 ),
               ),
-              segments: const [
+              segments: [
                 ButtonSegment(
                   value: ScheduleCalendarViewMode.week,
-                  icon: Icon(Icons.view_week_rounded, size: 18),
-                  label: Text('Tuần'),
+                  icon: const Icon(Icons.view_week_rounded, size: 18),
+                  label: Text(strings.text(en: 'Week', vi: 'Tuần')),
                 ),
                 ButtonSegment(
                   value: ScheduleCalendarViewMode.month,
-                  icon: Icon(Icons.calendar_month_rounded, size: 18),
-                  label: Text('Tháng'),
+                  icon: const Icon(Icons.calendar_month_rounded, size: 18),
+                  label: Text(strings.text(en: 'Month', vi: 'Tháng')),
                 ),
               ],
               selected: {mode},
@@ -197,11 +178,11 @@ class ScheduleCalendar extends StatelessWidget {
                     width: 34,
                     height: 34,
                   ),
-                  tooltip: 'Kỳ trước',
+                  tooltip: strings.text(en: 'Previous period', vi: 'Kỳ trước'),
                 ),
                 Expanded(
                   child: Text(
-                    _periodLabel(),
+                    _periodLabel(strings),
                     textAlign: TextAlign.center,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -220,7 +201,7 @@ class ScheduleCalendar extends StatelessWidget {
                     width: 34,
                     height: 34,
                   ),
-                  tooltip: 'Kỳ sau',
+                  tooltip: strings.text(en: 'Next period', vi: 'Kỳ sau'),
                 ),
                 const SizedBox(width: 4),
                 IconButton.filledTonal(
@@ -233,14 +214,17 @@ class ScheduleCalendar extends StatelessWidget {
                     width: 34,
                     height: 34,
                   ),
-                  tooltip: 'Hôm nay',
+                  tooltip: strings.text(en: 'Today', vi: 'Hôm nay'),
                 ),
               ],
             ),
             const SizedBox(height: 6),
             switch (mode) {
-              ScheduleCalendarViewMode.week => _buildWeekView(context),
-              ScheduleCalendarViewMode.month => _buildMonthView(context),
+              ScheduleCalendarViewMode.week => _buildWeekView(context, strings),
+              ScheduleCalendarViewMode.month => _buildMonthView(
+                context,
+                strings,
+              ),
             },
           ],
         ),
@@ -248,7 +232,7 @@ class ScheduleCalendar extends StatelessWidget {
     );
   }
 
-  Widget _buildWeekView(BuildContext context) {
+  Widget _buildWeekView(BuildContext context, AppStrings strings) {
     final start = _weekStart(_normalizedSelectedDate);
     final today = dateOnly(DateTime.now());
     final days = List.generate(7, (index) => start.add(Duration(days: index)));
@@ -262,6 +246,7 @@ class ScheduleCalendar extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 1),
                 child: _CalendarDayCell(
+                  strings: strings,
                   date: day,
                   classCount: classesForDate(classes, day).length,
                   isSelected: day == _normalizedSelectedDate,
@@ -278,7 +263,7 @@ class ScheduleCalendar extends StatelessWidget {
     );
   }
 
-  Widget _buildMonthView(BuildContext context) {
+  Widget _buildMonthView(BuildContext context, AppStrings strings) {
     final selected = _normalizedSelectedDate;
     final today = dateOnly(DateTime.now());
     final monthClassDates =
@@ -299,7 +284,10 @@ class ScheduleCalendar extends StatelessWidget {
           borderRadius: BorderRadius.circular(10),
         ),
         child: Text(
-          'Tháng này chưa có lịch.',
+          strings.text(
+            en: 'No schedule this month.',
+            vi: 'Tháng này chưa có lịch.',
+          ),
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
             color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -319,6 +307,7 @@ class ScheduleCalendar extends StatelessWidget {
         itemBuilder: (context, index) {
           final day = monthClassDates[index];
           return _MonthClassDayChip(
+            strings: strings,
             date: day,
             classCount: classesForDate(classes, day).length,
             isSelected: day == selected,
@@ -332,6 +321,7 @@ class ScheduleCalendar extends StatelessWidget {
 }
 
 class _MonthClassDayChip extends StatelessWidget {
+  final AppStrings strings;
   final DateTime date;
   final int classCount;
   final bool isSelected;
@@ -339,6 +329,7 @@ class _MonthClassDayChip extends StatelessWidget {
   final VoidCallback onTap;
 
   const _MonthClassDayChip({
+    required this.strings,
     required this.date,
     required this.classCount,
     required this.isSelected,
@@ -375,7 +366,7 @@ class _MonthClassDayChip extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
-                ScheduleCalendar._weekdayLabels[date.weekday - 1],
+                strings.weekdayShortLabels[date.weekday - 1],
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
                   color: foreground,
                   fontSize: 10,
@@ -394,7 +385,7 @@ class _MonthClassDayChip extends StatelessWidget {
               ),
               const SizedBox(height: 1),
               Text(
-                '$classCount lớp',
+                strings.classCount(classCount),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
@@ -413,6 +404,7 @@ class _MonthClassDayChip extends StatelessWidget {
 }
 
 class _CalendarDayCell extends StatelessWidget {
+  final AppStrings strings;
   final DateTime date;
   final int classCount;
   final bool isSelected;
@@ -423,6 +415,7 @@ class _CalendarDayCell extends StatelessWidget {
   final VoidCallback onTap;
 
   const _CalendarDayCell({
+    required this.strings,
     required this.date,
     required this.classCount,
     required this.isSelected,
@@ -477,7 +470,7 @@ class _CalendarDayCell extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
-                ScheduleCalendar._weekdayLabels[date.weekday - 1],
+                strings.weekdayShortLabels[date.weekday - 1],
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
@@ -506,7 +499,7 @@ class _CalendarDayCell extends StatelessWidget {
                     ? compact
                           ? _ClassDot(color: isSelected ? foreground : cs.error)
                           : Text(
-                              '$classCount lớp',
+                              strings.classCount(classCount),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: Theme.of(context).textTheme.labelSmall

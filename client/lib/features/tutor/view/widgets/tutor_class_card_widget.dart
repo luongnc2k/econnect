@@ -1,3 +1,4 @@
+import 'package:client/core/localization/app_language.dart';
 import 'package:client/core/widgets/app_tag_chip.dart';
 import 'package:client/core/widgets/status_badge.dart';
 import 'package:client/features/student/model/class_session.dart';
@@ -13,6 +14,7 @@ class TutorClassCardWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final strings = AppStrings(Localizations.localeOf(context).languageCode);
 
     return InkWell(
       onTap: onTap,
@@ -48,7 +50,9 @@ class TutorClassCardWidget extends StatelessWidget {
                     Positioned(
                       top: 8,
                       left: 8,
-                      child: StatusBadge(label: session.statusText),
+                      child: StatusBadge(
+                        label: strings.classStatusLabel(session.statusText),
+                      ),
                     ),
                   ],
                 ),
@@ -84,7 +88,8 @@ class TutorClassCardWidget extends StatelessWidget {
                     // Time row
                     _IconRow(
                       icon: Icons.schedule_rounded,
-                      text: '${session.dateText ?? ''} · ${session.timeText}',
+                      text:
+                          '${strings.classDateText(session.dateText) ?? ''} · ${strings.classTimeText(session.timeText)}',
                       cs: cs,
                     ),
                     const SizedBox(height: 4),
@@ -110,10 +115,7 @@ class TutorClassCardWidget extends StatelessWidget {
 
                         // Class code copy
                         if (session.classCode != null)
-                          _ClassCodeCopy(
-                            code: session.classCode!,
-                            cs: cs,
-                          ),
+                          _ClassCodeCopy(code: session.classCode!, cs: cs),
                       ],
                     ),
                   ],
@@ -143,7 +145,6 @@ class _PlaceholderThumb extends StatelessWidget {
     );
   }
 }
-
 
 class _IconRow extends StatelessWidget {
   final IconData icon;
@@ -184,11 +185,16 @@ class _EnrollmentPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final text = slotText ?? countdownText ?? '';
+    final strings = AppStrings(Localizations.localeOf(context).languageCode);
+    final text =
+        strings.classSlotText(slotText) ??
+        strings.classCountdownText(countdownText) ??
+        '';
     if (text.isEmpty) return const SizedBox.shrink();
 
-    // Highlight if full ("Hết chỗ")
-    final isFull = countdownText?.contains('Hết') ?? false;
+    final isFull =
+        countdownText == 'Hết chỗ' ||
+        strings.classCountdownText(countdownText) == 'Full';
     final color = isFull ? cs.error : cs.primary;
 
     return Container(
@@ -229,8 +235,18 @@ class _ClassCodeCopy extends StatelessWidget {
       onTap: () async {
         await Clipboard.setData(ClipboardData(text: code));
         if (!context.mounted) return;
+        final strings = AppStrings(
+          Localizations.localeOf(context).languageCode,
+        );
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Đã copy mã lớp $code')),
+          SnackBar(
+            content: Text(
+              strings.text(
+                en: 'Copied class code $code',
+                vi: 'Đã copy mã lớp $code',
+              ),
+            ),
+          ),
         );
       },
       borderRadius: BorderRadius.circular(8),

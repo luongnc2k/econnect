@@ -1,3 +1,4 @@
+import 'package:client/core/localization/app_language.dart';
 import 'package:client/features/auth/model/user_model.dart';
 import 'package:client/features/profile/model/student_my_profile_model.dart';
 import 'package:client/features/profile/model/teacher_my_profile_model.dart';
@@ -19,7 +20,7 @@ class UserProfileScreen extends ConsumerWidget {
         '${date.year}';
   }
 
-  List<ProfileInfoItem> _buildBankItems(UserModel profile) {
+  List<ProfileInfoItem> _buildBankItems(UserModel profile, AppStrings strings) {
     String? bankName;
     String? bankBin;
     String? bankAccountNumber;
@@ -41,17 +42,20 @@ class UserProfileScreen extends ConsumerWidget {
 
     return <ProfileInfoItem>[
       if ((bankName ?? '').trim().isNotEmpty)
-        ProfileInfoItem(label: 'Ngân hàng', value: bankName ?? '--'),
+        ProfileInfoItem(
+          label: strings.text(en: 'Bank', vi: 'Ngân hàng'),
+          value: bankName ?? '--',
+        ),
       if ((bankBin ?? '').trim().isNotEmpty)
-        ProfileInfoItem(label: 'Mã BIN', value: bankBin ?? '--'),
+        ProfileInfoItem(label: 'BIN', value: bankBin ?? '--'),
       if ((bankAccountNumber ?? '').trim().isNotEmpty)
         ProfileInfoItem(
-          label: 'Số tài khoản',
+          label: strings.text(en: 'Account number', vi: 'Số tài khoản'),
           value: bankAccountNumber ?? '--',
         ),
       if ((bankAccountHolder ?? '').trim().isNotEmpty)
         ProfileInfoItem(
-          label: 'Chủ tài khoản',
+          label: strings.text(en: 'Account holder', vi: 'Chủ tài khoản'),
           value: bankAccountHolder ?? '--',
         ),
     ];
@@ -59,8 +63,14 @@ class UserProfileScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final strings = ref.watch(appStringsProvider);
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Thông tin cá nhân')),
+      appBar: AppBar(
+        title: Text(
+          strings.text(en: 'Personal information', vi: 'Thông tin cá nhân'),
+        ),
+      ),
       body: FutureBuilder<UserModel>(
         future: ref
             .read(userProfileRepositoryProvider)
@@ -71,8 +81,13 @@ class UserProfileScreen extends ConsumerWidget {
           }
 
           if (snapshot.hasError || !snapshot.hasData) {
-            return const Center(
-              child: Text('Không tải được thông tin người dùng'),
+            return Center(
+              child: Text(
+                strings.text(
+                  en: 'Could not load user information',
+                  vi: 'Không tải được thông tin người dùng',
+                ),
+              ),
             );
           }
 
@@ -85,7 +100,10 @@ class UserProfileScreen extends ConsumerWidget {
               profile.lastLoginAt != null ||
               profile.createdAt != null;
           final personalItems = <ProfileInfoItem>[
-            ProfileInfoItem(label: 'Họ và tên', value: profile.fullName),
+            ProfileInfoItem(
+              label: strings.text(en: 'Full name', vi: 'Họ và tên'),
+              value: profile.fullName,
+            ),
           ];
 
           if (hasEmail) {
@@ -96,7 +114,7 @@ class UserProfileScreen extends ConsumerWidget {
           if (hasPhone) {
             personalItems.add(
               ProfileInfoItem(
-                label: 'Số điện thoại',
+                label: strings.text(en: 'Phone number', vi: 'Số điện thoại'),
                 value: profile.phone ?? '--',
               ),
             );
@@ -104,15 +122,17 @@ class UserProfileScreen extends ConsumerWidget {
           if (showPrivateMetadata) {
             personalItems.add(
               ProfileInfoItem(
-                label: 'Trạng thái',
-                value: profile.isActive ? 'Đang hoạt động' : 'Ngừng hoạt động',
+                label: strings.text(en: 'Status', vi: 'Trạng thái'),
+                value: profile.isActive
+                    ? strings.text(en: 'Active', vi: 'Đang hoạt động')
+                    : strings.text(en: 'Inactive', vi: 'Ngừng hoạt động'),
               ),
             );
           }
           if (profile.lastLoginAt != null) {
             personalItems.add(
               ProfileInfoItem(
-                label: 'Lần đăng nhập cuối',
+                label: strings.text(en: 'Last login', vi: 'Lần đăng nhập cuối'),
                 value: _formatDate(profile.lastLoginAt),
               ),
             );
@@ -120,65 +140,89 @@ class UserProfileScreen extends ConsumerWidget {
           if (profile.createdAt != null) {
             personalItems.add(
               ProfileInfoItem(
-                label: 'Ngày tạo',
+                label: strings.text(en: 'Created date', vi: 'Ngày tạo'),
                 value: _formatDate(profile.createdAt),
               ),
             );
           }
 
-          final bankItems = _buildBankItems(profile);
+          final bankItems = _buildBankItems(profile, strings);
 
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
               MyProfileHeader(profile: profile),
               const SizedBox(height: 16),
-              ProfileInfoCard(title: 'Thông tin cá nhân', items: personalItems),
+              ProfileInfoCard(
+                title: strings.text(
+                  en: 'Personal information',
+                  vi: 'Thông tin cá nhân',
+                ),
+                items: personalItems,
+              ),
               const SizedBox(height: 16),
               if (profile is StudentMyProfileModel)
                 ProfileInfoCard(
-                  title: 'Thông tin học viên',
+                  title: strings.text(
+                    en: 'Student information',
+                    vi: 'Thông tin học viên',
+                  ),
                   items: [
                     ProfileInfoItem(
-                      label: 'Trình độ',
+                      label: strings.text(en: 'Level', vi: 'Trình độ'),
                       value: profile.englishLevel ?? '--',
                     ),
                     ProfileInfoItem(
-                      label: 'Mục tiêu',
+                      label: strings.text(en: 'Goal', vi: 'Mục tiêu'),
                       value: profile.learningGoal ?? '--',
                     ),
                     ProfileInfoItem(
-                      label: 'Tổng buổi học',
+                      label: strings.text(
+                        en: 'Total lessons',
+                        vi: 'Tổng buổi học',
+                      ),
                       value: profile.totalLessons.toString(),
                     ),
                   ],
                 ),
               if (profile is TeacherMyProfileModel)
                 ProfileInfoCard(
-                  title: 'Thông tin giáo viên',
+                  title: strings.text(
+                    en: 'Teacher information',
+                    vi: 'Thông tin giáo viên',
+                  ),
                   items: [
                     ProfileInfoItem(
-                      label: 'Chuyên môn',
+                      label: strings.text(
+                        en: 'Specialization',
+                        vi: 'Chuyên môn',
+                      ),
                       value: profile.specialization ?? '--',
                     ),
                     ProfileInfoItem(
-                      label: 'Kinh nghiệm',
-                      value: '${profile.yearsOfExperience} năm',
+                      label: strings.text(en: 'Experience', vi: 'Kinh nghiệm'),
+                      value: strings.text(
+                        en: '${profile.yearsOfExperience} years',
+                        vi: '${profile.yearsOfExperience} năm',
+                      ),
                     ),
                     ProfileInfoItem(
-                      label: 'Đánh giá',
+                      label: strings.text(en: 'Rating', vi: 'Đánh giá'),
                       value: profile.rating.toStringAsFixed(1),
                     ),
                     ProfileInfoItem(
-                      label: 'Số học viên',
+                      label: strings.text(en: 'Students', vi: 'Số học viên'),
                       value: profile.totalStudents.toString(),
                     ),
                     ProfileInfoItem(
-                      label: 'Giới thiệu',
+                      label: strings.text(en: 'Bio', vi: 'Giới thiệu'),
                       value: profile.bio ?? '--',
                     ),
                     ProfileInfoItem(
-                      label: 'Chứng chỉ / bằng cấp',
+                      label: strings.text(
+                        en: 'Certificates / degrees',
+                        vi: 'Chứng chỉ / bằng cấp',
+                      ),
                       value: profile.certifications.isEmpty
                           ? '--'
                           : profile.certifications.join(', '),
@@ -187,7 +231,13 @@ class UserProfileScreen extends ConsumerWidget {
                 ),
               if (bankItems.isNotEmpty) ...[
                 const SizedBox(height: 16),
-                ProfileInfoCard(title: 'Tài khoản ngân hàng', items: bankItems),
+                ProfileInfoCard(
+                  title: strings.text(
+                    en: 'Bank account',
+                    vi: 'Tài khoản ngân hàng',
+                  ),
+                  items: bankItems,
+                ),
               ],
             ],
           );

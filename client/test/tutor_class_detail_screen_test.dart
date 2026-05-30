@@ -15,6 +15,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fpdart/fpdart.dart';
 
+import 'localized_test_utils.dart';
+
 void main() {
   testWidgets('tutor detail shows material from refreshed class detail', (
     tester,
@@ -34,6 +36,9 @@ void main() {
           tutorRemoteRepositoryProvider.overrideWithValue(fakeTutorRepo),
         ],
         child: MaterialApp(
+          locale: testLocale,
+          supportedLocales: testSupportedLocales,
+          localizationsDelegates: testLocalizationsDelegates,
           theme: AppTheme.lightThemeMode,
           home: TutorClassDetailScreen(session: _sampleSession()),
         ),
@@ -63,6 +68,9 @@ void main() {
             tutorRemoteRepositoryProvider.overrideWithValue(fakeTutorRepo),
           ],
           child: MaterialApp(
+            locale: testLocale,
+            supportedLocales: testSupportedLocales,
+            localizationsDelegates: testLocalizationsDelegates,
             theme: AppTheme.lightThemeMode,
             home: TutorClassDetailScreen(session: _sampleSession()),
           ),

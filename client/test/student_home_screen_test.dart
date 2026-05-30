@@ -1,4 +1,5 @@
 import 'package:client/core/failure/failure.dart';
+import 'package:client/core/localization/app_language.dart';
 import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/core/theme/theme.dart';
 import 'package:client/features/auth/model/user_model.dart';
@@ -11,6 +12,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fpdart/fpdart.dart';
 
+import 'localized_test_utils.dart';
+
 void main() {
   testWidgets('student home shows top featured teachers from dedicated feed', (
     tester,
@@ -20,10 +23,14 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          appLocaleProvider.overrideWith(() => _TestLocaleNotifier()),
           currentUserProvider.overrideWithValue(_sampleUser()),
           studentRemoteRepositoryProvider.overrideWithValue(fakeRepo),
         ],
         child: MaterialApp(
+          locale: testLocale,
+          supportedLocales: testSupportedLocales,
+          localizationsDelegates: testLocalizationsDelegates,
           theme: AppTheme.lightThemeMode,
           home: const Scaffold(body: StudentHomeScreen()),
         ),
@@ -43,6 +50,11 @@ void main() {
     expect(find.text('120 buổi dạy'), findsOneWidget);
     expect(find.text('95 buổi dạy'), findsOneWidget);
   });
+}
+
+class _TestLocaleNotifier extends AppLocaleNotifier {
+  @override
+  Locale build() => const Locale('vi');
 }
 
 UserModel _sampleUser() {

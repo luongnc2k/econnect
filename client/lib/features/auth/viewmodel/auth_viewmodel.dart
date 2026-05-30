@@ -1,4 +1,5 @@
 import 'package:client/core/failure/failure.dart';
+import 'package:client/core/localization/app_language.dart';
 import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/features/auth/model/user_model.dart';
 import 'package:client/features/auth/repositories/auth_local_repository.dart';
@@ -76,10 +77,7 @@ class AuthViewModel extends _$AuthViewModel {
     }
   }
 
-  Future<void> loginWithGoogle({
-    String? role,
-    bool allowSignup = false,
-  }) async {
+  Future<void> loginWithGoogle({String? role, bool allowSignup = false}) async {
     state = const AsyncValue.loading();
     try {
       final googleSignIn = GoogleSignIn(
@@ -96,8 +94,14 @@ class AuthViewModel extends _$AuthViewModel {
       final auth = await account.authentication;
       final idToken = auth.idToken;
       if (idToken == null || idToken.isEmpty) {
+        final strings = ref.read(appStringsProvider);
         state = AsyncValue.error(
-          AppFailure('Không lấy được Google id_token').message,
+          AppFailure(
+            strings.text(
+              en: 'Could not get Google id_token',
+              vi: 'Không lấy được Google id_token',
+            ),
+          ).message,
           StackTrace.current,
         );
         return;
@@ -116,8 +120,12 @@ class AuthViewModel extends _$AuthViewModel {
           await _loginSuccess(r);
       }
     } catch (e) {
+      final strings = ref.read(appStringsProvider);
       state = AsyncValue.error(
-        'Đăng nhập Google thất bại: $e',
+        strings.text(
+          en: 'Google sign-in failed: $e',
+          vi: 'Đăng nhập Google thất bại: $e',
+        ),
         StackTrace.current,
       );
     }

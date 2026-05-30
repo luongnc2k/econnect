@@ -1,3 +1,4 @@
+import 'package:client/core/localization/app_language.dart';
 import 'package:client/core/widgets/app_tag_chip.dart';
 import 'package:client/core/widgets/status_badge.dart';
 import 'package:flutter/material.dart';
@@ -34,6 +35,7 @@ class ClassCardWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final strings = AppStrings(Localizations.localeOf(context).languageCode);
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
@@ -48,7 +50,11 @@ class ClassCardWidget extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SizedBox(width: 108, height: 136, child: _buildThumbnail(cs)),
+              SizedBox(
+                width: 108,
+                height: 136,
+                child: _buildThumbnail(cs, strings),
+              ),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
@@ -86,7 +92,12 @@ class ClassCardWidget extends StatelessWidget {
                           if (!context.mounted) return;
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text('Đã copy mã lớp $classCode'),
+                              content: Text(
+                                strings.text(
+                                  en: 'Copied class code $classCode',
+                                  vi: 'Đã copy mã lớp $classCode',
+                                ),
+                              ),
                             ),
                           );
                         },
@@ -132,14 +143,14 @@ class ClassCardWidget extends StatelessWidget {
                       children: [
                         Expanded(
                           child: _InfoColumn(
-                            label: 'Thời gian',
-                            value: timeText,
+                            label: strings.text(en: 'Time', vi: 'Thời gian'),
+                            value: strings.classTimeText(timeText),
                           ),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: _InfoColumn(
-                            label: 'Phí tham gia',
+                            label: strings.text(en: 'Fee', vi: 'Phí tham gia'),
                             value: priceText,
                           ),
                         ),
@@ -155,7 +166,7 @@ class ClassCardWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildThumbnail(ColorScheme cs) {
+  Widget _buildThumbnail(ColorScheme cs, AppStrings strings) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
       child: Container(
@@ -172,12 +183,18 @@ class ClassCardWidget extends StatelessWidget {
                     )
                   : _PlaceholderImage(cs: cs),
             ),
-            Positioned(top: 8, left: 8, child: StatusBadge(label: statusText)),
+            Positioned(
+              top: 8,
+              left: 8,
+              child: StatusBadge(label: strings.classStatusLabel(statusText)),
+            ),
             if (countdownText != null && countdownText!.isNotEmpty)
               Positioned(
                 top: 8,
                 right: 8,
-                child: _OutlineBadge(label: countdownText!),
+                child: _OutlineBadge(
+                  label: strings.classCountdownText(countdownText) ?? '',
+                ),
               ),
           ],
         ),

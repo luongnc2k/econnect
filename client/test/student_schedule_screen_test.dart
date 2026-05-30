@@ -13,6 +13,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:fpdart/fpdart.dart';
 import 'package:go_router/go_router.dart';
 
+import 'localized_test_utils.dart';
+
 void main() {
   testWidgets(
     'student schedule screen shows upcoming classes without mini calendar and opens detail',
@@ -79,6 +81,9 @@ void main() {
             studentRemoteRepositoryProvider.overrideWithValue(fakeRepo),
           ],
           child: MaterialApp.router(
+            locale: testLocale,
+            supportedLocales: testSupportedLocales,
+            localizationsDelegates: testLocalizationsDelegates,
             theme: AppTheme.lightThemeMode,
             routerConfig: router,
           ),
@@ -113,6 +118,9 @@ void main() {
           studentRemoteRepositoryProvider.overrideWithValue(fakeRepo),
         ],
         child: MaterialApp(
+          locale: testLocale,
+          supportedLocales: testSupportedLocales,
+          localizationsDelegates: testLocalizationsDelegates,
           theme: AppTheme.lightThemeMode,
           home: Scaffold(
             body: StudentScheduleScreen(refreshToken: refreshToken),
@@ -211,6 +219,9 @@ void main() {
           studentRemoteRepositoryProvider.overrideWithValue(fakeRepo),
         ],
         child: MaterialApp.router(
+          locale: testLocale,
+          supportedLocales: testSupportedLocales,
+          localizationsDelegates: testLocalizationsDelegates,
           theme: AppTheme.lightThemeMode,
           routerConfig: router,
         ),

@@ -1,8 +1,10 @@
 // ignore_for_file: avoid_print
 
+import 'package:client/core/localization/app_language.dart';
+import 'package:client/core/localization/language_controls.dart';
+import 'package:client/core/router/app_router.dart';
 import 'package:client/core/theme/app_pallete.dart';
 import 'package:client/core/utils.dart';
-import 'package:client/core/router/app_router.dart';
 import 'package:client/features/auth/view/widgets/auth_gradient_button.dart';
 import 'package:client/features/auth/view/widgets/auth_logo.dart';
 import 'package:client/features/auth/view/widgets/auth_scroll_body.dart';
@@ -40,14 +42,15 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     final isLoading = ref.watch(
       authViewModelProvider.select((val) => val?.isLoading == true),
     );
+    final strings = ref.watch(appStringsProvider);
 
     ref.listen(authViewModelProvider, (_, next) {
       next?.when(
         data: (data) {
           if (!mounted) return;
-          // Khi data co token (Google sign-up auto-login), router se tu redirect.
+          // When Google sign-up returns a token, the router redirects itself.
           if (data.token.isNotEmpty) return;
-          showSnackBar(context, 'Account created successfully! Please login');
+          showSnackBar(context, strings.accountCreated);
           context.go(AppRoutes.login);
         },
         error: (error, st) {
@@ -71,6 +74,11 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
+              const Align(
+                alignment: Alignment.centerRight,
+                child: LanguageSelector(),
+              ),
+              const SizedBox(height: 12),
               const AuthLogo(
                 heightFraction: 0.18,
                 minHeight: 90,
@@ -80,7 +88,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
               const SizedBox(height: 20),
 
               Text(
-                'Đăng ký',
+                strings.signupTitle,
                 style: TextStyle(
                   fontSize: titleSize,
                   fontWeight: FontWeight.bold,
@@ -90,7 +98,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
               const SizedBox(height: 6),
 
               Text(
-                'Tạo tài khoản để bắt đầu học tập',
+                strings.signupSubtitle,
+                textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 14,
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -98,14 +107,23 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
               ),
 
               const SizedBox(height: 24),
-              CustomField(hintText: 'Name', controller: nameController),
-              const SizedBox(height: 15),
-              CustomField(hintText: 'Email', controller: emailController),
+              CustomField(
+                hintText: strings.name,
+                controller: nameController,
+                requiredMessage: strings.requiredField(strings.name),
+              ),
               const SizedBox(height: 15),
               CustomField(
-                hintText: 'Password',
+                hintText: strings.email,
+                controller: emailController,
+                requiredMessage: strings.requiredField(strings.email),
+              ),
+              const SizedBox(height: 15),
+              CustomField(
+                hintText: strings.password,
                 controller: passwordController,
                 isObscureText: true,
+                requiredMessage: strings.requiredField(strings.password),
               ),
               const SizedBox(height: 20),
               RadioGroup<String>(
@@ -117,13 +135,13 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   children: [
                     Expanded(
                       child: RadioListTile<String>(
-                        title: const Text('Học viên'),
+                        title: Text(strings.studentRole),
                         value: 'student',
                       ),
                     ),
                     Expanded(
                       child: RadioListTile<String>(
-                        title: const Text('Gia sư'),
+                        title: Text(strings.teacherRole),
                         value: 'teacher',
                       ),
                     ),
@@ -132,7 +150,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
               ),
               const SizedBox(height: 10),
               AuthGradientButton(
-                buttonText: 'Sign Up',
+                buttonText: strings.signUp,
                 onTap: () async {
                   if (formKey.currentState!.validate()) {
                     await ref
@@ -144,20 +162,17 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                           role: selectedRole,
                         );
                   } else {
-                    showSnackBar(context, 'Missing fields!');
+                    showSnackBar(context, strings.missingFields);
                   }
                 },
               ),
               const SizedBox(height: 15),
               GoogleSignInButton(
-                label: 'Đăng ký với Google',
+                label: strings.googleSignUp,
                 onTap: () async {
                   await ref
                       .read(authViewModelProvider.notifier)
-                      .loginWithGoogle(
-                        role: selectedRole,
-                        allowSignup: true,
-                      );
+                      .loginWithGoogle(role: selectedRole, allowSignup: true);
                 },
               ),
               const SizedBox(height: 20),
@@ -167,11 +182,11 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                 },
                 child: RichText(
                   text: TextSpan(
-                    text: 'Already have an account? ',
+                    text: strings.alreadyHaveAccount,
                     style: Theme.of(context).textTheme.titleMedium,
                     children: [
                       TextSpan(
-                        text: 'Sign In',
+                        text: strings.signIn,
                         style: TextStyle(
                           color: Pallete.gradient2,
                           fontWeight: FontWeight.bold,

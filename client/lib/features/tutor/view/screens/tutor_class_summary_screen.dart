@@ -1,4 +1,5 @@
 import 'package:client/core/failure/failure.dart';
+import 'package:client/core/localization/app_language.dart';
 import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/features/payments/model/payment_summary.dart';
 import 'package:client/features/payments/repositories/payments_remote_repository.dart';
@@ -66,9 +67,14 @@ class _TutorClassSummaryScreenState
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final strings = ref.watch(appStringsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Chi tiết lớp của Tutor')),
+      appBar: AppBar(
+        title: Text(
+          strings.text(en: 'Tutor class details', vi: 'Chi tiết lớp của Tutor'),
+        ),
+      ),
       body: RefreshIndicator(
         onRefresh: _loadSummary,
         child: ListView(
@@ -91,7 +97,10 @@ class _TutorClassSummaryScreenState
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Màn hình này tối ưu cho deeplink từ thông báo để Tutor mở nhanh tình trạng lớp và payout.',
+                    strings.text(
+                      en: 'This screen is optimized for notification deeplinks so tutors can quickly open class and payout status.',
+                      vi: 'Màn hình này tối ưu cho deeplink từ thông báo để Tutor mở nhanh tình trạng lớp và payout.',
+                    ),
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: cs.onSurfaceVariant,
                       height: 1.45,
@@ -108,7 +117,7 @@ class _TutorClassSummaryScreenState
               _TutorSummaryMessageCard(
                 icon: Icons.error_outline_rounded,
                 message: _error!,
-                actionLabel: 'Tải lại',
+                actionLabel: strings.text(en: 'Reload', vi: 'Tải lại'),
                 onPressed: _loading ? null : _loadSummary,
               ),
             ] else if (_summary != null) ...[
@@ -130,6 +139,7 @@ class _TutorSummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final strings = AppStrings(Localizations.localeOf(context).languageCode);
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -141,51 +151,73 @@ class _TutorSummaryCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Tổng quan thanh toán',
+            strings.text(en: 'Payment overview', vi: 'Tổng quan thanh toán'),
             style: Theme.of(
               context,
             ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 14),
-          _TutorSummaryRow(label: 'Trạng thái lớp', value: summary.classStatus),
           _TutorSummaryRow(
-            label: 'Creation fee',
+            label: strings.text(en: 'Class status', vi: 'Trạng thái lớp'),
+            value: strings.genericStatusLabel(summary.classStatus),
+          ),
+          _TutorSummaryRow(
+            label: strings.text(en: 'Creation fee', vi: 'Phí tạo lớp'),
             value: '${summary.creationFeeAmount} VND',
           ),
           _TutorSummaryRow(
-            label: 'Creation payment',
-            value: summary.creationPaymentStatusLabel,
+            label: strings.text(
+              en: 'Creation payment',
+              vi: 'Thanh toán phí tạo lớp',
+            ),
+            value: strings.paymentCreationStatusLabel(
+              summary.creationPaymentStatus,
+            ),
           ),
           _TutorSummaryRow(
-            label: 'Học viên hiện tại',
+            label: strings.text(
+              en: 'Current students',
+              vi: 'Học viên hiện tại',
+            ),
             value: '${summary.currentParticipants}/${summary.maxParticipants}',
           ),
           _TutorSummaryRow(
-            label: 'Ngưỡng tối thiểu',
+            label: strings.text(
+              en: 'Minimum threshold',
+              vi: 'Ngưỡng tối thiểu',
+            ),
             value: summary.minParticipants.toString(),
           ),
           _TutorSummaryRow(
-            label: 'Đã đủ học viên tối thiểu',
-            value: summary.minimumParticipantsReached ? 'Có' : 'Chưa',
+            label: strings.text(
+              en: 'Minimum reached',
+              vi: 'Đã đủ học viên tối thiểu',
+            ),
+            value: summary.minimumParticipantsReached
+                ? strings.text(en: 'Yes', vi: 'Có')
+                : strings.text(en: 'No', vi: 'Chưa'),
           ),
           _TutorSummaryRow(
-            label: 'Tutor xác nhận dạy',
-            value: summary.tutorConfirmationStatus,
+            label: strings.text(
+              en: 'Tutor teaching confirmation',
+              vi: 'Tutor xác nhận dạy',
+            ),
+            value: strings.genericStatusLabel(summary.tutorConfirmationStatus),
           ),
           _TutorSummaryRow(
-            label: 'Tổng escrow',
+            label: strings.text(en: 'Total escrow', vi: 'Tổng escrow'),
             value: '${summary.totalEscrowHeld} VND',
           ),
           _TutorSummaryRow(
-            label: 'Trạng thái payout',
-            value: summary.tutorPayoutStatus,
+            label: strings.text(en: 'Payout status', vi: 'Trạng thái payout'),
+            value: strings.genericStatusLabel(summary.tutorPayoutStatus),
           ),
           _TutorSummaryRow(
-            label: 'Số tiền payout',
+            label: strings.text(en: 'Payout amount', vi: 'Số tiền payout'),
             value: '${summary.tutorPayoutAmount} VND',
           ),
           _TutorSummaryRow(
-            label: 'Khiếu nại đang mở',
+            label: strings.text(en: 'Open disputes', vi: 'Khiếu nại đang mở'),
             value: summary.activeDisputes.toString(),
           ),
         ],

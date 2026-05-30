@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:client/core/localization/app_language.dart';
 import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/features/payments/model/payment_transaction_status.dart';
 import 'package:client/features/payments/repositories/payments_remote_repository.dart';
@@ -38,7 +39,13 @@ class CreateClassViewModel extends Notifier<CreateClassState> {
   }) async {
     final token = ref.read(currentUserProvider)?.token;
     if (token == null) {
-      state = state.copyWith(error: 'Vui lòng đăng nhập lại');
+      final strings = ref.read(appStringsProvider);
+      state = state.copyWith(
+        error: strings.text(
+          en: 'Please sign in again',
+          vi: 'Vui lòng đăng nhập lại',
+        ),
+      );
       return null;
     }
 

@@ -1,3 +1,4 @@
+import 'package:client/core/localization/app_language.dart';
 import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/core/router/app_router.dart';
 import 'package:client/core/utils.dart';
@@ -26,17 +27,18 @@ class StudentHomeScreen extends ConsumerWidget {
 
   static const double _sectionSpacing = 16;
 
-  String _greeting() {
+  String _greeting(AppStrings strings) {
     final hour = DateTime.now().hour;
-    if (hour < 12) return 'Chào buổi sáng,';
-    if (hour < 18) return 'Chào buổi chiều,';
-    return 'Chào buổi tối,';
+    if (hour < 12) return strings.morningGreeting;
+    if (hour < 18) return strings.afternoonGreeting;
+    return strings.eveningGreeting;
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
     final state = ref.watch(studentHomeViewModelProvider);
+    final strings = ref.watch(appStringsProvider);
     final hPad = responsiveHPad(context);
 
     return SafeArea(
@@ -46,8 +48,8 @@ class StudentHomeScreen extends ConsumerWidget {
             child: Padding(
               padding: EdgeInsets.fromLTRB(hPad, 16, hPad, 0),
               child: HomeHeaderWidget(
-                greeting: _greeting(),
-                userName: user?.fullName ?? 'Bạn',
+                greeting: _greeting(strings),
+                userName: user?.fullName ?? strings.defaultStudentName,
                 avatarUrl: user?.avatarUrl,
                 onAvatarTap: onAvatarTap,
                 onNotificationTap: () => context.push(AppRoutes.notifications),
@@ -61,6 +63,8 @@ class StudentHomeScreen extends ConsumerWidget {
               horizontalPadding: hPad,
               categories: state.categories,
               selectedCategory: state.selectedCategory,
+              allCategoryLabel: strings.all,
+              searchHint: strings.searchUsersOrClassCode,
               onSearchTap: onSearchTap,
               onCategorySelected: (value) => ref
                   .read(studentHomeViewModelProvider.notifier)
@@ -71,8 +75,8 @@ class StudentHomeScreen extends ConsumerWidget {
             child: Padding(
               padding: EdgeInsets.fromLTRB(hPad, 0, hPad, 0),
               child: SectionHeaderWidget(
-                title: 'Danh sách buổi học',
-                actionText: 'Tất cả',
+                title: strings.upcomingClassList,
+                actionText: strings.all,
                 onActionTap: onClassesTap,
               ),
             ),
@@ -83,9 +87,9 @@ class StudentHomeScreen extends ConsumerWidget {
               child: state.isLoading
                   ? const _ClassListSkeleton()
                   : state.error != null
-                  ? _ErrorBanner(message: state.error!)
+                  ? _ErrorBanner(message: strings.loadDataError(state.error!))
                   : state.classes.isEmpty
-                  ? const _EmptyClasses()
+                  ? _EmptyClasses(message: strings.noUpcomingClasses)
                   : UpcomingClassListWidget(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
@@ -102,8 +106,8 @@ class StudentHomeScreen extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   SectionHeaderWidget(
-                    title: 'Giảng viên nổi bật',
-                    actionText: 'Xem thêm',
+                    title: strings.featuredTeachers,
+                    actionText: strings.seeMore,
                     onActionTap: () {},
                   ),
                   const SizedBox(height: 12),
@@ -154,7 +158,7 @@ class _ErrorBanner extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(right: 16, top: 8),
       child: Text(
-        'Không thể tải dữ liệu: $message',
+        message,
         style: TextStyle(color: Theme.of(context).colorScheme.error),
       ),
     );
@@ -162,13 +166,15 @@ class _ErrorBanner extends StatelessWidget {
 }
 
 class _EmptyClasses extends StatelessWidget {
-  const _EmptyClasses();
+  final String message;
+
+  const _EmptyClasses({required this.message});
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.only(top: 8),
-      child: Text('Chưa có lớp học sắp diễn ra.'),
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Text(message),
     );
   }
 }
@@ -180,6 +186,8 @@ class _StickyFilterDelegate extends SliverPersistentHeaderDelegate {
   final double horizontalPadding;
   final List<String> categories;
   final String selectedCategory;
+  final String allCategoryLabel;
+  final String searchHint;
   final ValueChanged<String> onCategorySelected;
   final VoidCallback? onSearchTap;
 
@@ -188,6 +196,8 @@ class _StickyFilterDelegate extends SliverPersistentHeaderDelegate {
     required this.horizontalPadding,
     required this.categories,
     required this.selectedCategory,
+    required this.allCategoryLabel,
+    required this.searchHint,
     required this.onCategorySelected,
     this.onSearchTap,
   });
@@ -219,12 +229,16 @@ class _StickyFilterDelegate extends SliverPersistentHeaderDelegate {
             SearchBarWidget(
               onTap: onSearchTap,
               readOnly: true,
-              hintText: 'Tìm người dùng hoặc nhập mã lớp',
+              hintText: searchHint,
             ),
             const SizedBox(height: 12),
             CategoryFilterWidget(
               categories: categories,
               selectedCategory: selectedCategory,
+              labelBuilder: (category) =>
+                  categories.isNotEmpty && category == categories.first
+                  ? allCategoryLabel
+                  : category,
               onCategorySelected: onCategorySelected,
             ),
           ],
@@ -238,6 +252,8 @@ class _StickyFilterDelegate extends SliverPersistentHeaderDelegate {
       categories.length != old.categories.length ||
       !_sameCategories(categories, old.categories) ||
       selectedCategory != old.selectedCategory ||
+      allCategoryLabel != old.allCategoryLabel ||
+      searchHint != old.searchHint ||
       scaffoldColor != old.scaffoldColor ||
       horizontalPadding != old.horizontalPadding;
 

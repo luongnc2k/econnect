@@ -1,3 +1,5 @@
+import 'package:client/core/localization/app_language.dart';
+import 'package:client/core/localization/language_controls.dart';
 import 'package:client/core/providers/theme_notifier.dart';
 import 'package:client/core/theme/app_pallete.dart';
 import 'package:client/features/notifications/view/widgets/notification_bell_button.dart';
@@ -6,7 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class HomeHeaderWidget extends ConsumerWidget {
-  final String greeting;
+  final String? greeting;
   final String userName;
   final String? avatarUrl;
   final VoidCallback? onNotificationTap;
@@ -14,7 +16,7 @@ class HomeHeaderWidget extends ConsumerWidget {
 
   const HomeHeaderWidget({
     super.key,
-    this.greeting = 'Chào buổi sáng,',
+    this.greeting,
     required this.userName,
     this.avatarUrl,
     this.onNotificationTap,
@@ -25,6 +27,7 @@ class HomeHeaderWidget extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = ref.watch(themeModeProvider) == ThemeMode.dark;
     final unreadCount = ref.watch(unreadNotificationsCountProvider);
+    final strings = ref.watch(appStringsProvider);
 
     return Row(
       children: [
@@ -33,18 +36,12 @@ class HomeHeaderWidget extends ConsumerWidget {
           child: CircleAvatar(
             radius: 22,
             backgroundColor: Pallete.surfaceMuted,
-            backgroundImage:
-                avatarUrl != null && avatarUrl!.isNotEmpty
-                    ? NetworkImage(avatarUrl!)
-                    : null,
-            child:
-                avatarUrl == null || avatarUrl!.isEmpty
-                    ? Icon(
-                        Icons.person,
-                        color: Pallete.iconMedium,
-                        size: 24,
-                      )
-                    : null,
+            backgroundImage: avatarUrl != null && avatarUrl!.isNotEmpty
+                ? NetworkImage(avatarUrl!)
+                : null,
+            child: avatarUrl == null || avatarUrl!.isEmpty
+                ? Icon(Icons.person, color: Pallete.iconMedium, size: 24)
+                : null,
           ),
         ),
         const SizedBox(width: 12),
@@ -53,7 +50,7 @@ class HomeHeaderWidget extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                greeting,
+                greeting ?? strings.morningGreeting,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: Pallete.accentOrange,
                   fontWeight: FontWeight.w500,
@@ -74,8 +71,11 @@ class HomeHeaderWidget extends ConsumerWidget {
         ),
         IconButton(
           onPressed: () => ref.read(themeModeProvider.notifier).toggle(),
-          icon: Icon(isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded),
+          icon: Icon(
+            isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+          ),
         ),
+        const LanguageMenuButton(),
         NotificationBellButton(
           unreadCount: unreadCount,
           onPressed: onNotificationTap,

@@ -5,6 +5,7 @@ class CategoryFilterWidget extends StatelessWidget {
   final List<String> categories;
   final String? selectedCategory;
   final ValueChanged<String>? onCategorySelected;
+  final String Function(String category)? labelBuilder;
   final EdgeInsetsGeometry padding;
   final double spacing;
 
@@ -13,6 +14,7 @@ class CategoryFilterWidget extends StatelessWidget {
     required this.categories,
     this.selectedCategory,
     this.onCategorySelected,
+    this.labelBuilder,
     this.padding = const EdgeInsets.symmetric(horizontal: 0),
     this.spacing = 8,
   });
@@ -33,7 +35,7 @@ class CategoryFilterWidget extends StatelessWidget {
                 for (int i = 0; i < categories.length; i++) ...[
                   if (i > 0) SizedBox(width: spacing),
                   _FilterChip(
-                    label: categories[i],
+                    label: labelBuilder?.call(categories[i]) ?? categories[i],
                     isSelected: categories[i] == selectedCategory,
                     onTap: () => onCategorySelected?.call(categories[i]),
                   ),

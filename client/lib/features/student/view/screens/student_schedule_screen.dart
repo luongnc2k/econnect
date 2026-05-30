@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:client/core/localization/app_language.dart';
 import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/core/router/app_router.dart';
 import 'package:client/features/schedule/view/widgets/schedule_calendar.dart';
@@ -53,6 +54,7 @@ class _StudentScheduleScreenState extends ConsumerState<StudentScheduleScreen> {
       return;
     }
 
+    final strings = ref.read(appStringsProvider);
     final resolvedPast = past ?? _showPast;
     final isSwitchingRange = past != null && past != _showPast;
     final token = ref.read(currentUserProvider)?.token;
@@ -60,7 +62,10 @@ class _StudentScheduleScreenState extends ConsumerState<StudentScheduleScreen> {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _error = 'Không tìm thấy thông tin đăng nhập';
+        _error = strings.text(
+          en: 'Could not find login information.',
+          vi: 'Không tìm thấy thông tin đăng nhập',
+        );
         _classes = const [];
       });
       return;
@@ -112,6 +117,7 @@ class _StudentScheduleScreenState extends ConsumerState<StudentScheduleScreen> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final strings = ref.watch(appStringsProvider);
     final visibleClasses = _showPast ? _selectedDateClasses() : _classes;
 
     return SafeArea(
@@ -121,7 +127,7 @@ class _StudentScheduleScreenState extends ConsumerState<StudentScheduleScreen> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
             child: Text(
-              'Lịch học',
+              strings.text(en: 'Study schedule', vi: 'Lịch học'),
               style: Theme.of(
                 context,
               ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
@@ -130,23 +136,26 @@ class _StudentScheduleScreenState extends ConsumerState<StudentScheduleScreen> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
             child: Text(
-              'Theo dõi các buổi học bạn đã đăng ký và mở lại chi tiết khi cần.',
+              strings.text(
+                en: 'Track your registered sessions and reopen details when needed.',
+                vi: 'Theo dõi các buổi học bạn đã đăng ký và mở lại chi tiết khi cần.',
+              ),
               style: TextStyle(color: cs.onSurfaceVariant, height: 1.4),
             ),
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
             child: SegmentedButton<bool>(
-              segments: const [
+              segments: [
                 ButtonSegment(
                   value: false,
-                  icon: Icon(Icons.upcoming_outlined),
-                  label: Text('Sắp học'),
+                  icon: const Icon(Icons.upcoming_outlined),
+                  label: Text(strings.text(en: 'Upcoming', vi: 'Sắp học')),
                 ),
                 ButtonSegment(
                   value: true,
-                  icon: Icon(Icons.history_rounded),
-                  label: Text('Đã học'),
+                  icon: const Icon(Icons.history_rounded),
+                  label: Text(strings.text(en: 'Completed', vi: 'Đã học')),
                 ),
               ],
               selected: {_showPast},
@@ -179,8 +188,14 @@ class _StudentScheduleScreenState extends ConsumerState<StudentScheduleScreen> {
                 Expanded(
                   child: Text(
                     _showPast
-                        ? ScheduleCalendar.selectedDateLabel(_selectedDate)
-                        : 'Buổi sắp học',
+                        ? ScheduleCalendar.selectedDateLabel(
+                            _selectedDate,
+                            strings: strings,
+                          )
+                        : strings.text(
+                            en: 'Upcoming sessions',
+                            vi: 'Buổi sắp học',
+                          ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -201,7 +216,7 @@ class _StudentScheduleScreenState extends ConsumerState<StudentScheduleScreen> {
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: Text(
-                      '${visibleClasses.length} buổi',
+                      strings.sessionCount(visibleClasses.length),
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w800,
@@ -220,7 +235,7 @@ class _StudentScheduleScreenState extends ConsumerState<StudentScheduleScreen> {
                 ? const Center(child: CircularProgressIndicator())
                 : RefreshIndicator(
                     onRefresh: () => _loadClasses(),
-                    child: _buildBody(context, visibleClasses),
+                    child: _buildBody(context, strings, visibleClasses),
                   ),
           ),
         ],
@@ -228,7 +243,11 @@ class _StudentScheduleScreenState extends ConsumerState<StudentScheduleScreen> {
     );
   }
 
-  Widget _buildBody(BuildContext context, List<ClassSession> selectedClasses) {
+  Widget _buildBody(
+    BuildContext context,
+    AppStrings strings,
+    List<ClassSession> selectedClasses,
+  ) {
     if (_error != null && _classes.isEmpty) {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -244,7 +263,10 @@ class _StudentScheduleScreenState extends ConsumerState<StudentScheduleScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Không thể tải lịch học',
+                  strings.text(
+                    en: 'Could not load study schedule',
+                    vi: 'Không thể tải lịch học',
+                  ),
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
@@ -254,7 +276,7 @@ class _StudentScheduleScreenState extends ConsumerState<StudentScheduleScreen> {
                 const SizedBox(height: 12),
                 FilledButton(
                   onPressed: () => _loadClasses(),
-                  child: const Text('Thử lại'),
+                  child: Text(strings.text(en: 'Try again', vi: 'Thử lại')),
                 ),
               ],
             ),
@@ -269,15 +291,24 @@ class _StudentScheduleScreenState extends ConsumerState<StudentScheduleScreen> {
             ? Icons.history_toggle_off_rounded
             : Icons.calendar_month_outlined,
         message: _showPast
-            ? 'Bạn chưa có buổi học đã hoàn thành.'
-            : 'Bạn chưa đăng ký buổi học nào sắp diễn ra.',
+            ? strings.text(
+                en: 'You have no completed sessions yet.',
+                vi: 'Bạn chưa có buổi học đã hoàn thành.',
+              )
+            : strings.text(
+                en: 'You have not registered for any upcoming sessions.',
+                vi: 'Bạn chưa đăng ký buổi học nào sắp diễn ra.',
+              ),
       );
     }
 
     if (selectedClasses.isEmpty) {
-      return const _EmptyScheduleMessage(
+      return _EmptyScheduleMessage(
         icon: Icons.event_available_outlined,
-        message: 'Ngày này chưa có lịch học.',
+        message: strings.text(
+          en: 'No study schedule on this date.',
+          vi: 'Ngày này chưa có lịch học.',
+        ),
       );
     }
 

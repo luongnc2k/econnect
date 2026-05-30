@@ -3,6 +3,8 @@ import 'package:client/features/student/model/class_session.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'localized_test_utils.dart';
+
 void main() {
   test('selected date label uses Vietnamese accents', () {
     expect(
@@ -23,6 +25,9 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        locale: testLocale,
+        supportedLocales: testSupportedLocales,
+        localizationsDelegates: testLocalizationsDelegates,
         home: Scaffold(
           body: Column(
             children: [
@@ -61,6 +66,9 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        locale: testLocale,
+        supportedLocales: testSupportedLocales,
+        localizationsDelegates: testLocalizationsDelegates,
         home: Scaffold(
           body: ScheduleCalendar(
             classes: [
@@ -129,6 +137,9 @@ void main() {
   ) async {
     await tester.pumpWidget(
       MaterialApp(
+        locale: testLocale,
+        supportedLocales: testSupportedLocales,
+        localizationsDelegates: testLocalizationsDelegates,
         home: Scaffold(
           body: ScheduleCalendar(
             classes: const [],

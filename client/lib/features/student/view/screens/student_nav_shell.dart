@@ -1,6 +1,7 @@
+import 'package:client/core/localization/app_language.dart';
 import 'package:client/core/router/app_router.dart';
-import 'package:client/features/search/view/screens/class_search_screen.dart';
 import 'package:client/features/profile/view/widgets/my_profile_view.dart';
+import 'package:client/features/search/view/screens/class_search_screen.dart';
 import 'package:client/features/student/view/screens/student_home_screen.dart';
 import 'package:client/features/student/view/screens/student_schedule_screen.dart';
 import 'package:flutter/material.dart';
@@ -28,6 +29,7 @@ class _StudentNavShellState extends State<StudentNavShell> {
 
   @override
   Widget build(BuildContext context) {
+    final strings = AppStrings(Localizations.localeOf(context).languageCode);
     final screens = [
       StudentHomeScreen(
         onAvatarTap: () => _selectTab(3),
@@ -44,26 +46,26 @@ class _StudentNavShellState extends State<StudentNavShell> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
         onDestinationSelected: _selectTab,
-        destinations: const [
+        destinations: [
           NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home_rounded),
-            label: 'Trang chủ',
+            icon: const Icon(Icons.home_outlined),
+            selectedIcon: const Icon(Icons.home_rounded),
+            label: strings.text(en: 'Home', vi: 'Trang chủ'),
           ),
           NavigationDestination(
-            icon: Icon(Icons.calendar_month_outlined),
-            selectedIcon: Icon(Icons.calendar_month_rounded),
-            label: 'Lịch học',
+            icon: const Icon(Icons.calendar_month_outlined),
+            selectedIcon: const Icon(Icons.calendar_month_rounded),
+            label: strings.text(en: 'Schedule', vi: 'Lịch học'),
           ),
           NavigationDestination(
-            icon: Icon(Icons.menu_book_outlined),
-            selectedIcon: Icon(Icons.menu_book_rounded),
-            label: 'Buổi học',
+            icon: const Icon(Icons.menu_book_outlined),
+            selectedIcon: const Icon(Icons.menu_book_rounded),
+            label: strings.text(en: 'Classes', vi: 'Buổi học'),
           ),
           NavigationDestination(
-            icon: Icon(Icons.person_outline_rounded),
-            selectedIcon: Icon(Icons.person_rounded),
-            label: 'Hồ sơ',
+            icon: const Icon(Icons.person_outline_rounded),
+            selectedIcon: const Icon(Icons.person_rounded),
+            label: strings.text(en: 'Profile', vi: 'Hồ sơ'),
           ),
         ],
       ),

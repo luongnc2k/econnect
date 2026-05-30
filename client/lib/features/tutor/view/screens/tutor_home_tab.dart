@@ -1,3 +1,4 @@
+import 'package:client/core/localization/app_language.dart';
 import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/core/router/app_router.dart';
 import 'package:client/core/utils.dart';
@@ -17,11 +18,11 @@ class TutorHomeTab extends ConsumerWidget {
 
   const TutorHomeTab({super.key, this.onProfileTap, this.onScheduleTap});
 
-  String _greeting() {
-    final h = DateTime.now().hour;
-    if (h < 12) return 'Chào buổi sáng,';
-    if (h < 18) return 'Chào buổi chiều,';
-    return 'Chào buổi tối,';
+  String _greeting(AppStrings strings) {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return strings.morningGreeting;
+    if (hour < 18) return strings.afternoonGreeting;
+    return strings.eveningGreeting;
   }
 
   static const _maxHomeClasses = 3;
@@ -41,11 +42,15 @@ class TutorHomeTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
     final state = ref.watch(tutorHomeViewModelProvider);
+    final strings = ref.watch(appStringsProvider);
     final hPad = responsiveHPad(context);
 
     final todayClasses = _todayClasses(state.upcomingClasses);
     final previewClasses = state.upcomingClasses.take(_maxHomeClasses).toList();
     final hasMore = state.upcomingClasses.length > _maxHomeClasses;
+    final remainingCount = hasMore
+        ? state.upcomingClasses.length - _maxHomeClasses
+        : 0;
 
     return SafeArea(
       child: RefreshIndicator(
@@ -53,13 +58,12 @@ class TutorHomeTab extends ConsumerWidget {
             ref.read(tutorHomeViewModelProvider.notifier).refresh(),
         child: CustomScrollView(
           slivers: [
-            // ── Header ──────────────────────────────────────────────
             SliverToBoxAdapter(
               child: Padding(
                 padding: EdgeInsets.fromLTRB(hPad, 16, hPad, 0),
                 child: HomeHeaderWidget(
-                  greeting: _greeting(),
-                  userName: user?.fullName ?? 'Giảng viên',
+                  greeting: _greeting(strings),
+                  userName: user?.fullName ?? strings.defaultTeacherName,
                   avatarUrl: user?.avatarUrl,
                   onAvatarTap: onProfileTap,
                   onNotificationTap: () =>
@@ -68,25 +72,24 @@ class TutorHomeTab extends ConsumerWidget {
               ),
             ),
 
-            // ── Lớp dạy hôm nay ─────────────────────────────────────
             if (!state.isLoading && todayClasses.isNotEmpty)
               SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.fromLTRB(hPad, 16, hPad, 0),
                   child: _TodayBanner(
                     classes: todayClasses,
+                    title: strings.todayClassCount(todayClasses.length),
                     onTap: onScheduleTap,
                   ),
                 ),
               ),
 
-            // ── Lớp học sắp dạy ─────────────────────────────────────
             SliverToBoxAdapter(
               child: Padding(
                 padding: EdgeInsets.fromLTRB(hPad, 4, hPad, 0),
                 child: SectionHeaderWidget(
-                  title: 'Lớp học sắp dạy',
-                  actionText: hasMore ? 'Xem tất cả' : null,
+                  title: strings.upcomingTeachingClasses,
+                  actionText: hasMore ? strings.seeAll : null,
                   onActionTap: onScheduleTap,
                 ),
               ),
@@ -103,7 +106,9 @@ class TutorHomeTab extends ConsumerWidget {
               SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.fromLTRB(hPad, 0, hPad, 0),
-                  child: _ErrorBanner(message: state.error!),
+                  child: _ErrorBanner(
+                    message: strings.loadDataError(state.error!),
+                  ),
                 ),
               )
             else if (previewClasses.isEmpty)
@@ -111,6 +116,8 @@ class TutorHomeTab extends ConsumerWidget {
                 child: Padding(
                   padding: EdgeInsets.fromLTRB(hPad, 0, hPad, 0),
                   child: _EmptyClasses(
+                    message: strings.noTeachingClasses,
+                    actionLabel: strings.createClassNow,
                     onCreateClass: () =>
                         context.push(AppRoutes.teacherCreateClass),
                   ),
@@ -132,16 +139,12 @@ class TutorHomeTab extends ConsumerWidget {
                 ),
               ),
 
-            // "Xem thêm X lớp" link
             if (hasMore)
               SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.fromLTRB(hPad, 10, hPad, 0),
                   child: _SeeMoreButton(
-                    count:
-                        state.upcomingClasses.length -
-                        todayClasses.length -
-                        _maxHomeClasses,
+                    label: strings.seeMoreClasses(remainingCount),
                     onTap: onScheduleTap,
                   ),
                 ),
@@ -154,7 +157,7 @@ class TutorHomeTab extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const SectionHeaderWidget(title: 'Giảng viên nổi bật'),
+                      SectionHeaderWidget(title: strings.featuredTeachers),
                       const SizedBox(height: 12),
                       FeaturedTeacherListWidget(
                         teachers: state.featuredTeachers,
@@ -177,8 +180,6 @@ class TutorHomeTab extends ConsumerWidget {
     );
   }
 }
-
-// ─── Skeleton ────────────────────────────────────────────────────────────────
 
 class _ClassListSkeleton extends StatelessWidget {
   const _ClassListSkeleton();
@@ -204,12 +205,16 @@ class _ClassListSkeleton extends StatelessWidget {
   }
 }
 
-// ─── Empty state ──────────────────────────────────────────────────────────────
-
 class _EmptyClasses extends StatelessWidget {
+  final String message;
+  final String actionLabel;
   final VoidCallback onCreateClass;
 
-  const _EmptyClasses({required this.onCreateClass});
+  const _EmptyClasses({
+    required this.message,
+    required this.actionLabel,
+    required this.onCreateClass,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -226,14 +231,11 @@ class _EmptyClasses extends StatelessWidget {
         children: [
           Icon(Icons.event_busy_outlined, size: 40, color: cs.onSurfaceVariant),
           const SizedBox(height: 10),
-          Text(
-            'Chưa có lớp học nào sắp dạy',
-            style: TextStyle(color: cs.onSurfaceVariant),
-          ),
+          Text(message, style: TextStyle(color: cs.onSurfaceVariant)),
           const SizedBox(height: 16),
           FilledButton.tonal(
             onPressed: onCreateClass,
-            child: const Text('Tạo buổi học ngay'),
+            child: Text(actionLabel),
           ),
         ],
       ),
@@ -241,13 +243,12 @@ class _EmptyClasses extends StatelessWidget {
   }
 }
 
-// ─── Today banner ────────────────────────────────────────────────────────────
-
 class _TodayBanner extends StatelessWidget {
   final List<ClassSession> classes;
+  final String title;
   final VoidCallback? onTap;
 
-  const _TodayBanner({required this.classes, this.onTap});
+  const _TodayBanner({required this.classes, required this.title, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -279,9 +280,7 @@ class _TodayBanner extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    classes.length == 1
-                        ? 'Hôm nay bạn có 1 lớp học'
-                        : 'Hôm nay bạn có ${classes.length} lớp học',
+                    title,
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
@@ -313,13 +312,11 @@ class _TodayBanner extends StatelessWidget {
   }
 }
 
-// ─── See more button ──────────────────────────────────────────────────────────
-
 class _SeeMoreButton extends StatelessWidget {
-  final int count;
+  final String label;
   final VoidCallback? onTap;
 
-  const _SeeMoreButton({required this.count, this.onTap});
+  const _SeeMoreButton({required this.label, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -335,7 +332,7 @@ class _SeeMoreButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(10),
         ),
         child: Text(
-          'Xem thêm $count lớp khác',
+          label,
           style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w600,
@@ -347,8 +344,6 @@ class _SeeMoreButton extends StatelessWidget {
   }
 }
 
-// ─── Error ───────────────────────────────────────────────────────────────────
-
 class _ErrorBanner extends StatelessWidget {
   final String message;
   const _ErrorBanner({required this.message});
@@ -358,7 +353,7 @@ class _ErrorBanner extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(top: 8),
       child: Text(
-        'Không thể tải dữ liệu: $message',
+        message,
         style: TextStyle(color: Theme.of(context).colorScheme.error),
       ),
     );

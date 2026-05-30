@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:client/core/failure/failure.dart';
+import 'package:client/core/localization/app_language.dart';
 import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/features/notifications/model/app_notification.dart';
 import 'package:client/features/notifications/model/notification_live_event.dart';
@@ -330,10 +331,18 @@ class NotificationsController extends Notifier<NotificationsState>
       return Left(AppFailure('Thao t\u00e1c \u0111\u00e3 b\u1ecb h\u1ee7y.'));
     }
 
+    final strings = ref.read(appStringsProvider);
     final user = ref.read(currentUserProvider);
     final classId = notification.classId;
     if (user == null || classId == null || classId.isEmpty) {
-      return Left(AppFailure('Không tìm thấy lớp học để xác nhận.'));
+      return Left(
+        AppFailure(
+          strings.text(
+            en: 'Could not find the class to confirm.',
+            vi: 'Không tìm thấy lớp học để xác nhận.',
+          ),
+        ),
+      );
     }
 
     state = state.copyWith(actionNotificationId: notification.id);

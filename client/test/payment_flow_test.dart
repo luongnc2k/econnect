@@ -27,6 +27,8 @@ import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:url_launcher_platform_interface/link.dart';
 import 'package:url_launcher_platform_interface/url_launcher_platform_interface.dart';
 
+import 'localized_test_utils.dart';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -540,7 +542,13 @@ Widget _buildApp({
       if (fakeProfileRepo != null)
         myProfileRepositoryProvider.overrideWithValue(fakeProfileRepo),
     ],
-    child: MaterialApp(theme: AppTheme.lightThemeMode, home: child),
+    child: MaterialApp(
+      locale: testLocale,
+      supportedLocales: testSupportedLocales,
+      localizationsDelegates: testLocalizationsDelegates,
+      theme: AppTheme.lightThemeMode,
+      home: child,
+    ),
   );
 }
 

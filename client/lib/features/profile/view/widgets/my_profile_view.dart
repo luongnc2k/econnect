@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:client/core/constants/server_constant.dart';
+import 'package:client/core/localization/app_language.dart';
 import 'package:client/core/router/app_router.dart';
 import 'package:client/features/auth/viewmodel/auth_viewmodel.dart';
 import 'package:client/features/profile/model/student_my_profile_model.dart';
@@ -41,13 +42,18 @@ class _MyProfileViewState extends ConsumerState<MyProfileView> {
   }
 
   Future<void> _openLink(String url) async {
+    final strings = ref.read(appStringsProvider);
     final normalized = _normalizeDocUrl(url);
     final uri = Uri.tryParse(normalized);
     if (uri == null) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Link không hợp lệ')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            strings.text(en: 'Invalid link', vi: 'Link không hợp lệ'),
+          ),
+        ),
+      );
       return;
     }
     if (!mounted) return;
@@ -64,10 +70,13 @@ class _MyProfileViewState extends ConsumerState<MyProfileView> {
                 padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
                 child: Row(
                   children: [
-                    const Expanded(
+                    Expanded(
                       child: Text(
-                        'Ảnh chứng chỉ',
-                        style: TextStyle(fontWeight: FontWeight.w600),
+                        strings.text(
+                          en: 'Certificate image',
+                          vi: 'Ảnh chứng chỉ',
+                        ),
+                        style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
                     ),
                     IconButton(
@@ -82,9 +91,14 @@ class _MyProfileViewState extends ConsumerState<MyProfileView> {
                   child: Image.network(
                     normalized,
                     fit: BoxFit.contain,
-                    errorBuilder: (_, error, stackTrace) => const Padding(
-                      padding: EdgeInsets.all(24),
-                      child: Text('Không tải được ảnh chứng chỉ'),
+                    errorBuilder: (_, error, stackTrace) => Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text(
+                        strings.text(
+                          en: 'Could not load certificate image',
+                          vi: 'Không tải được ảnh chứng chỉ',
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -113,7 +127,7 @@ class _MyProfileViewState extends ConsumerState<MyProfileView> {
         '${date.year}';
   }
 
-  List<ProfileInfoItem> _buildBankItems(Object profile) {
+  List<ProfileInfoItem> _buildBankItems(Object profile, AppStrings strings) {
     String? bankName;
     String? bankBin;
     String? bankAccountNumber;
@@ -134,16 +148,26 @@ class _MyProfileViewState extends ConsumerState<MyProfileView> {
     }
 
     return [
-      ProfileInfoItem(label: 'Ngân hàng', value: bankName ?? '--'),
-      ProfileInfoItem(label: 'Mã BIN', value: bankBin ?? '--'),
-      ProfileInfoItem(label: 'Số tài khoản', value: bankAccountNumber ?? '--'),
-      ProfileInfoItem(label: 'Chủ tài khoản', value: bankAccountHolder ?? '--'),
+      ProfileInfoItem(
+        label: strings.text(en: 'Bank', vi: 'Ngân hàng'),
+        value: bankName ?? '--',
+      ),
+      ProfileInfoItem(label: 'BIN', value: bankBin ?? '--'),
+      ProfileInfoItem(
+        label: strings.text(en: 'Account number', vi: 'Số tài khoản'),
+        value: bankAccountNumber ?? '--',
+      ),
+      ProfileInfoItem(
+        label: strings.text(en: 'Account holder', vi: 'Chủ tài khoản'),
+        value: bankAccountHolder ?? '--',
+      ),
     ];
   }
 
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(myProfileViewModelProvider);
+    final strings = ref.watch(appStringsProvider);
 
     if (state.isLoading) {
       return const Center(child: CircularProgressIndicator());
@@ -152,7 +176,10 @@ class _MyProfileViewState extends ConsumerState<MyProfileView> {
     final profile = state.profile;
     if (profile == null) {
       return Center(
-        child: Text(state.errorMessage ?? 'Không có dữ liệu hồ sơ'),
+        child: Text(
+          state.errorMessage ??
+              strings.text(en: 'No profile data', vi: 'Không có dữ liệu hồ sơ'),
+        ),
       );
     }
 
@@ -171,24 +198,32 @@ class _MyProfileViewState extends ConsumerState<MyProfileView> {
           MyProfileHeader(profile: profile),
           const SizedBox(height: 16),
           ProfileInfoCard(
-            title: 'Thông tin cá nhân',
+            title: strings.text(
+              en: 'Personal information',
+              vi: 'Thông tin cá nhân',
+            ),
             items: [
-              ProfileInfoItem(label: 'Họ và tên', value: profile.fullName),
+              ProfileInfoItem(
+                label: strings.text(en: 'Full name', vi: 'Họ và tên'),
+                value: profile.fullName,
+              ),
               ProfileInfoItem(label: 'Email', value: profile.email),
               ProfileInfoItem(
-                label: 'Số điện thoại',
+                label: strings.text(en: 'Phone number', vi: 'Số điện thoại'),
                 value: profile.phone ?? '--',
               ),
               ProfileInfoItem(
-                label: 'Trạng thái',
-                value: profile.isActive ? 'Đang hoạt động' : 'Ngừng hoạt động',
+                label: strings.text(en: 'Status', vi: 'Trạng thái'),
+                value: profile.isActive
+                    ? strings.text(en: 'Active', vi: 'Đang hoạt động')
+                    : strings.text(en: 'Inactive', vi: 'Ngừng hoạt động'),
               ),
               ProfileInfoItem(
-                label: 'Lần đăng nhập cuối',
+                label: strings.text(en: 'Last login', vi: 'Lần đăng nhập cuối'),
                 value: _formatDate(profile.lastLoginAt),
               ),
               ProfileInfoItem(
-                label: 'Ngày tạo',
+                label: strings.text(en: 'Created date', vi: 'Ngày tạo'),
                 value: _formatDate(profile.createdAt),
               ),
             ],
@@ -196,48 +231,60 @@ class _MyProfileViewState extends ConsumerState<MyProfileView> {
           const SizedBox(height: 16),
           if (profile is StudentMyProfileModel)
             ProfileInfoCard(
-              title: 'Thông tin học viên',
+              title: strings.text(
+                en: 'Student information',
+                vi: 'Thông tin học viên',
+              ),
               items: [
                 ProfileInfoItem(
-                  label: 'Trình độ',
+                  label: strings.text(en: 'Level', vi: 'Trình độ'),
                   value: profile.englishLevel ?? '--',
                 ),
                 ProfileInfoItem(
-                  label: 'Mục tiêu',
+                  label: strings.text(en: 'Goal', vi: 'Mục tiêu'),
                   value: profile.learningGoal ?? '--',
                 ),
                 ProfileInfoItem(
-                  label: 'Tổng buổi học',
+                  label: strings.text(en: 'Total lessons', vi: 'Tổng buổi học'),
                   value: profile.totalLessons.toString(),
                 ),
               ],
             ),
           if (profile is TeacherMyProfileModel)
             ProfileInfoCard(
-              title: 'Thông tin giáo viên',
+              title: strings.text(
+                en: 'Teacher information',
+                vi: 'Thông tin giáo viên',
+              ),
               items: [
                 ProfileInfoItem(
-                  label: 'Chuyên môn',
+                  label: strings.text(en: 'Specialization', vi: 'Chuyên môn'),
                   value: profile.specialization ?? '--',
                 ),
                 ProfileInfoItem(
-                  label: 'Kinh nghiệm',
-                  value: '${profile.yearsOfExperience} năm',
+                  label: strings.text(en: 'Experience', vi: 'Kinh nghiệm'),
+                  value: strings.text(
+                    en: '${profile.yearsOfExperience} years',
+                    vi: '${profile.yearsOfExperience} năm',
+                  ),
                 ),
                 ProfileInfoItem(
-                  label: 'Đánh giá',
+                  label: strings.text(en: 'Rating', vi: 'Đánh giá'),
                   value: profile.rating.toStringAsFixed(1),
                 ),
                 ProfileInfoItem(
-                  label: 'Số học viên',
+                  label: strings.text(en: 'Students', vi: 'Số học viên'),
                   value: profile.totalStudents.toString(),
                 ),
                 ProfileInfoItem(
-                  label: 'Giới thiệu',
+                  label: strings.text(en: 'Bio', vi: 'Giới thiệu'),
                   value: profile.bio ?? '--',
                 ),
                 ProfileInfoItem(
-                  label: 'Chứng chỉ / bằng cấp',
+                  label: strings.text(
+                    en: 'Certificates / degrees',
+                    vi: 'Chứng chỉ / bằng cấp',
+                  ),
                   value: profile.certifications.isEmpty
                       ? '--'
                       : profile.certifications.join(', '),
@@ -250,8 +297,11 @@ class _MyProfileViewState extends ConsumerState<MyProfileView> {
           if (profile is TeacherMyProfileModel ||
               profile is StudentMyProfileModel)
             ProfileInfoCard(
-              title: 'Tài khoản ngân hàng',
-              items: _buildBankItems(profile),
+              title: strings.text(
+                en: 'Bank account',
+                vi: 'Tài khoản ngân hàng',
+              ),
+              items: _buildBankItems(profile, strings),
             ),
           if (profile is TeacherMyProfileModel &&
               profile.verificationDocs.isNotEmpty) ...[
@@ -263,7 +313,10 @@ class _MyProfileViewState extends ConsumerState<MyProfileView> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Liên kết ảnh chứng chỉ',
+                      strings.text(
+                        en: 'Certificate image links',
+                        vi: 'Liên kết ảnh chứng chỉ',
+                      ),
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w700,
                       ),
@@ -274,7 +327,12 @@ class _MyProfileViewState extends ConsumerState<MyProfileView> {
                         alignment: Alignment.centerLeft,
                         child: TextButton(
                           onPressed: () => _openLink(entry.value),
-                          child: Text('Mở link chứng chỉ #${entry.key + 1}'),
+                          child: Text(
+                            strings.text(
+                              en: 'Open certificate link #${entry.key + 1}',
+                              vi: 'Mở link chứng chỉ #${entry.key + 1}',
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -286,7 +344,9 @@ class _MyProfileViewState extends ConsumerState<MyProfileView> {
           const SizedBox(height: 20),
           ElevatedButton(
             onPressed: () => context.push(editPath),
-            child: const Text('Chỉnh sửa hồ sơ'),
+            child: Text(
+              strings.text(en: 'Edit profile', vi: 'Chỉnh sửa hồ sơ'),
+            ),
           ),
           if (state.errorMessage != null) ...[
             const SizedBox(height: 12),
@@ -303,7 +363,7 @@ class _MyProfileViewState extends ConsumerState<MyProfileView> {
               backgroundColor: Theme.of(context).colorScheme.errorContainer,
               foregroundColor: Theme.of(context).colorScheme.onErrorContainer,
             ),
-            child: const Text('Đăng xuất'),
+            child: Text(strings.text(en: 'Sign out', vi: 'Đăng xuất')),
           ),
         ],
       ),

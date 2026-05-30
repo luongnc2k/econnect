@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:client/core/localization/app_language.dart';
 import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/core/widgets/learning_material_card.dart';
 import 'package:client/features/payments/repositories/payments_remote_repository.dart';
@@ -36,8 +37,29 @@ class _TutorClassDetailScreenState
   void initState() {
     super.initState();
     _statusLabel = widget.session.statusText;
-    _isCancelled = _statusLabel.toUpperCase() == 'HUỶ';
+    _isCancelled = _isCancelledStatus(_statusLabel);
     unawaited(_loadLatestSession());
+  }
+
+  bool _isCancelledStatus(String status) {
+    final normalized = status.toUpperCase();
+    return normalized == 'HUỶ' ||
+        normalized == 'HUY' ||
+        normalized == 'CANCELLED' ||
+        normalized == 'CANCELED';
+  }
+
+  String _localizedClassStatus(String status, AppStrings strings) {
+    final normalized = status.toUpperCase();
+    if (_isCancelledStatus(status)) {
+      return strings.text(en: 'Cancelled', vi: 'Hủy');
+    }
+    return switch (normalized) {
+      'OPEN' => strings.text(en: 'Open', vi: 'Đang mở'),
+      'DONE' || 'COMPLETED' => strings.text(en: 'Completed', vi: 'Hoàn thành'),
+      'ONGOING' => strings.text(en: 'Ongoing', vi: 'Đang diễn ra'),
+      _ => status,
+    };
   }
 
   bool get _canCancelClass {
@@ -50,7 +72,7 @@ class _TutorClassDetailScreenState
     }
 
     final normalizedStatus = _statusLabel.toUpperCase();
-    if (normalizedStatus == 'HUỶ' || normalizedStatus == 'DONE') {
+    if (_isCancelledStatus(normalizedStatus) || normalizedStatus == 'DONE') {
       return false;
     }
 
@@ -80,24 +102,30 @@ class _TutorClassDetailScreenState
         setState(() {
           _latestSession = refreshedSession;
           _statusLabel = refreshedSession.statusText;
-          _isCancelled = _statusLabel.toUpperCase() == 'HUỶ';
+          _isCancelled = _isCancelledStatus(_statusLabel);
         });
     }
   }
 
   Future<void> _confirmCancelClass() async {
+    final strings = ref.read(appStringsProvider);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
         final cs = Theme.of(dialogContext).colorScheme;
         return AlertDialog(
-          title: const Text('Hủy buổi học này?'),
+          title: Text(
+            strings.text(en: 'Cancel this class?', vi: 'Hủy buổi học này?'),
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Khi xác nhận hủy, hệ thống sẽ tự động xử lý như sau:',
+                strings.text(
+                  en: 'After you confirm cancellation, the system will automatically handle the following:',
+                  vi: 'Khi xác nhận hủy, hệ thống sẽ tự động xử lý như sau:',
+                ),
                 style: TextStyle(
                   fontSize: 14,
                   color: cs.onSurfaceVariant,
@@ -105,19 +133,32 @@ class _TutorClassDetailScreenState
                 ),
               ),
               const SizedBox(height: 12),
-              const Text('• Học viên đã đăng ký thành công sẽ được thông báo.'),
-              const SizedBox(height: 6),
-              const Text(
-                '• Học phí của các học viên đã đăng ký sẽ được hoàn lại.',
+              Text(
+                strings.text(
+                  en: '• Students with successful registrations will be notified.',
+                  vi: '• Học viên đã đăng ký thành công sẽ được thông báo.',
+                ),
               ),
               const SizedBox(height: 6),
-              const Text('• Bạn sẽ không được hoàn lại phí tạo buổi học.'),
+              Text(
+                strings.text(
+                  en: '• Tuition paid by registered students will be refunded.',
+                  vi: '• Học phí của các học viên đã đăng ký sẽ được hoàn lại.',
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                strings.text(
+                  en: '• The class creation fee will not be refunded.',
+                  vi: '• Bạn sẽ không được hoàn lại phí tạo buổi học.',
+                ),
+              ),
             ],
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text('Quay lại'),
+              child: Text(strings.text(en: 'Back', vi: 'Quay lại')),
             ),
             FilledButton(
               style: FilledButton.styleFrom(
@@ -125,7 +166,9 @@ class _TutorClassDetailScreenState
                 foregroundColor: cs.onError,
               ),
               onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: const Text('Xác nhận hủy'),
+              child: Text(
+                strings.text(en: 'Confirm cancellation', vi: 'Xác nhận hủy'),
+              ),
             ),
           ],
         );
@@ -141,7 +184,13 @@ class _TutorClassDetailScreenState
     final classId = _session.id;
     final user = ref.read(currentUserProvider);
     if (classId == null || classId.isEmpty || user == null) {
-      _showSnackBar('Không thể hủy buổi học lúc này.');
+      final strings = ref.read(appStringsProvider);
+      _showSnackBar(
+        strings.text(
+          en: 'Could not cancel this class right now.',
+          vi: 'Không thể hủy buổi học lúc này.',
+        ),
+      );
       return;
     }
 
@@ -166,14 +215,18 @@ class _TutorClassDetailScreenState
         setState(() {
           _isCancelling = false;
           _isCancelled = summary.classStatus == 'cancelled';
-          _statusLabel = _isCancelled ? 'HUỶ' : _statusLabel;
+          _statusLabel = _isCancelled ? 'cancelled' : _statusLabel;
         });
         ref.invalidate(enrolledStudentsProvider(classId));
         unawaited(
           ref.read(tutorHomeViewModelProvider.notifier).refresh(silent: true),
         );
+        final strings = ref.read(appStringsProvider);
         _showSnackBar(
-          'Đã hủy buổi học. Học viên đã đăng ký sẽ được thông báo và hoàn học phí.',
+          strings.text(
+            en: 'Class cancelled. Registered students will be notified and refunded.',
+            vi: 'Đã hủy buổi học. Học viên đã đăng ký sẽ được thông báo và hoàn học phí.',
+          ),
         );
     }
   }
@@ -187,6 +240,7 @@ class _TutorClassDetailScreenState
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final strings = ref.watch(appStringsProvider);
     final session = _session;
     final classId = session.id ?? '';
     final enrolledAsync = ref.watch(enrolledStudentsProvider(classId));
@@ -225,7 +279,7 @@ class _TutorClassDetailScreenState
                         ),
                       if (session.tags.isNotEmpty) const SizedBox(width: 8),
                       _Chip(
-                        label: _statusLabel,
+                        label: _localizedClassStatus(_statusLabel, strings),
                         color: _isCancelled
                             ? cs.errorContainer
                             : cs.secondaryContainer,
@@ -265,7 +319,10 @@ class _TutorClassDetailScreenState
                   const SizedBox(height: 24),
                   if (session.description != null &&
                       session.description!.isNotEmpty) ...[
-                    _SectionTitle(title: 'Mô tả', cs: cs),
+                    _SectionTitle(
+                      title: strings.text(en: 'Description', vi: 'Mô tả'),
+                      cs: cs,
+                    ),
                     const SizedBox(height: 8),
                     Text(
                       session.description!,
@@ -278,10 +335,18 @@ class _TutorClassDetailScreenState
                     const SizedBox(height: 24),
                   ],
                   _SectionTitle(
-                    title: 'Học viên đăng ký',
+                    title: strings.text(
+                      en: 'Registered students',
+                      vi: 'Học viên đăng ký',
+                    ),
                     trailing: enrolledAsync.maybeWhen(
                       data: (list) => Text(
-                        '${list.length} học viên',
+                        strings.text(
+                          en: list.length == 1
+                              ? '1 student'
+                              : '${list.length} students',
+                          vi: '${list.length} học viên',
+                        ),
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
@@ -308,7 +373,10 @@ class _TutorClassDetailScreenState
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
                 child: Text(
-                  'Không thể tải danh sách học viên',
+                  strings.text(
+                    en: 'Could not load the student list',
+                    vi: 'Không thể tải danh sách học viên',
+                  ),
                   style: TextStyle(color: cs.error, fontSize: 13),
                 ),
               ),
@@ -421,6 +489,7 @@ class _InfoGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final strings = AppStrings(Localizations.localeOf(context).languageCode);
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -433,14 +502,14 @@ class _InfoGrid extends StatelessWidget {
         children: [
           _InfoRow(
             icon: Icons.calendar_today_outlined,
-            label: 'Ngày',
-            value: session.dateText ?? '--',
+            label: strings.text(en: 'Date', vi: 'Ngày'),
+            value: strings.classDateText(session.dateText) ?? '--',
             cs: cs,
           ),
           const SizedBox(height: 12),
           _InfoRow(
             icon: Icons.schedule_rounded,
-            label: 'Bắt đầu',
+            label: strings.text(en: 'Start', vi: 'Bắt đầu'),
             value: session.displayStartTimeText,
             cs: cs,
           ),
@@ -448,7 +517,7 @@ class _InfoGrid extends StatelessWidget {
             const SizedBox(height: 12),
             _InfoRow(
               icon: Icons.timer_outlined,
-              label: 'Kết thúc',
+              label: strings.text(en: 'End', vi: 'Kết thúc'),
               value: session.displayEndTimeText!,
               cs: cs,
             ),
@@ -456,21 +525,21 @@ class _InfoGrid extends StatelessWidget {
           const SizedBox(height: 12),
           _InfoRow(
             icon: Icons.location_on_outlined,
-            label: 'Địa điểm',
+            label: strings.text(en: 'Location', vi: 'Địa điểm'),
             value: session.location,
             cs: cs,
           ),
           const SizedBox(height: 12),
           _InfoRow(
             icon: Icons.people_outline_rounded,
-            label: 'Học viên',
-            value: session.slotText ?? '--',
+            label: strings.text(en: 'Students', vi: 'Học viên'),
+            value: strings.classSlotText(session.slotText) ?? '--',
             cs: cs,
           ),
           const SizedBox(height: 12),
           _InfoRow(
             icon: Icons.payments_outlined,
-            label: 'Tổng học phí',
+            label: strings.text(en: 'Total tuition', vi: 'Tổng học phí'),
             value: session.totalPriceText ?? session.priceText,
             cs: cs,
           ),
@@ -529,6 +598,8 @@ class _ClassCodeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final strings = AppStrings(Localizations.localeOf(context).languageCode);
+
     if (code == null) {
       return const SizedBox.shrink();
     }
@@ -548,7 +619,7 @@ class _ClassCodeCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Mã lớp học',
+                  strings.text(en: 'Class code', vi: 'Mã lớp học'),
                   style: TextStyle(
                     fontSize: 12,
                     color: cs.onPrimaryContainer.withValues(alpha: 0.7),
@@ -574,7 +645,14 @@ class _ClassCodeCard extends StatelessWidget {
                 return;
               }
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Đã sao chép mã lớp $code')),
+                SnackBar(
+                  content: Text(
+                    strings.text(
+                      en: 'Copied class code $code',
+                      vi: 'Đã sao chép mã lớp $code',
+                    ),
+                  ),
+                ),
               );
             },
             icon: Icon(
@@ -582,7 +660,7 @@ class _ClassCodeCard extends StatelessWidget {
               size: 20,
               color: cs.onPrimaryContainer,
             ),
-            tooltip: 'Sao chép mã lớp',
+            tooltip: strings.text(en: 'Copy class code', vi: 'Sao chép mã lớp'),
           ),
         ],
       ),
@@ -605,6 +683,8 @@ class _CancelClassCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final strings = AppStrings(Localizations.localeOf(context).languageCode);
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -620,7 +700,12 @@ class _CancelClassCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            isCancelled ? 'Buổi học đã được hủy' : 'Hủy buổi học',
+            isCancelled
+                ? strings.text(
+                    en: 'This class has been cancelled',
+                    vi: 'Buổi học đã được hủy',
+                  )
+                : strings.text(en: 'Cancel class', vi: 'Hủy buổi học'),
             style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w700,
@@ -630,8 +715,14 @@ class _CancelClassCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             isCancelled
-                ? 'Các học viên đã đăng ký sẽ nhận được thông báo và hoàn lại học phí.'
-                : 'Nếu bạn hủy buổi học, các học viên đã đăng ký thành công sẽ được thông báo và hoàn lại học phí. Phí tạo buổi học sẽ không được hoàn.',
+                ? strings.text(
+                    en: 'Registered students will be notified and their tuition will be refunded.',
+                    vi: 'Các học viên đã đăng ký sẽ nhận được thông báo và hoàn lại học phí.',
+                  )
+                : strings.text(
+                    en: 'If you cancel this class, students with successful registrations will be notified and refunded. The class creation fee will not be refunded.',
+                    vi: 'Nếu bạn hủy buổi học, các học viên đã đăng ký thành công sẽ được thông báo và hoàn lại học phí. Phí tạo buổi học sẽ không được hoàn.',
+                  ),
             style: TextStyle(
               fontSize: 13,
               height: 1.5,
@@ -658,7 +749,14 @@ class _CancelClassCard extends StatelessWidget {
                       ),
                     )
                   : const Icon(Icons.cancel_outlined),
-              label: Text(isLoading ? 'Đang hủy buổi học...' : 'Hủy buổi học'),
+              label: Text(
+                isLoading
+                    ? strings.text(
+                        en: 'Cancelling class...',
+                        vi: 'Đang hủy buổi học...',
+                      )
+                    : strings.text(en: 'Cancel class', vi: 'Hủy buổi học'),
+              ),
             ),
           ],
         ],
@@ -688,6 +786,8 @@ class _StudentTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final strings = AppStrings(Localizations.localeOf(context).languageCode);
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(
@@ -725,7 +825,7 @@ class _StudentTile extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  student.statusLabel,
+                  _localizedStatusLabel(student.status, strings),
                   style: TextStyle(
                     fontSize: 12,
                     color: _statusColor(),
@@ -739,6 +839,15 @@ class _StudentTile extends StatelessWidget {
       ),
     );
   }
+
+  String _localizedStatusLabel(String status, AppStrings strings) {
+    return switch (status) {
+      'confirmed' => strings.text(en: 'Confirmed', vi: 'Đã xác nhận'),
+      'completed' => strings.text(en: 'Completed', vi: 'Hoàn thành'),
+      'no_show' => strings.text(en: 'No show', vi: 'Vắng mặt'),
+      _ => strings.text(en: 'Pending confirmation', vi: 'Chờ xác nhận'),
+    };
+  }
 }
 
 class _EmptyStudents extends StatelessWidget {
@@ -748,6 +857,8 @@ class _EmptyStudents extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final strings = AppStrings(Localizations.localeOf(context).languageCode);
+
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 28),
       decoration: BoxDecoration(
@@ -764,7 +875,10 @@ class _EmptyStudents extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'Chưa có học viên đăng ký',
+            strings.text(
+              en: 'No registered students yet',
+              vi: 'Chưa có học viên đăng ký',
+            ),
             style: TextStyle(fontSize: 13, color: cs.onSurfaceVariant),
           ),
         ],

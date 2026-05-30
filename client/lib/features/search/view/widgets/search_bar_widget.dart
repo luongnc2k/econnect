@@ -1,9 +1,10 @@
+import 'package:client/core/localization/app_language.dart';
 import 'package:client/core/theme/app_pallete.dart';
 import 'package:flutter/material.dart';
 
 class SearchBarWidget extends StatelessWidget {
   final TextEditingController? controller;
-  final String hintText;
+  final String? hintText;
   final ValueChanged<String>? onChanged;
   final VoidCallback? onTap;
   final VoidCallback? onFilterTap;
@@ -12,7 +13,7 @@ class SearchBarWidget extends StatelessWidget {
   const SearchBarWidget({
     super.key,
     this.controller,
-    this.hintText = 'Tìm kiếm lớp học, giảng viên...',
+    this.hintText,
     this.onChanged,
     this.onTap,
     this.onFilterTap,
@@ -21,6 +22,14 @@ class SearchBarWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final strings = AppStrings(Localizations.localeOf(context).languageCode);
+    final effectiveHintText =
+        hintText ??
+        strings.text(
+          en: 'Search classes, tutors...',
+          vi: 'Tìm kiếm lớp học, giảng viên...',
+        );
+
     return Container(
       height: 50,
       decoration: BoxDecoration(
@@ -31,11 +40,7 @@ class SearchBarWidget extends StatelessWidget {
       child: Row(
         children: [
           const SizedBox(width: 12),
-          Icon(
-            Icons.search,
-            size: 20,
-            color: Pallete.textSecondary,
-          ),
+          Icon(Icons.search, size: 20, color: Pallete.textSecondary),
           const SizedBox(width: 8),
           Expanded(
             child: TextField(
@@ -43,12 +48,9 @@ class SearchBarWidget extends StatelessWidget {
               onChanged: onChanged,
               onTap: onTap,
               readOnly: readOnly,
-              style: const TextStyle(
-                fontSize: 14,
-                color: Pallete.textPrimary,
-              ),
+              style: const TextStyle(fontSize: 14, color: Pallete.textPrimary),
               decoration: InputDecoration(
-                hintText: hintText,
+                hintText: effectiveHintText,
                 hintStyle: const TextStyle(
                   fontSize: 14,
                   color: Pallete.textSecondary,
@@ -62,11 +64,7 @@ class SearchBarWidget extends StatelessWidget {
             ),
           ),
           if (onFilterTap != null) ...[
-            Container(
-              width: 1,
-              height: 20,
-              color: Pallete.borderFilter,
-            ),
+            Container(width: 1, height: 20, color: Pallete.borderFilter),
             IconButton(
               onPressed: onFilterTap,
               icon: const Icon(Icons.tune_rounded),

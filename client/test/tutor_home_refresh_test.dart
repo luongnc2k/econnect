@@ -1,4 +1,5 @@
 import 'package:client/core/failure/failure.dart';
+import 'package:client/core/localization/app_language.dart';
 import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/core/theme/theme.dart';
 import 'package:client/features/auth/model/user_model.dart';
@@ -12,6 +13,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fpdart/fpdart.dart';
 
+import 'localized_test_utils.dart';
+
 void main() {
   testWidgets('tutor home refreshes silently when app resumes', (tester) async {
     final fakeTutorRepo = _FakeTutorRemoteRepository();
@@ -19,10 +22,14 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          appLocaleProvider.overrideWith(() => _TestLocaleNotifier()),
           currentUserProvider.overrideWithValue(_sampleUser()),
           tutorRemoteRepositoryProvider.overrideWithValue(fakeTutorRepo),
         ],
         child: MaterialApp(
+          locale: testLocale,
+          supportedLocales: testSupportedLocales,
+          localizationsDelegates: testLocalizationsDelegates,
           theme: AppTheme.lightThemeMode,
           home: const Scaffold(body: TutorHomeTab()),
         ),
@@ -47,6 +54,11 @@ void main() {
     expect(fakeTutorRepo.pastCalls, initialPastCalls + 1);
     expect(fakeTutorRepo.featuredCalls, initialFeaturedCalls + 1);
   });
+}
+
+class _TestLocaleNotifier extends AppLocaleNotifier {
+  @override
+  Locale build() => const Locale('vi');
 }
 
 UserModel _sampleUser() {

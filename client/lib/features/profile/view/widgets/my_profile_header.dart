@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:client/core/localization/app_language.dart';
 import 'package:client/core/utils/backend_asset_url.dart';
 import 'package:client/features/auth/model/user_model.dart';
 import 'package:client/features/profile/model/teacher_my_profile_model.dart';
@@ -23,6 +24,7 @@ class MyProfileHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final strings = AppStrings(Localizations.localeOf(context).languageCode);
     final avatar = normalizeBackendAssetUrl(profile.avatarUrl).trim();
     final hasAvatar = avatar.isNotEmpty;
 
@@ -89,7 +91,11 @@ class MyProfileHeader extends StatelessWidget {
             runSpacing: 8,
             children: [
               Chip(
-                label: Text(profile.role == 'teacher' ? 'Teacher' : 'Student'),
+                label: Text(
+                  profile.role == 'teacher'
+                      ? strings.teacherRole
+                      : strings.studentRole,
+                ),
               ),
               if (profile is TeacherMyProfileModel)
                 Chip(

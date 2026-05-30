@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:client/core/constants/server_constant.dart';
+import 'package:client/core/localization/app_language.dart';
 import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/core/router/app_router.dart';
 import 'package:client/core/utils/backend_asset_url.dart';
@@ -190,6 +191,13 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
     return false;
   }
 
+  String _bankOptionLabel(PayoutBankOption option, AppStrings strings) {
+    if (option.id == PayoutBankCatalog.manual.id) {
+      return strings.text(en: 'Manual entry', vi: 'Nhập thủ công');
+    }
+    return option.label;
+  }
+
   void _navigateToRoleHome(UserModel profile) {
     if (_handledBankSetupCompletionRedirect) {
       return;
@@ -224,6 +232,7 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
 
   Future<void> _showAvatarSourcePicker() async {
     final isDesktop = _isDesktopDevice();
+    final strings = ref.read(appStringsProvider);
 
     await showModalBottomSheet(
       context: context,
@@ -233,7 +242,12 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
             children: [
               ListTile(
                 leading: const Icon(Icons.photo_library_outlined),
-                title: const Text('Ch\u1ECDn t\u1EEB th\u01B0 vi\u1EC7n'),
+                title: Text(
+                  strings.text(
+                    en: 'Choose from library',
+                    vi: 'Chọn từ thư viện',
+                  ),
+                ),
                 onTap: () {
                   Navigator.pop(sheetContext);
                   if (mounted) {
@@ -244,7 +258,7 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
               if (!isDesktop)
                 ListTile(
                   leading: const Icon(Icons.camera_alt_outlined),
-                  title: const Text('Ch\u1EE5p \u1EA3nh'),
+                  title: Text(strings.text(en: 'Take photo', vi: 'Chụp ảnh')),
                   onTap: () {
                     Navigator.pop(sheetContext);
                     if (mounted) {
@@ -264,10 +278,14 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
 
     if (isDesktop && source == ImageSource.camera) {
       if (!mounted) return;
+      final strings = ref.read(appStringsProvider);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-            'Ch\u1EE9c n\u0103ng ch\u1EE5p \u1EA3nh ch\u01B0a h\u1ED7 tr\u1EE3 tr\u00EAn desktop',
+            strings.text(
+              en: 'Taking photos is not supported on desktop yet.',
+              vi: 'Chức năng chụp ảnh chưa hỗ trợ trên desktop',
+            ),
           ),
         ),
       );
@@ -283,10 +301,14 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
       );
     } catch (_) {
       if (!mounted) return;
+      final strings = ref.read(appStringsProvider);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-            'Kh\u00F4ng th\u1EC3 m\u1EDF tr\u00ECnh ch\u1ECDn \u1EA3nh',
+            strings.text(
+              en: 'Could not open the image picker.',
+              vi: 'Không thể mở trình chọn ảnh',
+            ),
           ),
         ),
       );
@@ -328,8 +350,18 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
       SnackBar(
         content: Text(
           success
-              ? 'C\u1EADp nh\u1EADt avatar th\u00E0nh c\u00F4ng'
-              : 'C\u1EADp nh\u1EADt avatar th\u1EA5t b\u1EA1i',
+              ? ref
+                    .read(appStringsProvider)
+                    .text(
+                      en: 'Avatar updated successfully.',
+                      vi: 'Cập nhật avatar thành công',
+                    )
+              : ref
+                    .read(appStringsProvider)
+                    .text(
+                      en: 'Avatar update failed.',
+                      vi: 'Cập nhật avatar thất bại',
+                    ),
         ),
       ),
     );
@@ -348,10 +380,14 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
       );
     } catch (_) {
       if (!mounted) return;
+      final strings = ref.read(appStringsProvider);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-            'Kh\u00F4ng th\u1EC3 m\u1EDF tr\u00ECnh ch\u1ECDn \u1EA3nh ch\u1EE9ng ch\u1EC9',
+            strings.text(
+              en: 'Could not open the certificate image picker.',
+              vi: 'Không thể mở trình chọn ảnh chứng chỉ',
+            ),
           ),
         ),
       );
@@ -379,14 +415,25 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
       SnackBar(
         content: Text(
           success
-              ? 'T\u1EA3i l\u00EAn ch\u1EE9ng ch\u1EC9 th\u00E0nh c\u00F4ng'
-              : 'T\u1EA3i l\u00EAn ch\u1EE9ng ch\u1EC9 th\u1EA5t b\u1EA1i',
+              ? ref
+                    .read(appStringsProvider)
+                    .text(
+                      en: 'Certificate uploaded successfully.',
+                      vi: 'Tải lên chứng chỉ thành công',
+                    )
+              : ref
+                    .read(appStringsProvider)
+                    .text(
+                      en: 'Certificate upload failed.',
+                      vi: 'Tải lên chứng chỉ thất bại',
+                    ),
         ),
       ),
     );
   }
 
   Future<void> _openDocument(String url) async {
+    final strings = ref.read(appStringsProvider);
     final normalized = _normalizeDocUrl(url);
     await showDialog<void>(
       context: context,
@@ -399,10 +446,13 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
               padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
               child: Row(
                 children: [
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      'Ảnh chứng chỉ',
-                      style: TextStyle(fontWeight: FontWeight.w600),
+                      strings.text(
+                        en: 'Certificate image',
+                        vi: 'Ảnh chứng chỉ',
+                      ),
+                      style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                   ),
                   IconButton(
@@ -417,9 +467,14 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
                 child: Image.network(
                   normalized,
                   fit: BoxFit.contain,
-                  errorBuilder: (_, error, stackTrace) => const Padding(
-                    padding: EdgeInsets.all(24),
-                    child: Text('Không tải được ảnh chứng chỉ'),
+                  errorBuilder: (_, error, stackTrace) => Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Text(
+                      strings.text(
+                        en: 'Could not load certificate image',
+                        vi: 'Không tải được ảnh chứng chỉ',
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -432,19 +487,27 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
   }
 
   Future<void> _deleteTutorDocument(String url, int index) async {
+    final strings = ref.read(appStringsProvider);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Xóa chứng chỉ'),
-        content: Text('Bạn có chắc muốn xóa chứng chỉ #${index + 1}?'),
+        title: Text(
+          strings.text(en: 'Delete certificate', vi: 'Xóa chứng chỉ'),
+        ),
+        content: Text(
+          strings.text(
+            en: 'Are you sure you want to delete certificate #${index + 1}?',
+            vi: 'Bạn có chắc muốn xóa chứng chỉ #${index + 1}?',
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Hủy'),
+            child: Text(strings.text(en: 'Cancel', vi: 'Hủy')),
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Xóa'),
+            child: Text(strings.text(en: 'Delete', vi: 'Xóa')),
           ),
         ],
       ),
@@ -517,7 +580,11 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
       return null;
     }
     if (value == null || value.isEmpty) {
-      return 'Vui lòng chọn ngân hàng';
+      final strings = ref.read(appStringsProvider);
+      return strings.text(
+        en: 'Please select a bank.',
+        vi: 'Vui lòng chọn ngân hàng',
+      );
     }
     return null;
   }
@@ -531,7 +598,11 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
       return null;
     }
     if (value == null || value.trim().isEmpty) {
-      return 'Vui lòng nhập $label';
+      final strings = ref.read(appStringsProvider);
+      return strings.text(
+        en: 'Please enter $label',
+        vi: 'Vui lòng nhập $label',
+      );
     }
     return null;
   }
@@ -543,10 +614,18 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
       return null;
     }
     if (value == null || value.trim().isEmpty) {
-      return 'Vui lòng nhập mã ngân hàng (BIN)';
+      final strings = ref.read(appStringsProvider);
+      return strings.text(
+        en: 'Please enter the bank code (BIN).',
+        vi: 'Vui lòng nhập mã ngân hàng (BIN)',
+      );
     }
     if (!RegExp(r'^\d{3,20}$').hasMatch(value.trim())) {
-      return 'Mã BIN phải gồm 3-20 chữ số';
+      final strings = ref.read(appStringsProvider);
+      return strings.text(
+        en: 'BIN must contain 3-20 digits.',
+        vi: 'Mã BIN phải gồm 3-20 chữ số',
+      );
     }
     return null;
   }
@@ -597,32 +676,60 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
 
   String? _bankVerificationInputError(UserModel profile) {
     if (!_supportsBankAccount(profile)) {
-      return 'Loại tài khoản hiện tại không hỗ trợ kiểm tra tài khoản ngân hàng';
+      final strings = ref.read(appStringsProvider);
+      return strings.text(
+        en: 'This account type does not support bank account verification.',
+        vi: 'Loại tài khoản hiện tại không hỗ trợ kiểm tra tài khoản ngân hàng',
+      );
     }
 
     if (_selectedPayoutBankId == null || _selectedPayoutBankId!.isEmpty) {
-      return 'Vui lòng chọn ngân hàng trước khi kiểm tra';
+      final strings = ref.read(appStringsProvider);
+      return strings.text(
+        en: 'Please select a bank before verification.',
+        vi: 'Vui lòng chọn ngân hàng trước khi kiểm tra',
+      );
     }
 
     if (_selectedPayoutBankId == PayoutBankCatalog.manual.id &&
         _bankNameController.text.trim().isEmpty) {
-      return 'Vui lòng nhập tên ngân hàng';
+      final strings = ref.read(appStringsProvider);
+      return strings.text(
+        en: 'Please enter the bank name.',
+        vi: 'Vui lòng nhập tên ngân hàng',
+      );
     }
 
     final bankBin = _bankBinController.text.trim();
     if (bankBin.isEmpty) {
-      return 'Vui lòng nhập mã ngân hàng (BIN)';
+      final strings = ref.read(appStringsProvider);
+      return strings.text(
+        en: 'Please enter the bank code (BIN).',
+        vi: 'Vui lòng nhập mã ngân hàng (BIN)',
+      );
     }
     if (!RegExp(r'^\d{3,20}$').hasMatch(bankBin)) {
-      return 'Mã BIN phải gồm 3-20 chữ số';
+      final strings = ref.read(appStringsProvider);
+      return strings.text(
+        en: 'BIN must contain 3-20 digits.',
+        vi: 'Mã BIN phải gồm 3-20 chữ số',
+      );
     }
 
     final bankAccountNumber = _bankAccountNumberController.text.trim();
     if (bankAccountNumber.isEmpty) {
-      return 'Vui lòng nhập số tài khoản';
+      final strings = ref.read(appStringsProvider);
+      return strings.text(
+        en: 'Please enter the account number.',
+        vi: 'Vui lòng nhập số tài khoản',
+      );
     }
     if (!RegExp(r'^\d{6,30}$').hasMatch(bankAccountNumber)) {
-      return 'Số tài khoản phải gồm 6-30 chữ số';
+      final strings = ref.read(appStringsProvider);
+      return strings.text(
+        en: 'Account number must contain 6-30 digits.',
+        vi: 'Số tài khoản phải gồm 6-30 chữ số',
+      );
     }
 
     return null;
@@ -723,13 +830,20 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
     if (_supportsBankAccount(latestProfile) &&
         _requiresBankDestinationVerification(latestProfile) &&
         !_hasVerifiedCurrentBankDestination()) {
+      final strings = ref.read(appStringsProvider);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             _isVerifyingBankAccount ||
                     (_bankVerificationDebounce?.isActive ?? false)
-                ? 'Vui lòng chờ hệ thống kiểm tra sơ bộ tài khoản ngân hàng với payOS trước khi lưu'
-                : 'Tài khoản ngân hàng chưa vượt qua bước kiểm tra sơ bộ với payOS. Vui lòng kiểm tra lại thông tin tài khoản',
+                ? strings.text(
+                    en: 'Please wait for the system to verify the bank account with payOS before saving.',
+                    vi: 'Vui lòng chờ hệ thống kiểm tra sơ bộ tài khoản ngân hàng với payOS trước khi lưu',
+                  )
+                : strings.text(
+                    en: 'The bank account has not passed the preliminary payOS verification. Please check the account information again.',
+                    vi: 'Tài khoản ngân hàng chưa vượt qua bước kiểm tra sơ bộ với payOS. Vui lòng kiểm tra lại thông tin tài khoản',
+                  ),
           ),
         ),
       );
@@ -816,10 +930,14 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
     if (!mounted) return;
 
     if (success) {
+      final strings = ref.read(appStringsProvider);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-            'C\u1EADp nh\u1EADt h\u1ED3 s\u01A1 th\u00E0nh c\u00F4ng',
+            strings.text(
+              en: 'Profile updated successfully.',
+              vi: 'Cập nhật hồ sơ thành công',
+            ),
           ),
         ),
       );
@@ -830,10 +948,15 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
       }
     } else {
       final error = ref.read(myProfileViewModelProvider).errorMessage;
+      final strings = ref.read(appStringsProvider);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            error ?? 'C\u1EADp nh\u1EADt h\u1ED3 s\u01A1 th\u1EA5t b\u1EA1i',
+            error ??
+                strings.text(
+                  en: 'Profile update failed.',
+                  vi: 'Cập nhật hồ sơ thất bại',
+                ),
           ),
         ),
       );
@@ -854,6 +977,7 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
     });
 
     final state = ref.watch(myProfileViewModelProvider);
+    final strings = ref.watch(appStringsProvider);
     final profile = state.profile;
     final isBankSetupOnly =
         widget.requireBankSetup &&
@@ -865,9 +989,11 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
     }
 
     if (profile == null) {
-      return const Scaffold(
+      return Scaffold(
         body: Center(
-          child: Text('Kh\u00F4ng c\u00F3 d\u1EEF li\u1EC7u h\u1ED3 s\u01A1'),
+          child: Text(
+            strings.text(en: 'No profile data', vi: 'Không có dữ liệu hồ sơ'),
+          ),
         ),
       );
     }
@@ -881,8 +1007,14 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
           automaticallyImplyLeading: !widget.requireBankSetup,
           title: Text(
             widget.requireBankSetup
-                ? 'Thiết lập tài khoản ngân hàng'
-                : 'Ch\u1EC9nh s\u1EEDa h\u1ED3 s\u01A1 c\u1EE7a t\u00F4i',
+                ? strings.text(
+                    en: 'Set up bank account',
+                    vi: 'Thiết lập tài khoản ngân hàng',
+                  )
+                : strings.text(
+                    en: 'Edit my profile',
+                    vi: 'Chỉnh sửa hồ sơ của tôi',
+                  ),
           ),
         ),
         body: SingleChildScrollView(
@@ -904,8 +1036,14 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
                     ),
                     child: Text(
                       profile is TeacherMyProfileModel
-                          ? 'Bạn cần bổ sung tài khoản ngân hàng để tiếp tục dùng tài khoản Tutor và nhận payout sau các buổi học.'
-                          : 'Bạn cần bổ sung tài khoản ngân hàng để tiếp tục dùng tài khoản Học viên và nhận hoàn tiền khi cần.',
+                          ? strings.text(
+                              en: 'Add a bank account to keep using your tutor account and receive payouts after classes.',
+                              vi: 'Bạn cần bổ sung tài khoản ngân hàng để tiếp tục dùng tài khoản Tutor và nhận payout sau các buổi học.',
+                            )
+                          : strings.text(
+                              en: 'Add a bank account to keep using your student account and receive refunds when needed.',
+                              vi: 'Bạn cần bổ sung tài khoản ngân hàng để tiếp tục dùng tài khoản Học viên và nhận hoàn tiền khi cần.',
+                            ),
                       style: TextStyle(
                         color: Theme.of(context).colorScheme.onPrimaryContainer,
                         fontWeight: FontWeight.w600,
@@ -919,10 +1057,13 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
                   const SizedBox(height: 16),
                   _buildField(
                     controller: _fullNameController,
-                    label: 'H\u1ECD v\u00E0 t\u00EAn',
+                    label: strings.text(en: 'Full name', vi: 'Họ và tên'),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
-                        return 'Vui l\u00F2ng nh\u1EADp h\u1ECD v\u00E0 t\u00EAn';
+                        return strings.text(
+                          en: 'Please enter your full name',
+                          vi: 'Vui lòng nhập họ và tên',
+                        );
                       }
                       return null;
                     },
@@ -930,19 +1071,28 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
                   const SizedBox(height: 12),
                   _buildField(
                     controller: _phoneController,
-                    label: 'S\u1ED1 \u0111i\u1EC7n tho\u1EA1i',
+                    label: strings.text(
+                      en: 'Phone number',
+                      vi: 'Số điện thoại',
+                    ),
                   ),
                   const SizedBox(height: 12),
                 ],
                 if (!isBankSetupOnly && profile is StudentMyProfileModel) ...[
                   _buildField(
                     controller: _englishLevelController,
-                    label: 'Tr\u00ECnh \u0111\u1ED9 ti\u1EBFng Anh',
+                    label: strings.text(
+                      en: 'English level',
+                      vi: 'Trình độ tiếng Anh',
+                    ),
                   ),
                   const SizedBox(height: 12),
                   _buildField(
                     controller: _learningGoalController,
-                    label: 'M\u1EE5c ti\u00EAu h\u1ECDc',
+                    label: strings.text(
+                      en: 'Learning goal',
+                      vi: 'Mục tiêu học',
+                    ),
                     maxLines: 3,
                   ),
                 ],
@@ -953,30 +1103,41 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
                 if (profile is TeacherMyProfileModel) ...[
                   if (!isBankSetupOnly) ...[
                     _buildSectionCard(
-                      title: 'Thông tin giáo viên',
+                      title: strings.text(
+                        en: 'Teacher information',
+                        vi: 'Thông tin giáo viên',
+                      ),
                       child: Column(
                         children: [
                           _buildField(
                             controller: _specializationController,
-                            label: 'Chuyên môn',
+                            label: strings.text(
+                              en: 'Specialization',
+                              vi: 'Chuyên môn',
+                            ),
                           ),
                           const SizedBox(height: 12),
                           _buildField(
                             controller: _certificationsController,
-                            label:
-                                'Chứng chỉ, bằng cấp (phân tách bằng dấu phẩy)',
+                            label: strings.text(
+                              en: 'Certificates, degrees (comma-separated)',
+                              vi: 'Chứng chỉ, bằng cấp (phân tách bằng dấu phẩy)',
+                            ),
                             maxLines: 2,
                           ),
                           const SizedBox(height: 12),
                           _buildField(
                             controller: _yearsOfExperienceController,
-                            label: 'Số năm kinh nghiệm',
+                            label: strings.text(
+                              en: 'Years of experience',
+                              vi: 'Số năm kinh nghiệm',
+                            ),
                             keyboardType: TextInputType.number,
                           ),
                           const SizedBox(height: 12),
                           _buildField(
                             controller: _bioController,
-                            label: 'Giới thiệu',
+                            label: strings.text(en: 'Bio', vi: 'Giới thiệu'),
                             maxLines: 4,
                           ),
                         ],
@@ -985,19 +1146,33 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
                     const SizedBox(height: 12),
                   ],
                   _buildSectionCard(
-                    title: 'Tài khoản ngân hàng',
+                    title: strings.text(
+                      en: 'Bank account',
+                      vi: 'Tài khoản ngân hàng',
+                    ),
                     subtitle: widget.requireBankSetup
-                        ? 'Thiết lập ngân hàng nhận payout. Nếu ngân hàng của bạn chưa có trong danh sách, hãy chuyển sang nhập thủ công.'
-                        : 'Chọn ngân hàng để app tự điền tên ngân hàng và mã BIN. Nếu ngân hàng của bạn chưa có trong danh sách, hãy chuyển sang nhập thủ công.',
+                        ? strings.text(
+                            en: 'Set up the payout bank. If your bank is not listed, switch to manual entry.',
+                            vi: 'Thiết lập ngân hàng nhận payout. Nếu ngân hàng của bạn chưa có trong danh sách, hãy chuyển sang nhập thủ công.',
+                          )
+                        : strings.text(
+                            en: 'Choose a bank so the app can autofill the bank name and BIN. If your bank is not listed, switch to manual entry.',
+                            vi: 'Chọn ngân hàng để app tự điền tên ngân hàng và mã BIN. Nếu ngân hàng của bạn chưa có trong danh sách, hãy chuyển sang nhập thủ công.',
+                          ),
                     child: Column(
                       children: [
                         DropdownButtonFormField<String>(
                           initialValue: _selectedPayoutBankId,
                           isExpanded: true,
                           decoration: InputDecoration(
-                            labelText: 'Ngân hàng nhận payout',
-                            helperText:
-                                'Danh sách đang ưu tiên các ngân hàng payout phổ biến của payOS.',
+                            labelText: strings.text(
+                              en: 'Payout bank',
+                              vi: 'Ngân hàng nhận payout',
+                            ),
+                            helperText: strings.text(
+                              en: 'The list prioritizes common payOS payout banks.',
+                              vi: 'Danh sách đang ưu tiên các ngân hàng payout phổ biến của payOS.',
+                            ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -1006,7 +1181,9 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
                               .map(
                                 (option) => DropdownMenuItem<String>(
                                   value: option.id,
-                                  child: Text(option.label),
+                                  child: Text(
+                                    _bankOptionLabel(option, strings),
+                                  ),
                                 ),
                               )
                               .toList(),
@@ -1020,7 +1197,10 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
                           Align(
                             alignment: Alignment.centerLeft,
                             child: Text(
-                              'Chọn một ngân hàng trong danh sách để app tự điền thông tin payout.',
+                              strings.text(
+                                en: 'Select a bank from the list so the app can autofill payout information.',
+                                vi: 'Chọn một ngân hàng trong danh sách để app tự điền thông tin payout.',
+                              ),
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
                           ),
@@ -1029,17 +1209,23 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
                           const SizedBox(height: 12),
                           _buildField(
                             controller: _bankNameController,
-                            label: 'Ngân hàng',
+                            label: strings.text(en: 'Bank', vi: 'Ngân hàng'),
                             validator: (value) => _validateBankRequired(
                               value,
-                              'tên ngân hàng',
+                              strings.text(
+                                en: 'bank name',
+                                vi: 'tên ngân hàng',
+                              ),
                               profile,
                             ),
                           ),
                           const SizedBox(height: 12),
                           _buildField(
                             controller: _bankBinController,
-                            label: 'Mã ngân hàng (BIN)',
+                            label: strings.text(
+                              en: 'Bank code (BIN)',
+                              vi: 'Mã ngân hàng (BIN)',
+                            ),
                             keyboardType: TextInputType.number,
                             onChanged: (_) =>
                                 _scheduleBankVerification(profile),
@@ -1049,19 +1235,25 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
                         ] else ...[
                           const SizedBox(height: 12),
                           _buildReadOnlyField(
-                            label: 'Ngân hàng',
+                            label: strings.text(en: 'Bank', vi: 'Ngân hàng'),
                             value: _bankNameController.text,
                           ),
                           const SizedBox(height: 12),
                           _buildReadOnlyField(
-                            label: 'Mã ngân hàng (BIN)',
+                            label: strings.text(
+                              en: 'Bank code (BIN)',
+                              vi: 'Mã ngân hàng (BIN)',
+                            ),
                             value: _bankBinController.text,
                           ),
                           const SizedBox(height: 8),
                           Align(
                             alignment: Alignment.centerLeft,
                             child: Text(
-                              'Thông tin payout đã được điền tự động theo ngân hàng bạn chọn.',
+                              strings.text(
+                                en: 'Payout information has been autofilled from the selected bank.',
+                                vi: 'Thông tin payout đã được điền tự động theo ngân hàng bạn chọn.',
+                              ),
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
                           ),
@@ -1069,12 +1261,18 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
                         const SizedBox(height: 12),
                         _buildField(
                           controller: _bankAccountNumberController,
-                          label: 'Số tài khoản',
+                          label: strings.text(
+                            en: 'Account number',
+                            vi: 'Số tài khoản',
+                          ),
                           keyboardType: TextInputType.number,
                           onChanged: (_) => _scheduleBankVerification(profile),
                           validator: (value) => _validateBankRequired(
                             value,
-                            'số tài khoản',
+                            strings.text(
+                              en: 'account number',
+                              vi: 'số tài khoản',
+                            ),
                             profile,
                           ),
                         ),
@@ -1082,16 +1280,24 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
                         _buildField(
                           fieldKey: const Key('bankAccountHolderField'),
                           controller: _bankAccountHolderController,
-                          label: 'Chủ tài khoản',
+                          label: strings.text(
+                            en: 'Account holder',
+                            vi: 'Chủ tài khoản',
+                          ),
                           textCapitalization: TextCapitalization.characters,
                           inputFormatters: const [
                             _BankAccountHolderInputFormatter(),
                           ],
-                          helperText:
-                              'Nhập tên chủ tài khoản bằng CHỮ IN HOA, KHÔNG DẤU.',
+                          helperText: strings.text(
+                            en: 'Enter the account holder name in uppercase without accents.',
+                            vi: 'Nhập tên chủ tài khoản bằng CHỮ IN HOA, KHÔNG DẤU.',
+                          ),
                           validator: (value) => _validateBankRequired(
                             value,
-                            'chủ tài khoản',
+                            strings.text(
+                              en: 'account holder',
+                              vi: 'chủ tài khoản',
+                            ),
                             profile,
                           ),
                         ),
@@ -1099,7 +1305,10 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
                         Align(
                           alignment: Alignment.centerLeft,
                           child: Text(
-                            'Hệ thống sẽ tự kiểm tra sơ bộ tài khoản nhận payout với payOS sau khi bạn nhập đủ mã BIN và số tài khoản.',
+                            strings.text(
+                              en: 'The system will run a preliminary payOS check after you enter the BIN and account number.',
+                              vi: 'Hệ thống sẽ tự kiểm tra sơ bộ tài khoản nhận payout với payOS sau khi bạn nhập đủ mã BIN và số tài khoản.',
+                            ),
                             style: Theme.of(context).textTheme.bodySmall,
                           ),
                         ),
@@ -1127,8 +1336,11 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
                             ? null
                             : _uploadTutorDocument,
                         icon: const Icon(Icons.file_upload_outlined),
-                        label: const Text(
-                          'T\u1EA3i \u1EA3nh ch\u1EE9ng ch\u1EC9 / b\u1EB1ng c\u1EA5p',
+                        label: Text(
+                          strings.text(
+                            en: 'Upload certificate / degree image',
+                            vi: 'Tải ảnh chứng chỉ / bằng cấp',
+                          ),
                         ),
                       ),
                     ),
@@ -1141,7 +1353,10 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Chứng chỉ đã tải lên',
+                                strings.text(
+                                  en: 'Uploaded certificates',
+                                  vi: 'Chứng chỉ đã tải lên',
+                                ),
                                 style: Theme.of(context).textTheme.titleMedium,
                               ),
                               const SizedBox(height: 8),
@@ -1160,7 +1375,10 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
                                         child: Align(
                                           alignment: Alignment.centerLeft,
                                           child: Text(
-                                            'Chứng chỉ #${entry.key + 1}',
+                                            strings.text(
+                                              en: 'Certificate #${entry.key + 1}',
+                                              vi: 'Chứng chỉ #${entry.key + 1}',
+                                            ),
                                           ),
                                         ),
                                       ),
@@ -1172,7 +1390,10 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
                                               entry.value,
                                               entry.key,
                                             ),
-                                      tooltip: 'Xóa chứng chỉ',
+                                      tooltip: strings.text(
+                                        en: 'Delete certificate',
+                                        vi: 'Xóa chứng chỉ',
+                                      ),
                                       icon: isDeleting
                                           ? const SizedBox(
                                               width: 18,
@@ -1222,14 +1443,23 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
   }
 
   Widget _buildBankAccountSection(UserModel profile) {
+    final strings = AppStrings(Localizations.localeOf(context).languageCode);
     final isTeacher = profile is TeacherMyProfileModel;
-    final dropdownLabel = isTeacher ? 'Ngân hàng nhận payout' : 'Ngân hàng';
+    final dropdownLabel = isTeacher
+        ? strings.text(en: 'Payout bank', vi: 'Ngân hàng nhận payout')
+        : strings.text(en: 'Bank', vi: 'Ngân hàng');
     final subtitle = widget.requireBankSetup && isTeacher
-        ? 'Thiết lập ngân hàng nhận payout. Nếu ngân hàng của bạn chưa có trong danh sách, hãy chuyển sang nhập thủ công.'
-        : 'Chọn ngân hàng để app tự điền tên ngân hàng và mã BIN. Nếu ngân hàng của bạn chưa có trong danh sách, hãy chuyển sang nhập thủ công.';
+        ? strings.text(
+            en: 'Set up the payout bank. If your bank is not listed, switch to manual entry.',
+            vi: 'Thiết lập ngân hàng nhận payout. Nếu ngân hàng của bạn chưa có trong danh sách, hãy chuyển sang nhập thủ công.',
+          )
+        : strings.text(
+            en: 'Choose a bank so the app can autofill the bank name and BIN. If your bank is not listed, switch to manual entry.',
+            vi: 'Chọn ngân hàng để app tự điền tên ngân hàng và mã BIN. Nếu ngân hàng của bạn chưa có trong danh sách, hãy chuyển sang nhập thủ công.',
+          );
 
     return _buildSectionCard(
-      title: 'Tài khoản ngân hàng',
+      title: strings.text(en: 'Bank account', vi: 'Tài khoản ngân hàng'),
       subtitle: subtitle,
       child: Column(
         children: [
@@ -1238,8 +1468,10 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
             isExpanded: true,
             decoration: InputDecoration(
               labelText: dropdownLabel,
-              helperText:
-                  'Danh sách đang ưu tiên các ngân hàng phổ biến mà app đã cấu hình sẵn.',
+              helperText: strings.text(
+                en: 'The list prioritizes common banks configured in the app.',
+                vi: 'Danh sách đang ưu tiên các ngân hàng phổ biến mà app đã cấu hình sẵn.',
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -1248,7 +1480,7 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
                 .map(
                   (option) => DropdownMenuItem<String>(
                     value: option.id,
-                    child: Text(option.label),
+                    child: Text(_bankOptionLabel(option, strings)),
                   ),
                 )
                 .toList(),
@@ -1260,7 +1492,10 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
             Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                'Chọn một ngân hàng trong danh sách để app tự điền thông tin tài khoản.',
+                strings.text(
+                  en: 'Select a bank from the list so the app can autofill account information.',
+                  vi: 'Chọn một ngân hàng trong danh sách để app tự điền thông tin tài khoản.',
+                ),
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
@@ -1268,14 +1503,20 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
             const SizedBox(height: 12),
             _buildField(
               controller: _bankNameController,
-              label: 'Ngân hàng',
-              validator: (value) =>
-                  _validateBankRequired(value, 'tên ngân hàng', profile),
+              label: strings.text(en: 'Bank', vi: 'Ngân hàng'),
+              validator: (value) => _validateBankRequired(
+                value,
+                strings.text(en: 'bank name', vi: 'tên ngân hàng'),
+                profile,
+              ),
             ),
             const SizedBox(height: 12),
             _buildField(
               controller: _bankBinController,
-              label: 'Mã ngân hàng (BIN)',
+              label: strings.text(
+                en: 'Bank code (BIN)',
+                vi: 'Mã ngân hàng (BIN)',
+              ),
               keyboardType: TextInputType.number,
               onChanged: (_) => _scheduleBankVerification(profile),
               validator: (value) => _validateManualBankBin(value, profile),
@@ -1283,19 +1524,25 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
           ] else ...[
             const SizedBox(height: 12),
             _buildReadOnlyField(
-              label: 'Ngân hàng',
+              label: strings.text(en: 'Bank', vi: 'Ngân hàng'),
               value: _bankNameController.text,
             ),
             const SizedBox(height: 12),
             _buildReadOnlyField(
-              label: 'Mã ngân hàng (BIN)',
+              label: strings.text(
+                en: 'Bank code (BIN)',
+                vi: 'Mã ngân hàng (BIN)',
+              ),
               value: _bankBinController.text,
             ),
             const SizedBox(height: 8),
             Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                'Thông tin ngân hàng đã được điền tự động theo ngân hàng bạn chọn.',
+                strings.text(
+                  en: 'Bank information has been autofilled from the selected bank.',
+                  vi: 'Thông tin ngân hàng đã được điền tự động theo ngân hàng bạn chọn.',
+                ),
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
@@ -1303,28 +1550,40 @@ class _EditMyProfileScreenState extends ConsumerState<EditMyProfileScreen> {
           const SizedBox(height: 12),
           _buildField(
             controller: _bankAccountNumberController,
-            label: 'Số tài khoản',
+            label: strings.text(en: 'Account number', vi: 'Số tài khoản'),
             keyboardType: TextInputType.number,
             onChanged: (_) => _scheduleBankVerification(profile),
-            validator: (value) =>
-                _validateBankRequired(value, 'số tài khoản', profile),
+            validator: (value) => _validateBankRequired(
+              value,
+              strings.text(en: 'account number', vi: 'số tài khoản'),
+              profile,
+            ),
           ),
           const SizedBox(height: 12),
           _buildField(
             fieldKey: const Key('bankAccountHolderField'),
             controller: _bankAccountHolderController,
-            label: 'Chủ tài khoản',
+            label: strings.text(en: 'Account holder', vi: 'Chủ tài khoản'),
             textCapitalization: TextCapitalization.characters,
             inputFormatters: const [_BankAccountHolderInputFormatter()],
-            helperText: 'Nhập tên chủ tài khoản bằng CHỮ IN HOA, KHÔNG DẤU.',
-            validator: (value) =>
-                _validateBankRequired(value, 'chủ tài khoản', profile),
+            helperText: strings.text(
+              en: 'Enter the account holder name in uppercase without accents.',
+              vi: 'Nhập tên chủ tài khoản bằng CHỮ IN HOA, KHÔNG DẤU.',
+            ),
+            validator: (value) => _validateBankRequired(
+              value,
+              strings.text(en: 'account holder', vi: 'chủ tài khoản'),
+              profile,
+            ),
           ),
           const SizedBox(height: 8),
           Align(
             alignment: Alignment.centerLeft,
             child: Text(
-              'Hệ thống sẽ tự kiểm tra sơ bộ tài khoản ngân hàng với payOS sau khi bạn nhập đủ mã BIN và số tài khoản.',
+              strings.text(
+                en: 'The system will run a preliminary payOS check after you enter the BIN and account number.',
+                vi: 'Hệ thống sẽ tự kiểm tra sơ bộ tài khoản ngân hàng với payOS sau khi bạn nhập đủ mã BIN và số tài khoản.',
+              ),
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ),

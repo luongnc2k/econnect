@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:client/core/localization/app_language.dart';
 import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/core/router/app_router.dart';
 import 'package:client/features/auth/model/user_model.dart';
@@ -9,9 +10,9 @@ import 'package:client/features/student/model/class_session.dart';
 import 'package:client/features/student/repositories/student_remote_repository.dart';
 import 'package:client/features/student/view/widgets/upcoming_classlist_widget.dart';
 import 'package:client/testing/manual_test_mocks.dart';
-import 'package:fpdart/fpdart.dart' show Left, Right;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fpdart/fpdart.dart' show Left, Right;
 import 'package:go_router/go_router.dart';
 
 class UserSearchScreen extends ConsumerStatefulWidget {
@@ -137,13 +138,15 @@ class _UserSearchScreenState extends ConsumerState<UserSearchScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final strings = ref.watch(appStringsProvider);
+
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
           onPressed: () => _handleBack(context),
           icon: const Icon(Icons.arrow_back_rounded),
         ),
-        title: const Text('Tìm kiếm'),
+        title: Text(strings.text(en: 'Search', vi: 'Tìm kiếm')),
       ),
       body: SafeArea(
         child: Padding(
@@ -152,22 +155,32 @@ class _UserSearchScreenState extends ConsumerState<UserSearchScreen> {
             children: [
               SearchBarWidget(
                 controller: _controller,
-                hintText: 'Tìm người dùng hoặc nhập mã lớp',
+                hintText: strings.searchUsersOrClassCode,
                 onChanged: _scheduleSearch,
               ),
               const SizedBox(height: 16),
               Expanded(
                 child: _controller.text.trim().isEmpty
-                    ? const Center(
+                    ? Center(
                         child: Text(
-                          'Nhập tên, số điện thoại hoặc mã lớp để tìm',
+                          strings.text(
+                            en: 'Enter a name, phone number, or class code to search',
+                            vi: 'Nhập tên, số điện thoại hoặc mã lớp để tìm',
+                          ),
                         ),
                       )
                     : _isLoading
                     ? const Center(child: CircularProgressIndicator())
                     : _activeMode == 'class'
                     ? _classResults.isEmpty
-                          ? const Center(child: Text('Không tìm thấy lớp học'))
+                          ? Center(
+                              child: Text(
+                                strings.text(
+                                  en: 'No classes found',
+                                  vi: 'Không tìm thấy lớp học',
+                                ),
+                              ),
+                            )
                           : UpcomingClassListWidget(
                               classes: _classResults,
                               onClassTap: (session) => context.push(
@@ -176,7 +189,14 @@ class _UserSearchScreenState extends ConsumerState<UserSearchScreen> {
                               ),
                             )
                     : _results.isEmpty
-                    ? const Center(child: Text('Không tìm thấy người dùng'))
+                    ? Center(
+                        child: Text(
+                          strings.text(
+                            en: 'No users found',
+                            vi: 'Không tìm thấy người dùng',
+                          ),
+                        ),
+                      )
                     : ListView.separated(
                         itemCount: _results.length,
                         separatorBuilder: (_, _) => const SizedBox(height: 12),
@@ -204,7 +224,9 @@ class _UserSearchScreenState extends ConsumerState<UserSearchScreen> {
                             title: Text(user.fullName),
                             subtitle: Text(user.phone ?? user.email),
                             trailing: Text(
-                              user.role == 'teacher' ? 'Tutor' : 'Student',
+                              user.role == 'teacher'
+                                  ? strings.teacherRole
+                                  : strings.studentRole,
                             ),
                             onTap: () => context.push(
                               AppRoutes.userProfile.replaceFirst(

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:client/core/failure/failure.dart';
+import 'package:client/core/localization/app_language.dart';
 import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/features/payments/model/payment_transaction_status.dart';
 import 'package:client/features/payments/repositories/payments_remote_repository.dart';
@@ -68,13 +69,19 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
   static const _maxConsecutivePollErrors = 3;
   static const _maxMaterialFileBytes = 3 * 1024 * 1024;
   static const _allowedMaterialExtensions = {'pdf', 'doc', 'docx'};
-  static const _draftChangedMessage =
-      'Thông tin buổi học đã thay đổi. App sẽ tạo mã thanh toán mới để lưu đúng nội dung.';
 
-  static const _levels = [
-    ('beginner', 'Cơ bản'),
-    ('intermediate', 'Trung cấp'),
-    ('advanced', 'Nâng cao'),
+  String get _draftChangedMessage {
+    final strings = ref.read(appStringsProvider);
+    return strings.text(
+      en: 'Class information has changed. The app will create a new payment code to save the correct details.',
+      vi: 'Thông tin buổi học đã thay đổi. App sẽ tạo mã thanh toán mới để lưu đúng nội dung.',
+    );
+  }
+
+  List<(String, String)> _localizedLevels(AppStrings strings) => [
+    ('beginner', strings.text(en: 'Beginner', vi: 'Cơ bản')),
+    ('intermediate', strings.text(en: 'Intermediate', vi: 'Trung cấp')),
+    ('advanced', strings.text(en: 'Advanced', vi: 'Nâng cao')),
   ];
 
   LearningLocation? get _selectedLocation {
@@ -208,9 +215,12 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
   Future<void> _loadLearningLocations() async {
     final token = ref.read(currentUserProvider)?.token;
     if (token == null) {
+      final strings = ref.read(appStringsProvider);
       setState(() {
-        _locationError =
-            'Vui lòng đăng nhập lại để tải danh sách địa điểm học.';
+        _locationError = strings.text(
+          en: 'Please sign in again to load learning locations.',
+          vi: 'Vui lòng đăng nhập lại để tải danh sách địa điểm học.',
+        );
         _selectedLocationId = null;
         _locations = const [];
         _isLoadingLocations = false;
@@ -248,8 +258,12 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
           _selectedLocationId = selectedStillExists
               ? _selectedLocationId
               : null;
+          final strings = ref.read(appStringsProvider);
           _locationError = locations.isEmpty
-              ? 'Chưa tải được danh sách địa điểm học. Vui lòng thử lại.'
+              ? strings.text(
+                  en: 'Could not load learning locations. Please try again.',
+                  vi: 'Chưa tải được danh sách địa điểm học. Vui lòng thử lại.',
+                )
               : null;
         });
     }
@@ -339,20 +353,38 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
     final fileName = file.name.trim();
     final extension = _fileExtension(fileName);
     if (!_allowedMaterialExtensions.contains(extension)) {
-      _showMessage('Chỉ hỗ trợ tài liệu PDF, DOC hoặc DOCX.');
+      final strings = ref.read(appStringsProvider);
+      _showMessage(
+        strings.text(
+          en: 'Only PDF, DOC, or DOCX materials are supported.',
+          vi: 'Chỉ hỗ trợ tài liệu PDF, DOC hoặc DOCX.',
+        ),
+      );
       return;
     }
 
     final fileSize = await _resolvePickedMaterialSize(file);
     if (fileSize != null && fileSize >= _maxMaterialFileBytes) {
-      _showMessage('Tài liệu phải nhỏ hơn 3 MB.');
+      final strings = ref.read(appStringsProvider);
+      _showMessage(
+        strings.text(
+          en: 'The material must be smaller than 3 MB.',
+          vi: 'Tài liệu phải nhỏ hơn 3 MB.',
+        ),
+      );
       return;
     }
 
     final bytes = file.bytes;
     final path = kIsWeb ? null : file.path;
     if (bytes == null && (path == null || path.trim().isEmpty)) {
-      _showMessage('Không đọc được tài liệu đã chọn.');
+      final strings = ref.read(appStringsProvider);
+      _showMessage(
+        strings.text(
+          en: 'Could not read the selected material.',
+          vi: 'Không đọc được tài liệu đã chọn.',
+        ),
+      );
       return;
     }
 
@@ -416,21 +448,30 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
   }
 
   Future<bool> _confirmCreationPaymentDisclaimer() async {
+    final strings = ref.read(appStringsProvider);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Xác nhận trước khi thanh toán'),
-        content: const Text(
-          'Sau khi thanh toán sẽ không được hoàn phí tạo lớp nếu hủy lớp. Bạn có muốn tiếp tục không?',
+        title: Text(
+          strings.text(
+            en: 'Confirm before payment',
+            vi: 'Xác nhận trước khi thanh toán',
+          ),
+        ),
+        content: Text(
+          strings.text(
+            en: 'After payment, the class creation fee is non-refundable if you cancel the class. Do you want to continue?',
+            vi: 'Sau khi thanh toán sẽ không được hoàn phí tạo lớp nếu hủy lớp. Bạn có muốn tiếp tục không?',
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Quay lại'),
+            child: Text(strings.text(en: 'Back', vi: 'Quay lại')),
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Tôi đã hiểu'),
+            child: Text(strings.text(en: 'I understand', vi: 'Tôi đã hiểu')),
           ),
         ],
       ),
@@ -445,50 +486,66 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
     }
 
     if (_isLoadingLocations) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Danh sách địa điểm đang được tải, vui lòng chờ một chút.',
-          ),
+      final strings = ref.read(appStringsProvider);
+      _showMessage(
+        strings.text(
+          en: 'Learning locations are loading. Please wait a moment.',
+          vi: 'Danh sách địa điểm đang được tải, vui lòng chờ một chút.',
         ),
       );
       return;
     }
 
     if (_selectedLocationId == null || _selectedLocationId!.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Vui lòng chọn địa điểm học do hệ thống cung cấp.'),
+      final strings = ref.read(appStringsProvider);
+      _showMessage(
+        strings.text(
+          en: 'Please select a learning location provided by the system.',
+          vi: 'Vui lòng chọn địa điểm học do hệ thống cung cấp.',
         ),
       );
       return;
     }
 
     if (_startTime == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng chọn giờ bắt đầu')),
+      final strings = ref.read(appStringsProvider);
+      _showMessage(
+        strings.text(
+          en: 'Please select a start time.',
+          vi: 'Vui lòng chọn giờ bắt đầu',
+        ),
       );
       return;
     }
 
     if (_endTime == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng chọn giờ kết thúc')),
+      final strings = ref.read(appStringsProvider);
+      _showMessage(
+        strings.text(
+          en: 'Please select an end time.',
+          vi: 'Vui lòng chọn giờ kết thúc',
+        ),
       );
       return;
     }
 
     if (!_endTime!.isAfter(_startTime!)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Giờ kết thúc phải sau giờ bắt đầu')),
+      final strings = ref.read(appStringsProvider);
+      _showMessage(
+        strings.text(
+          en: 'End time must be after start time.',
+          vi: 'Giờ kết thúc phải sau giờ bắt đầu',
+        ),
       );
       return;
     }
 
     if (!_startTime!.isAfter(DateTime.now())) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Giờ bắt đầu phải sau thời điểm hiện tại'),
+      final strings = ref.read(appStringsProvider);
+      _showMessage(
+        strings.text(
+          en: 'Start time must be after the current time.',
+          vi: 'Giờ bắt đầu phải sau thời điểm hiện tại',
         ),
       );
       return;
@@ -497,9 +554,11 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
     final minParticipants = int.tryParse(_minParticipantsController.text) ?? 1;
     final maxParticipants = int.tryParse(_maxParticipantsController.text) ?? 0;
     if (maxParticipants < minParticipants) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Số học viên tối đa phải lớn hơn hoặc bằng tối thiểu'),
+      final strings = ref.read(appStringsProvider);
+      _showMessage(
+        strings.text(
+          en: 'Maximum students must be greater than or equal to the minimum.',
+          vi: 'Số học viên tối đa phải lớn hơn hoặc bằng tối thiểu',
         ),
       );
       return;
@@ -553,7 +612,13 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
 
     final redirectUrl = payment.redirectUrl;
     if (redirectUrl == null || redirectUrl.isEmpty) {
-      _showMessage('Không nhận được URL thanh toán phí tạo lớp từ hệ thống.');
+      final strings = ref.read(appStringsProvider);
+      _showMessage(
+        strings.text(
+          en: 'The system did not return a class creation payment URL.',
+          vi: 'Không nhận được URL thanh toán phí tạo lớp từ hệ thống.',
+        ),
+      );
       return;
     }
 
@@ -581,8 +646,12 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
     if (!launched) {
       _stopPolling();
       _awaitingExternalPaymentReturn = false;
+      final strings = ref.read(appStringsProvider);
       _showMessage(
-        'Kh\u00f4ng m\u1edf \u0111\u01b0\u1ee3c c\u1ed5ng thanh to\u00e1n. Vui l\u00f2ng th\u1eed l\u1ea1i.',
+        strings.text(
+          en: 'Could not open the payment gateway. Please try again.',
+          vi: 'Không mở được cổng thanh toán. Vui lòng thử lại.',
+        ),
       );
       return;
     }
@@ -595,8 +664,12 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
     final transaction = _transaction;
     final redirectUrl = transaction?.redirectUrl;
     if (transaction == null || redirectUrl == null || redirectUrl.isEmpty) {
+      final strings = ref.read(appStringsProvider);
       _showMessage(
-        'Kh\u00f4ng t\u00ecm th\u1ea5y link thanh to\u00e1n \u0111\u1ec3 m\u1edf l\u1ea1i.',
+        strings.text(
+          en: 'Could not find a payment link to reopen.',
+          vi: 'Không tìm thấy link thanh toán để mở lại.',
+        ),
       );
       return;
     }
@@ -634,8 +707,12 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
       _pollAttempts += 1;
       if (_pollAttempts > _maxPollAttempts) {
         _stopPolling();
+        final strings = ref.read(appStringsProvider);
         _showMessage(
-          'Đã hết thời gian đợi kết quả thanh toán. Bạn hãy mở lại trạng thái giao dịch sau.',
+          strings.text(
+            en: 'Timed out while waiting for the payment result. Please reopen the transaction status later.',
+            vi: 'Đã hết thời gian đợi kết quả thanh toán. Bạn hãy mở lại trạng thái giao dịch sau.',
+          ),
         );
         return;
       }
@@ -694,16 +771,24 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
           await _handleTransactionStatusUpdate(status);
           if (mounted && !status.isTerminal) {
             _stopPolling();
+            final strings = ref.read(appStringsProvider);
             _showMessage(
-              'B\u1ea1n \u0111\u00e3 \u0111\u00f3ng c\u1eeda s\u1ed5 thanh to\u00e1n. App s\u1ebd d\u1eebng ch\u1edd k\u1ebft qu\u1ea3; b\u1ea1n c\u00f3 th\u1ec3 b\u1ea5m "Ti\u1ebfp t\u1ee5c thanh to\u00e1n t\u1ea1o l\u1edbp" \u0111\u1ec3 m\u1edf l\u1ea1i QR.',
+              strings.text(
+                en: 'You closed the payment window. The app will stop waiting; tap "Continue class creation payment" to reopen the QR code.',
+                vi: 'Bạn đã đóng cửa sổ thanh toán. App sẽ dừng chờ kết quả; bạn có thể bấm "Tiếp tục thanh toán tạo lớp" để mở lại QR.',
+              ),
             );
           }
           break;
         case Left():
           _stopPolling();
           if (mounted) {
+            final strings = ref.read(appStringsProvider);
             _showMessage(
-              'B\u1ea1n \u0111\u00e3 \u0111\u00f3ng c\u1eeda s\u1ed5 thanh to\u00e1n. App s\u1ebd d\u1eebng ch\u1edd k\u1ebft qu\u1ea3; b\u1ea1n c\u00f3 th\u1ec3 b\u1ea5m "Ti\u1ebfp t\u1ee5c thanh to\u00e1n t\u1ea1o l\u1edbp" \u0111\u1ec3 m\u1edf l\u1ea1i QR.',
+              strings.text(
+                en: 'You closed the payment window. The app will stop waiting; tap "Continue class creation payment" to reopen the QR code.',
+                vi: 'Bạn đã đóng cửa sổ thanh toán. App sẽ dừng chờ kết quả; bạn có thể bấm "Tiếp tục thanh toán tạo lớp" để mở lại QR.',
+              ),
             );
           }
           break;
@@ -751,16 +836,24 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
       if (!mounted) {
         return;
       }
+      final strings = ref.read(appStringsProvider);
       _showMessage(
-        'Thanh to\u00e1n th\u00e0nh c\u00f4ng, bu\u1ed5i h\u1ecdc \u0111\u00e3 \u0111\u01b0\u1ee3c t\u1ea1o.',
+        strings.text(
+          en: 'Payment successful. The class has been created.',
+          vi: 'Thanh toán thành công, buổi học đã được tạo.',
+        ),
       );
       context.pop();
       return;
     }
 
+    final strings = ref.read(appStringsProvider);
     _showMessage(
       status.message ??
-          'Thanh to\u00e1n ph\u00ed t\u1ea1o l\u1edbp kh\u00f4ng th\u00e0nh c\u00f4ng.',
+          strings.text(
+            en: 'Class creation payment was unsuccessful.',
+            vi: 'Thanh toán phí tạo lớp không thành công.',
+          ),
     );
   }
 
@@ -786,14 +879,22 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
   Widget build(BuildContext context) {
     final vmState = ref.watch(createClassViewModelProvider);
     final colorScheme = Theme.of(context).colorScheme;
+    final strings = ref.watch(appStringsProvider);
+    final levels = _localizedLevels(strings);
     final canResumePendingPayment =
         _pendingPaymentMatchesCurrentDraft && !_pollingPayment;
     final shouldShowTransactionStatus =
         _transaction != null &&
         (!_hasPendingPaymentTransaction || _pendingPaymentMatchesCurrentDraft);
     final primaryActionLabel = canResumePendingPayment
-        ? 'Ti\u1ebfp t\u1ee5c thanh to\u00e1n t\u1ea1o l\u1edbp'
-        : 'T\u1ea1o bu\u1ed5i h\u1ecdc v\u00e0 thanh to\u00e1n';
+        ? strings.text(
+            en: 'Continue class creation payment',
+            vi: 'Tiếp tục thanh toán tạo lớp',
+          )
+        : strings.text(
+            en: 'Create class and pay',
+            vi: 'Tạo buổi học và thanh toán',
+          );
 
     ref.listen(createClassViewModelProvider, (_, next) {
       if (next.error == null) {
@@ -810,7 +911,12 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
     });
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Tạo buổi học mới'), centerTitle: true),
+      appBar: AppBar(
+        title: Text(
+          strings.text(en: 'Create new class', vi: 'Tạo buổi học mới'),
+        ),
+        centerTitle: true,
+      ),
       body: Form(
         key: _formKey,
         child: ListView(
@@ -822,22 +928,36 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
               onPick: _pickThumbnail,
             ),
             const SizedBox(height: 20),
-            const _SectionLabel('Thông tin buổi học'),
+            _SectionLabel(
+              strings.text(en: 'Class information', vi: 'Thông tin buổi học'),
+            ),
             const SizedBox(height: 12),
             _FormField(
               fieldKey: const ValueKey('create-class-title'),
               controller: _titleController,
-              label: 'Tiêu đề buổi học *',
-              hint: 'Ví dụ: Luyện giao tiếp tiếng Anh cơ bản',
+              label: strings.text(
+                en: 'Class title *',
+                vi: 'Tiêu đề buổi học *',
+              ),
+              hint: strings.text(
+                en: 'Example: Basic English conversation practice',
+                vi: 'Ví dụ: Luyện giao tiếp tiếng Anh cơ bản',
+              ),
               maxLength: 100,
               inputFormatters: [LengthLimitingTextInputFormatter(100)],
               validator: (value) {
                 final trimmed = value?.trim() ?? '';
                 if (trimmed.isEmpty) {
-                  return 'Không được để trống';
+                  return strings.text(
+                    en: 'Required',
+                    vi: 'Không được để trống',
+                  );
                 }
                 if (trimmed.length > 100) {
-                  return 'Tiêu đề buổi học không được quá 100 ký tự';
+                  return strings.text(
+                    en: 'Class title must not exceed 100 characters',
+                    vi: 'Tiêu đề buổi học không được quá 100 ký tự',
+                  );
                 }
                 return null;
               },
@@ -846,17 +966,26 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
             _FormField(
               fieldKey: const ValueKey('create-class-topic'),
               controller: _topicController,
-              label: 'Chủ đề buổi học *',
-              hint: 'Ví dụ: Giao tiếp cho người đi làm',
+              label: strings.text(en: 'Class topic *', vi: 'Chủ đề buổi học *'),
+              hint: strings.text(
+                en: 'Example: Business conversation',
+                vi: 'Ví dụ: Giao tiếp cho người đi làm',
+              ),
               maxLength: 100,
               inputFormatters: [LengthLimitingTextInputFormatter(100)],
               validator: (value) {
                 final trimmed = value?.trim() ?? '';
                 if (trimmed.isEmpty) {
-                  return 'Không được để trống';
+                  return strings.text(
+                    en: 'Required',
+                    vi: 'Không được để trống',
+                  );
                 }
                 if (trimmed.length > 100) {
-                  return 'Chủ đề buổi học không được quá 100 ký tự';
+                  return strings.text(
+                    en: 'Class topic must not exceed 100 characters',
+                    vi: 'Chủ đề buổi học không được quá 100 ký tự',
+                  );
                 }
                 return null;
               },
@@ -864,7 +993,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
             const SizedBox(height: 12),
             _LevelDropdown(
               selected: _selectedLevel,
-              levels: _levels,
+              levels: levels,
               onChanged: (value) {
                 _handleDraftChanged();
                 setState(() => _selectedLevel = value!);
@@ -874,21 +1003,32 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
             _FormField(
               fieldKey: const ValueKey('create-class-description'),
               controller: _descriptionController,
-              label: 'Mô tả (tùy chọn)',
-              hint: 'Nội dung sẽ học, mục tiêu buổi học, yêu cầu học viên...',
+              label: strings.text(
+                en: 'Description (optional)',
+                vi: 'Mô tả (tùy chọn)',
+              ),
+              hint: strings.text(
+                en: 'What students will learn, class goals, student requirements...',
+                vi: 'Nội dung sẽ học, mục tiêu buổi học, yêu cầu học viên...',
+              ),
               maxLines: 3,
               maxLength: 300,
               inputFormatters: [LengthLimitingTextInputFormatter(300)],
               validator: (value) {
                 final trimmed = value?.trim() ?? '';
                 if (trimmed.length > 300) {
-                  return 'Mô tả không được quá 300 ký tự';
+                  return strings.text(
+                    en: 'Description must not exceed 300 characters',
+                    vi: 'Mô tả không được quá 300 ký tự',
+                  );
                 }
                 return null;
               },
             ),
             const SizedBox(height: 20),
-            const _SectionLabel('Tài liệu buổi học'),
+            _SectionLabel(
+              strings.text(en: 'Class material', vi: 'Tài liệu buổi học'),
+            ),
             const SizedBox(height: 12),
             _MaterialPicker(
               fileName: _materialFileName,
@@ -897,7 +1037,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
               onRemove: _clearMaterial,
             ),
             const SizedBox(height: 20),
-            const _SectionLabel('Địa điểm'),
+            _SectionLabel(strings.text(en: 'Location', vi: 'Địa điểm')),
             const SizedBox(height: 12),
             _LocationSection(
               locations: _locations,
@@ -912,13 +1052,13 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
               },
             ),
             const SizedBox(height: 20),
-            const _SectionLabel('Thời gian'),
+            _SectionLabel(strings.text(en: 'Time', vi: 'Thời gian')),
             const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
                   child: _DateTimeButton(
-                    label: 'Bắt đầu *',
+                    label: strings.text(en: 'Start *', vi: 'Bắt đầu *'),
                     value: _startTime,
                     onTap: () => _pickDateTime(isStart: true),
                   ),
@@ -926,7 +1066,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
                 const SizedBox(width: 12),
                 Expanded(
                   child: _DateTimeButton(
-                    label: 'Kết thúc *',
+                    label: strings.text(en: 'End *', vi: 'Kết thúc *'),
                     value: _endTime,
                     onTap: () => _pickDateTime(isStart: false),
                   ),
@@ -934,7 +1074,12 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
               ],
             ),
             const SizedBox(height: 20),
-            const _SectionLabel('Học viên và học phí'),
+            _SectionLabel(
+              strings.text(
+                en: 'Students and tuition',
+                vi: 'Học viên và học phí',
+              ),
+            ),
             const SizedBox(height: 12),
             Row(
               children: [
@@ -942,13 +1087,13 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
                   child: _FormField(
                     fieldKey: const ValueKey('create-class-min-participants'),
                     controller: _minParticipantsController,
-                    label: 'Tối thiểu *',
+                    label: strings.text(en: 'Minimum *', vi: 'Tối thiểu *'),
                     keyboardType: TextInputType.number,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     validator: (value) {
                       final parsed = int.tryParse(value ?? '');
                       if (parsed == null || parsed < 1) {
-                        return 'Tối thiểu 1';
+                        return strings.text(en: 'Minimum 1', vi: 'Tối thiểu 1');
                       }
                       return null;
                     },
@@ -959,13 +1104,13 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
                   child: _FormField(
                     fieldKey: const ValueKey('create-class-max-participants'),
                     controller: _maxParticipantsController,
-                    label: 'Tối đa *',
+                    label: strings.text(en: 'Maximum *', vi: 'Tối đa *'),
                     keyboardType: TextInputType.number,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     validator: (value) {
                       final parsed = int.tryParse(value ?? '');
                       if (parsed == null || parsed < 1) {
-                        return 'Tối thiểu 1';
+                        return strings.text(en: 'Minimum 1', vi: 'Tối thiểu 1');
                       }
                       return null;
                     },
@@ -977,14 +1122,23 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
             _FormField(
               fieldKey: const ValueKey('create-class-price'),
               controller: _priceController,
-              label: 'Tổng học phí buổi học (VNĐ) *',
-              hint: 'Ví dụ: 200000 cho cả lớp',
+              label: strings.text(
+                en: 'Total class tuition (VND) *',
+                vi: 'Tổng học phí buổi học (VNĐ) *',
+              ),
+              hint: strings.text(
+                en: 'Example: 200000 for the whole class',
+                vi: 'Ví dụ: 200000 cho cả lớp',
+              ),
               keyboardType: TextInputType.number,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               validator: (value) {
                 final parsed = double.tryParse(value ?? '');
                 if (parsed == null || parsed < 0) {
-                  return 'Học phí không hợp lệ';
+                  return strings.text(
+                    en: 'Invalid tuition amount',
+                    vi: 'Học phí không hợp lệ',
+                  );
                 }
                 return null;
               },
@@ -1006,7 +1160,10 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen>
                     )
                   : Text(
                       _pollingPayment
-                          ? 'Đang chờ thanh toán phí tạo lớp...'
+                          ? strings.text(
+                              en: 'Waiting for class creation payment...',
+                              vi: 'Đang chờ thanh toán phí tạo lớp...',
+                            )
                           : primaryActionLabel,
                       style: const TextStyle(fontSize: 16),
                     ),
@@ -1141,19 +1298,28 @@ class _LocationSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final strings = AppStrings(Localizations.localeOf(context).languageCode);
 
     if (isLoading) {
-      return const _StatusCard(
+      return _StatusCard(
         icon: Icons.location_searching_rounded,
-        message: 'Đang tải danh sách địa điểm học...',
+        message: strings.text(
+          en: 'Loading learning locations...',
+          vi: 'Đang tải danh sách địa điểm học...',
+        ),
       );
     }
 
     if (locations.isEmpty) {
       return _StatusCard(
         icon: Icons.location_off_outlined,
-        message: error ?? 'Chưa có địa điểm học khả dụng.',
-        actionLabel: 'Tải lại',
+        message:
+            error ??
+            strings.text(
+              en: 'No learning locations are available.',
+              vi: 'Chưa có địa điểm học khả dụng.',
+            ),
+        actionLabel: strings.text(en: 'Reload', vi: 'Tải lại'),
         onPressed: onRetry,
       );
     }
@@ -1164,9 +1330,12 @@ class _LocationSection extends StatelessWidget {
         DropdownButtonFormField<String>(
           key: ValueKey('location-$selectedLocationId-${locations.length}'),
           initialValue: selectedLocationId,
-          decoration: const InputDecoration(
-            labelText: 'Địa điểm học *',
-            border: OutlineInputBorder(),
+          decoration: InputDecoration(
+            labelText: strings.text(
+              en: 'Learning location *',
+              vi: 'Địa điểm học *',
+            ),
+            border: const OutlineInputBorder(),
           ),
           items: locations
               .map(
@@ -1179,7 +1348,10 @@ class _LocationSection extends StatelessWidget {
           onChanged: onChanged,
           validator: (value) {
             if (value == null || value.isEmpty) {
-              return 'Vui lòng chọn địa điểm học';
+              return strings.text(
+                en: 'Please select a learning location.',
+                vi: 'Vui lòng chọn địa điểm học',
+              );
             }
             return null;
           },
@@ -1242,7 +1414,9 @@ class _LocationSection extends StatelessWidget {
         TextButton.icon(
           onPressed: onRetry,
           icon: const Icon(Icons.refresh_rounded),
-          label: const Text('Tải lại địa điểm'),
+          label: Text(
+            strings.text(en: 'Reload locations', vi: 'Tải lại địa điểm'),
+          ),
         ),
       ],
     );
@@ -1305,18 +1479,18 @@ class _PaymentStatusCard extends StatelessWidget {
     required this.isPolling,
   });
 
-  String _labelForStatus(String status) {
+  String _labelForStatus(String status, AppStrings strings) {
     switch (status) {
       case 'pending':
-        return 'Đang chờ thanh toán';
+        return strings.text(en: 'Pending payment', vi: 'Đang chờ thanh toán');
       case 'paid':
-        return 'Đã thanh toán';
+        return strings.text(en: 'Paid', vi: 'Đã thanh toán');
       case 'released':
-        return 'Đã đối soát';
+        return strings.text(en: 'Released', vi: 'Đã đối soát');
       case 'failed':
-        return 'Thanh toán thất bại';
+        return strings.text(en: 'Payment failed', vi: 'Thanh toán thất bại');
       case 'refunded':
-        return 'Đã hoàn tiền';
+        return strings.text(en: 'Refunded', vi: 'Đã hoàn tiền');
       default:
         return status;
     }
@@ -1325,6 +1499,7 @@ class _PaymentStatusCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final strings = AppStrings(Localizations.localeOf(context).languageCode);
 
     return Container(
       width: double.infinity,
@@ -1338,17 +1513,32 @@ class _PaymentStatusCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Trạng thái thanh toán',
+            strings.text(en: 'Payment status', vi: 'Trạng thái thanh toán'),
             style: Theme.of(
               context,
             ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 8),
-          Text('Mã giao dịch: ${transaction.transactionRef}'),
+          Text(
+            strings.text(
+              en: 'Transaction code: ${transaction.transactionRef}',
+              vi: 'Mã giao dịch: ${transaction.transactionRef}',
+            ),
+          ),
           const SizedBox(height: 4),
-          Text('Trạng thái: ${_labelForStatus(transaction.status)}'),
+          Text(
+            strings.text(
+              en: 'Status: ${_labelForStatus(transaction.status, strings)}',
+              vi: 'Trạng thái: ${_labelForStatus(transaction.status, strings)}',
+            ),
+          ),
           const SizedBox(height: 4),
-          Text('Số tiền: ${transaction.amount} VND'),
+          Text(
+            strings.text(
+              en: 'Amount: ${transaction.amount} VND',
+              vi: 'Số tiền: ${transaction.amount} VND',
+            ),
+          ),
           if (transaction.message != null &&
               transaction.message!.trim().isNotEmpty) ...[
             const SizedBox(height: 8),
@@ -1424,11 +1614,13 @@ class _LevelDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final strings = AppStrings(Localizations.localeOf(context).languageCode);
+
     return DropdownButtonFormField<String>(
       initialValue: selected,
-      decoration: const InputDecoration(
-        labelText: 'Trình độ *',
-        border: OutlineInputBorder(),
+      decoration: InputDecoration(
+        labelText: strings.text(en: 'Level *', vi: 'Trình độ *'),
+        border: const OutlineInputBorder(),
       ),
       items: levels
           .map(
@@ -1462,6 +1654,7 @@ class _DateTimeButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final strings = AppStrings(Localizations.localeOf(context).languageCode);
 
     return InkWell(
       onTap: onTap,
@@ -1473,7 +1666,9 @@ class _DateTimeButton extends StatelessWidget {
           suffixIcon: const Icon(Icons.calendar_month_outlined),
         ),
         child: Text(
-          value != null ? _format(value!) : 'Chọn ngày giờ',
+          value != null
+              ? _format(value!)
+              : strings.text(en: 'Select date and time', vi: 'Chọn ngày giờ'),
           style: TextStyle(
             color: value != null ? null : colorScheme.onSurfaceVariant,
           ),
@@ -1510,13 +1705,22 @@ class _MaterialPicker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final title = _hasFile ? 'Đã chọn tài liệu' : 'Tài liệu học (tùy chọn)';
+    final strings = AppStrings(Localizations.localeOf(context).languageCode);
+    final title = _hasFile
+        ? strings.text(en: 'Material selected', vi: 'Đã chọn tài liệu')
+        : strings.text(
+            en: 'Learning material (optional)',
+            vi: 'Tài liệu học (tùy chọn)',
+          );
     final subtitle = _hasFile
         ? [
             fileName!.trim(),
             if (fileSize != null) _formatFileSize(fileSize!),
           ].join(' · ')
-        : 'PDF, DOC hoặc DOCX, dưới 3 MB.';
+        : strings.text(
+            en: 'PDF, DOC, or DOCX, under 3 MB.',
+            vi: 'PDF, DOC hoặc DOCX, dưới 3 MB.',
+          );
 
     return Container(
       width: double.infinity,
@@ -1571,7 +1775,10 @@ class _MaterialPicker extends StatelessWidget {
               ),
               if (_hasFile)
                 IconButton(
-                  tooltip: 'Xóa tài liệu',
+                  tooltip: strings.text(
+                    en: 'Remove material',
+                    vi: 'Xóa tài liệu',
+                  ),
                   onPressed: onRemove,
                   icon: const Icon(Icons.close_rounded),
                 ),
@@ -1586,7 +1793,11 @@ class _MaterialPicker extends StatelessWidget {
               icon: Icon(
                 _hasFile ? Icons.swap_horiz_rounded : Icons.upload_file_rounded,
               ),
-              label: Text(_hasFile ? 'Đổi tài liệu' : 'Chọn tài liệu'),
+              label: Text(
+                _hasFile
+                    ? strings.text(en: 'Change material', vi: 'Đổi tài liệu')
+                    : strings.text(en: 'Choose material', vi: 'Chọn tài liệu'),
+              ),
             ),
           ),
         ],
@@ -1609,6 +1820,7 @@ class _ThumbnailPicker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final strings = AppStrings(Localizations.localeOf(context).languageCode);
     final filePath = thumbnailFilePath?.trim();
     ImageProvider? imageProvider;
     if (thumbnailBytes != null) {
@@ -1641,7 +1853,10 @@ class _ThumbnailPicker extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Thêm ảnh bìa (tùy chọn)',
+                    strings.text(
+                      en: 'Add cover image (optional)',
+                      vi: 'Thêm ảnh bìa (tùy chọn)',
+                    ),
                     style: TextStyle(color: colorScheme.onSurfaceVariant),
                   ),
                 ],
