@@ -16,6 +16,13 @@
 # Backend environment files
 server/.env
 
+# FCM / Firebase credentials
+client/android/app/google-services.json
+client/ios/Runner/GoogleService-Info.plist
+client/.env.fcm
+server/secrets/
+server/fcm-service-account*.json
+
 
 
 # Flutter repo-specific
