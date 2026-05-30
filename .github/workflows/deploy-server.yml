@@ -68,4 +68,6 @@ jobs:
             --update-secrets="JWT_SECRET=JWT_SECRET:latest,DATABASE_URL=DATABASE_URL:latest,ADMIN_CREATE_SECRET=ADMIN_CREATE_SECRET:latest,PAYOS_CLIENT_ID=PAYOS_CLIENT_ID:latest,PAYOS_API_KEY=PAYOS_API_KEY:latest,PAYOS_CHECKSUM_KEY=PAYOS_CHECKSUM_KEY:latest,PAYOS_PAYOUT_CLIENT_ID=PAYOS_PAYOUT_CLIENT_ID:latest,PAYOS_PAYOUT_API_KEY=PAYOS_PAYOUT_API_KEY:latest,PAYOS_PAYOUT_CHECKSUM_KEY=PAYOS_PAYOUT_CHECKSUM_KEY:latest,PAYOS_PAYOUT_PARTNER_CODE=PAYOS_PAYOUT_PARTNER_CODE:latest" \
             --allow-unauthenticated \
             --min-instances 0 \
-            --max-instances 10
+            --max-instances 10 \
+            --vpc-connector econnect-connector \
+            --vpc-egress all-traffic
