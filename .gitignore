@@ -7,6 +7,8 @@
 # Miscellaneous
 *.class
 *.lock
+# Flutter app: commit lockfile de CI/build dung dung version da resolve (tranh codegen skew)
+!client/pubspec.lock
 *.log
 *.pyc
 *.swp
