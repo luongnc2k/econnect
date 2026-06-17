@@ -1,0 +1,82 @@
+name: Build App
+
+on:
+  push:
+    branches:
+      - "ci/**"
+  workflow_dispatch:
+    inputs:
+      server_url:
+        description: "SERVER_URL truyen vao app luc build"
+        required: true
+        default: "https://econnect-server-6uhpsgm7fq-as.a.run.app"
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: client
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build release APK
+        run: flutter build apk --release --dart-define=SERVER_URL=${{ inputs.server_url }}
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: econnect-android-apk
+          path: client/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+
+  ios:
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: client
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # Build khong ky (chua co Apple Developer cert/profile). Chi xac minh build compile duoc.
+      # Khi co chung chi ky, doi sang "flutter build ipa" + buoc nap cert/provisioning.
+      - name: Build iOS (no codesign)
+        run: flutter build ios --release --no-codesign --dart-define=SERVER_URL=${{ inputs.server_url }}
+
+      - name: Package unsigned .app
+        run: |
+          cd build/ios/iphoneos
+          zip -ry Runner-unsigned.zip Runner.app
+
+      - name: Upload iOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: econnect-ios-unsigned
+          path: client/build/ios/iphoneos/Runner-unsigned.zip
+          if-no-files-found: error
