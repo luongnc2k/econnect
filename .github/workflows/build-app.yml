@@ -69,14 +69,18 @@ jobs:
       - name: Build iOS (no codesign)
         run: flutter build ios --release --no-codesign --dart-define=SERVER_URL=${{ inputs.server_url }}
 
-      - name: Package unsigned .app
+      # Dong goi thanh .ipa dung chuan (Payload/Runner.app) de SideStore/Sideloadly
+      # tu ky bang Apple ID free. .ipa nay chua ky -> phai sideload, khong cai thang.
+      - name: Package unsigned .ipa
         run: |
           cd build/ios/iphoneos
-          zip -ry Runner-unsigned.zip Runner.app
+          mkdir -p Payload
+          cp -R Runner.app Payload/
+          zip -ry econnect-unsigned.ipa Payload
 
       - name: Upload iOS artifact
         uses: actions/upload-artifact@v4
         with:
           name: econnect-ios-unsigned
-          path: client/build/ios/iphoneos/Runner-unsigned.zip
+          path: client/build/ios/iphoneos/econnect-unsigned.ipa
           if-no-files-found: error
